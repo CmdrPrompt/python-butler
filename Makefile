@@ -74,7 +74,8 @@ branch-task:
 	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
 	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
 	CMD=$$(grep '\*\*Switch/create:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
-	[ -n "$$CMD" ] || (echo "No **Switch/create:** line found in $$TASK_FILE"; exit 1); \
+	[ -n "$$CMD" ] || CMD=$$(grep '\*\*Branch:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
+	[ -n "$$CMD" ] || (echo "No **Switch/create:** or **Branch:** line found in $$TASK_FILE"; exit 1); \
 	echo "Running: $$CMD"; \
 	if eval "$$CMD"; then true; else \
 		ALT=$$(echo "$$CMD" | sed 's/^git checkout -b /git checkout /'); \
@@ -126,6 +127,7 @@ pr-task:
 	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
 	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
 	CMD=$$(grep '\*\*Switch/create:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
+	[ -n "$$CMD" ] || CMD=$$(grep '\*\*Branch:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
 	if [ -n "$$CMD" ]; then \
 		eval "$$CMD" || eval "$$(echo "$$CMD" | sed 's/^git checkout -b /git checkout /')"; \
 	fi; \
