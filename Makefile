@@ -56,6 +56,7 @@ setup:
 install:
 	uv sync --extra dev
 	uv run pre-commit install
+	@[ -f CLAUDE.md ] || $(MAKE) generate-governance-files
 	@echo "✓ Environment ready"
 
 ## Run linters
