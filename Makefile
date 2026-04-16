@@ -225,7 +225,9 @@ generate-governance-files:
 			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
 			.butler/templates/$$agent.agent.md.tmpl > .github/agents/$$agent.agent.md; \
 	done
-	@echo "✓ Generated CLAUDE.md, .github/copilot-instructions.md, and .github/agents/"
+	@mkdir -p .claude/agents
+	@cp .butler/.claude/agents/*.agent.md .claude/agents/
+	@echo "✓ Generated CLAUDE.md, .github/copilot-instructions.md, .github/agents/, and .claude/agents/"
 
 ## Remove generated complexipy artifacts
 clean-complexity:
