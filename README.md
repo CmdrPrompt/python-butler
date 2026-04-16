@@ -32,7 +32,8 @@ git subtree push --prefix=.commons \
 
 ## Governance files
 
-Generate `CLAUDE.md`, `.github/copilot-instructions.md`, and Copilot agents:
+`make install` generates `CLAUDE.md`, `.github/copilot-instructions.md`, and Copilot agents
+automatically on first run using default values. To customise, run afterwards:
 
 ```bash
 make generate-governance-files \
