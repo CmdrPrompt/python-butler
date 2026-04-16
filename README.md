@@ -1,4 +1,4 @@
-# python-commons
+# python-butler
 
 Shared infrastructure for Python projects — Makefile targets and AI agents for spec-driven, TDD development.
 
@@ -15,18 +15,18 @@ Run all commands from **your project's root**.
 ```bash
 # Add (one-time)
 git subtree add --prefix=.commons \
-  https://github.com/CmdrPrompt/python-commons.git main --squash
+  https://github.com/CmdrPrompt/python-butler.git main --squash
 
 # Include in your Makefile
 echo 'include .commons/Makefile' >> Makefile
 
 # Pull updates later
 git subtree pull --prefix=.commons \
-  https://github.com/CmdrPrompt/python-commons.git main --squash
+  https://github.com/CmdrPrompt/python-butler.git main --squash
 
 # Contribute changes back
 git subtree push --prefix=.commons \
-  https://github.com/CmdrPrompt/python-commons.git main
+  https://github.com/CmdrPrompt/python-butler.git main
 # No push access? Push to a fork and open a PR against main instead.
 ```
 
