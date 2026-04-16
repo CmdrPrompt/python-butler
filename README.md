@@ -7,6 +7,7 @@ Shared infrastructure for Python projects — Makefile targets and AI agents for
 - **`Makefile`** — linting, testing, and task workflow targets built on [uv](https://github.com/astral-sh/uv)
 - **`.claude/agents/`** — Claude Code agents
 - **`templates/`** — templates for `CLAUDE.md`, Copilot instructions, and Copilot agents
+- **`scaffold/`** — project scaffolding templates (e.g. `pyproject.toml`)
 
 ## Adopting in a project
 

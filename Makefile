@@ -1,6 +1,7 @@
 .PHONY: all help setup install lint fix stage branch-task stage-task commit-task \
         pr-task merge-pr stage-current-task commit-current-task pr-current-task \
-	merge-current-task test clean clean-complexity generate-governance-files
+	merge-current-task test clean clean-complexity generate-governance-files \
+	generate-pyproject
 
 TASKS_DIR ?= docs/tasks
 SRC_DIR ?= src
@@ -47,6 +48,14 @@ help:
 	@echo "    make merge-current-task      -- Squash-merge PR, pull main"
 	@echo ""
 
+## Generate pyproject.toml from template if missing
+generate-pyproject:
+	@sed \
+		-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
+		-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
+		.butler/scaffold/pyproject.toml.tmpl > pyproject.toml
+	@echo "✓ Generated pyproject.toml"
+
 ## Install uv if missing (run once per machine)
 setup:
 	@which uv > /dev/null 2>&1 && echo "✓ uv already installed" || \
@@ -54,6 +63,7 @@ setup:
 
 ## Create virtual environment and install dependencies
 install:
+	@[ -f pyproject.toml ] || $(MAKE) generate-pyproject
 	uv sync --extra dev
 	uv run pre-commit install
 	@[ -f CLAUDE.md ] || $(MAKE) generate-governance-files
