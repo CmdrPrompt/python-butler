@@ -3,13 +3,14 @@
 	merge-current-task test clean clean-complexity generate-governance-files
 
 TASKS_DIR ?= docs/tasks
-PROJECT_NAME ?= firefly-bank-importer
-PROJECT_DESCRIPTION ?= This project imports bank transactions from CSV exports (SEB, ICA, Nordea) into a [Firefly III](https://www.firefly-iii.org/) instance via its REST API.
-REQUIREMENTS_PATH ?= docs/REQUIREMENTS_import_firefly.md
-WORKFLOW_GUARDIAN_NAME ?= Firefly Workflow Guardian
-WORKFLOW_GUARDIAN_REF ?= Workflow Guardian agent (`.github/agents/firefly-workflow-guardian.agent.md`)
-BUG_TRIAGE_NAME ?= Firefly Bug Triage
-PROJECT_MAKE_TARGET ?= make web -- start firefly-import-web on http://127.0.0.1:8000
+SRC_DIR ?= src
+PROJECT_NAME ?= my-project
+PROJECT_DESCRIPTION ?= Describe your project here.
+REQUIREMENTS_PATH ?= docs/REQUIREMENTS.md
+WORKFLOW_GUARDIAN_NAME ?= Workflow Guardian
+WORKFLOW_GUARDIAN_REF ?= Workflow Guardian agent (`.github/agents/workflow-guardian.agent.md`)
+BUG_TRIAGE_NAME ?= Bug Triage
+PROJECT_MAKE_TARGET ?= make help
 GUIDELINES_TITLE ?= Python Development Guidelines
 
 all: help
@@ -30,7 +31,7 @@ help:
 	@echo "    make test     -- Run pytest with coverage"
 	@echo ""
 	@echo "  Governance templates:"
-	@echo "    make generate-governance-files  -- Generate CLAUDE.md and .github/copilot-instructions.md"
+	@echo "    make generate-governance-files  -- Generate CLAUDE.md, .github/copilot-instructions.md, and .github/chatmodes/"
 	@echo ""
 	@echo "  Task workflow (explicit task ID):"
 	@echo "    make branch-task f=TASK-001  -- Create/switch to task branch"
@@ -61,12 +62,13 @@ install:
 lint:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run mypy src/
-	uv run bandit -r src/ -c pyproject.toml
+	uv run mypy $(SRC_DIR)/
+	uv run bandit -r $(SRC_DIR)/ -c pyproject.toml
 	uv run pymarkdown --config .pymarkdown scan \
 		$(shell find . -name "*.md" -not -path "./.venv/*" -not -path "./.github/*" -not -path "./.commons/.github/*")
-	uv run complexipy src/ -mx 15 -s desc -j || \
-		(uv run python scripts/explain_complexipy_failures.py --max 15 && exit 1)
+	uv run complexipy $(SRC_DIR)/ -mx 15 -s desc -j || \
+		([ -f scripts/explain_complexipy_failures.py ] && \
+			uv run python scripts/explain_complexipy_failures.py --max 15; exit 1)
 
 ## Auto-fix ruff and pymarkdown issues
 fix:
@@ -187,11 +189,11 @@ merge-current-task:
 
 ## Run tests with coverage
 test:
-	uv run pytest --cov=src --cov-report=term-missing
+	uv run pytest --cov=$(SRC_DIR) --cov-report=term-missing
 
 ## Generate project governance files from .commons templates
 generate-governance-files:
-	@mkdir -p .github
+	@mkdir -p .github .github/agents
 	@sed \
 		-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
 		-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
@@ -207,7 +209,12 @@ generate-governance-files:
 		-e 's|{{WORKFLOW_GUARDIAN_REF}}|$(WORKFLOW_GUARDIAN_REF)|g' \
 		-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
 		.commons/templates/copilot-instructions.md.tmpl > .github/copilot-instructions.md
-	@echo "✓ Generated CLAUDE.md and .github/copilot-instructions.md"
+	@for agent in workflow-guardian implementation-worker bug-triage characterization-test-writer requirements-drafter pr-reviewer dependency-auditor; do \
+		sed \
+			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
+			.commons/templates/$$agent.agent.md.tmpl > .github/agents/$$agent.agent.md; \
+	done
+	@echo "✓ Generated CLAUDE.md, .github/copilot-instructions.md, and .github/agents/"
 
 ## Remove generated complexipy artifacts
 clean-complexity:
