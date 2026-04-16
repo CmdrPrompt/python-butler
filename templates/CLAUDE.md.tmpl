@@ -12,20 +12,20 @@ Shared infrastructure for Python projects — Makefile targets, and Claude Code 
 Add as a subtree (one-time):
 
 ```bash
-git subtree add --prefix=.commons \
+git subtree add --prefix=.butler \
   https://github.com/CmdrPrompt/python-commons.git main --squash
 ```
 
 Then in your project's `Makefile`:
 
 ```makefile
-include .commons/Makefile
+include .butler/Makefile
 ```
 
 Pull updates later:
 
 ```bash
-git subtree pull --prefix=.commons \
+git subtree pull --prefix=.butler \
   https://github.com/CmdrPrompt/python-commons.git main --squash
 ```
 
@@ -40,7 +40,7 @@ git subtree pull --prefix=.commons \
 
 ## Governance Templates
 
-The `.commons/templates/` folder contains shared templates for:
+The `.butler/templates/` folder contains shared templates for:
 
 - `CLAUDE.md`
 - `.github/copilot-instructions.md`

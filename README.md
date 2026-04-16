@@ -14,18 +14,18 @@ Run all commands from **your project's root**.
 
 ```bash
 # Add (one-time)
-git subtree add --prefix=.commons \
+git subtree add --prefix=.butler \
   https://github.com/CmdrPrompt/python-butler.git main --squash
 
 # Include in your Makefile
-echo 'include .commons/Makefile' >> Makefile
+echo 'include .butler/Makefile' >> Makefile
 
 # Pull updates later
-git subtree pull --prefix=.commons \
+git subtree pull --prefix=.butler \
   https://github.com/CmdrPrompt/python-butler.git main --squash
 
 # Contribute changes back
-git subtree push --prefix=.commons \
+git subtree push --prefix=.butler \
   https://github.com/CmdrPrompt/python-butler.git main
 # No push access? Push to a fork and open a PR against main instead.
 ```
