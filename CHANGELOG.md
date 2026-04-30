@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Scaffold `pyproject.toml.tmpl` now sets ruff `line-length = 100` instead of 88. (TASK-008)
+
 ### Added
 
 - `make init-project` interactively prompts for project name, description, requirements
