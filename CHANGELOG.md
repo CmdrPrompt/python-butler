@@ -2,7 +2,22 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `scaffold/pyproject.toml.tmpl`: replaced `"pymarkdown"` with `"pymarkdownlnt>=0.9.36"`,
+  added `[build-system]` table, and added `[tool.setuptools.packages.find]` for src-layout
+  projects. (TASK-014)
+- `scaffold/.gitignore.tmpl`: added `complexipy-results*.json` (hyphen variant) alongside
+  the existing `complexipy_results_*.json` entry. (TASK-014)
+- Agent `.md.tmpl` files: all ordered-list items now use `1.` so generated files pass
+  `pymarkdown --fix` without modification. (TASK-014)
+
 ### Added
+
+- `scaffold/.pymarkdown` and `make generate-pymarkdown` target: new projects now get a
+  `.pymarkdown` config with the standard disabled rules (md003, md013, md022, md024, md032,
+  md033, md040, md041). Generated automatically by `make generate-pyproject` and
+  `make install`. (TASK-014)
 
 - `make butler-trim` strips `.butler/` down to just `Makefile` after `make init-project`
   has applied all templates and scaffold files; adopting projects no longer commit

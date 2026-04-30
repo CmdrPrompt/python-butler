@@ -1,7 +1,7 @@
 .PHONY: all help setup install lint fix stage branch-task stage-task commit-task \
         pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task test clean clean-complexity generate-governance-files \
-	generate-pyproject generate-gitignore generate-pre-commit-config init-project \
+	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
 	butler-trim butler-fetch butler-pull
 
 BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
@@ -59,7 +59,7 @@ help:
 	@echo "    make merge-current-task      -- Squash-merge PR, pull main"
 	@echo ""
 
-## Generate pyproject.toml from template if missing
+## Generate pyproject.toml and .pymarkdown from templates if missing
 generate-pyproject:
 	@[ ! -f pyproject.toml ] || [ "$(FORCE)" = "1" ] || \
 		(echo "pyproject.toml already exists. Run with FORCE=1 to overwrite."; exit 1)
@@ -67,8 +67,17 @@ generate-pyproject:
 		-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
 		-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
 		-e 's|{{TESTS_DIR}}|$(TESTS_DIR)|g' \
+		-e 's|{{SRC_DIR}}|$(SRC_DIR)|g' \
 		.butler/scaffold/pyproject.toml.tmpl > pyproject.toml
 	@echo "✓ Generated pyproject.toml"
+	@$(MAKE) generate-pymarkdown FORCE=$(FORCE)
+
+## Generate .pymarkdown config from scaffold
+generate-pymarkdown:
+	@[ ! -f .pymarkdown ] || [ "$(FORCE)" = "1" ] || \
+		(echo ".pymarkdown already exists. Run with FORCE=1 to overwrite."; exit 1)
+	@cp .butler/scaffold/.pymarkdown .pymarkdown
+	@echo "✓ Generated .pymarkdown"
 
 ## Generate .gitignore from scaffold template
 generate-gitignore:
@@ -94,6 +103,7 @@ install:
 	@[ -f pyproject.toml ] || $(MAKE) generate-pyproject
 	@[ -f .gitignore ] || $(MAKE) generate-gitignore
 	@[ -f .pre-commit-config.yaml ] || $(MAKE) generate-pre-commit-config
+	@[ -f .pymarkdown ] || $(MAKE) generate-pymarkdown
 	uv sync --extra dev
 	uv run pre-commit install
 	@[ -f CLAUDE.md ] || $(MAKE) generate-governance-files
