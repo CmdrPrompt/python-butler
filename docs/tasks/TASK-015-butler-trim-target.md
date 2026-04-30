@@ -1,7 +1,7 @@
 # TASK-015 Add butler-trim, butler-fetch, and butler-pull targets
 
 ## Status
-in-progress
+done
 
 ## Description
 
@@ -47,20 +47,20 @@ git add ... && git commit ...
 
 ## Acceptance criteria
 
-- [ ] `make butler-trim` removes `.butler/.claude/`, `.butler/.gitignore`,
+- [x] `make butler-trim` removes `.butler/.claude/`, `.butler/.gitignore`,
   `.butler/CHANGELOG.md`, `.butler/claude-agents/`, `.butler/docs/`,
   `.butler/README.md`, `.butler/scaffold/`, `.butler/templates/` via
   `git rm -r --ignore-unmatch` (idempotent: safe to run twice)
-- [ ] Only `.butler/Makefile` remains after `butler-trim`
-- [ ] `make butler-fetch` runs `git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash`
+- [x] Only `.butler/Makefile` remains after `butler-trim`
+- [x] `make butler-fetch` runs `git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash`
   without trimming, restoring all source files
-- [ ] `make butler-pull` runs `git subtree pull` then `butler-trim`
+- [x] `make butler-pull` runs `git subtree pull` then `butler-trim`
   (updates `.butler/Makefile` only)
-- [ ] `BUTLER_REMOTE` defaults to `https://github.com/CmdrPrompt/python-butler.git`
+- [x] `BUTLER_REMOTE` defaults to `https://github.com/CmdrPrompt/python-butler.git`
   and can be overridden by the caller
-- [ ] README adoption guide shows `butler-trim` after `init-project`, not before
-- [ ] README documents the `butler-fetch` → regenerate → `butler-trim` workflow
-- [ ] `make lint && make test` pass in the butler repo
+- [x] README adoption guide shows `butler-trim` after `init-project`, not before
+- [x] README documents the `butler-fetch` → regenerate → `butler-trim` workflow
+- [x] `make lint && make test` pass in the butler repo
 
 ## Completion
 **Date:** 2026-04-30
