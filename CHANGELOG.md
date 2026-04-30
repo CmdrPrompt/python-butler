@@ -7,6 +7,8 @@
 - `make init-project` interactively prompts for project name, description, requirements
   path, and run command, then delegates to `generate-governance-files`; keeps
   `generate-governance-files` CI-safe while giving humans a guided entry point. (TASK-002)
+- README now has separate step-by-step adoption flows for new and existing projects,
+  prerequisites section, and explicit ordering (subtree → include → init-project). (TASK-003)
 
 ### Changed
 
