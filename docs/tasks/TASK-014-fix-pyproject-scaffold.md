@@ -62,9 +62,9 @@ butler scaffold (`make init-project` / `make generate-pyproject`):
   the existing `complexipy_results_*.json` entry
 - [x] All ordered lists in agent `.md.tmpl` files use `1.` on every item instead
   of incrementing numbers, so generated files pass `make lint` without modification
-- [ ] A fresh project bootstrapped from the updated scaffold passes
+- [x] A fresh project bootstrapped from the updated scaffold passes
   `make lint && make test` without manual intervention
-- [ ] `make lint && make test` pass in the butler repo itself
+- [x] `make lint && make test` pass in the butler repo itself
 
 ## Completion
 **Date:** 2026-04-30
