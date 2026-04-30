@@ -33,8 +33,16 @@ git subtree push --prefix=.butler \
 
 ## Governance files
 
-`make install` generates `CLAUDE.md`, `.github/copilot-instructions.md`, and Copilot agents
-automatically on first run using default values. To customise, run afterwards:
+For a guided setup, run:
+
+```bash
+make init-project
+```
+
+This prompts for project name, description, requirements path, and run command, then
+generates `CLAUDE.md`, `.github/copilot-instructions.md`, and all agent files.
+
+To generate non-interactively (e.g. in CI):
 
 ```bash
 make generate-governance-files \
@@ -43,6 +51,9 @@ make generate-governance-files \
   REQUIREMENTS_PATH="docs/REQUIREMENTS.md" \
   PROJECT_MAKE_TARGET="make web"
 ```
+
+Both commands are safe to re-run — they exit with an error if `CLAUDE.md` already exists.
+Pass `FORCE=1` to overwrite.
 
 ## Agents
 
