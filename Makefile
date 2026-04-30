@@ -309,12 +309,15 @@ butler-trim:
 
 ## Check if butler updates are available
 butler-check:
-	@[ -f .butler-version ] || (echo "No .butler-version found. Run make butler-trim first."; exit 1)
-	@CURRENT=$$(cat .butler-version); \
+	@CURRENT=$$(cat .butler-version 2>/dev/null); \
 	echo "Checking for butler updates..."; \
 	LATEST=$$(git ls-remote $(BUTLER_REMOTE) refs/heads/main | cut -f1); \
 	[ -n "$$LATEST" ] || (echo "Could not reach $(BUTLER_REMOTE)"; exit 1); \
-	if [ "$$CURRENT" = "$$LATEST" ]; then \
+	if [ -z "$$CURRENT" ]; then \
+		echo "No .butler-version found — assuming updates are available."; \
+		echo "  Latest: $$LATEST"; \
+		echo "  Run: make butler-pull"; \
+	elif [ "$$CURRENT" = "$$LATEST" ]; then \
 		echo "✓ butler is up to date ($$CURRENT)"; \
 	else \
 		echo "Updates available."; \

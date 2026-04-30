@@ -36,7 +36,7 @@ version marker.
   HEAD SHA via `git ls-remote $(BUTLER_REMOTE) refs/heads/main`
 - [x] `make butler-check` prints "up to date" when SHAs match, or prints both
   SHAs and suggests `make butler-pull` when they differ
-- [x] `make butler-check` prints a clear error if `.butler-version` does not exist
+- [x] `make butler-check` assumes updates are available if `.butler-version` does not exist
 - [x] `make butler-pull` automatically updates `.butler-version` (via butler-trim)
 - [x] `make butler-check` and `make butler-trim` are listed in `make help`
 - [x] README "Keeping butler up to date" section documents `make butler-check`
@@ -46,5 +46,5 @@ version marker.
 **Summary:** Added `butler-check` target and version tracking via `.butler-version`. `butler-trim` extracts the full butler commit SHA from the subtree squash-merge log entry and writes it to `.butler-version` in the project root. `butler-check` fetches remote HEAD via `git ls-remote` and compares. `butler-pull` stays up to date automatically.
 **Files changed:** `Makefile`, `README.md`, `CHANGELOG.md`, `docs/tasks/TASK-016-butler-version-check.md`
 **Branch:** `task/016-butler-version-check`
-**Stage:** `git add Makefile README.md CHANGELOG.md docs/tasks/TASK-016-butler-version-check.md`
-**Commit:** `git commit -m "Add butler-check and .butler-version tracking (TASK-016)"`
+**Stage:** `git add Makefile docs/tasks/TASK-016-butler-version-check.md`
+**Commit:** `git commit -m "butler-check assumes updates available when .butler-version missing (TASK-016)"`
