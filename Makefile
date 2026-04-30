@@ -1,7 +1,7 @@
 .PHONY: all help setup install lint fix stage branch-task stage-task commit-task \
         pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task test clean clean-complexity generate-governance-files \
-	generate-pyproject
+	generate-pyproject init-project
 
 TASKS_DIR ?= docs/tasks
 SRC_DIR ?= src
@@ -20,6 +20,9 @@ all: help
 help:
 	@echo ""
 	@echo "Available commands:"
+	@echo ""
+	@echo "  First time on a new project:"
+	@echo "    make init-project  -- Interactively generate CLAUDE.md and governance files"
 	@echo ""
 	@echo "  First time on a new machine:"
 	@echo "    make setup    -- Install uv (if missing)"
@@ -201,6 +204,26 @@ merge-current-task:
 ## Run tests with coverage
 test:
 	uv run pytest --cov=$(SRC_DIR) --cov-report=term-missing
+
+## Interactively prompt for project values and generate governance files
+init-project:
+	@echo "Initialising project governance files."
+	@echo "Press Enter to accept the default shown in brackets."
+	@echo ""
+	@read -p "Project name [$(PROJECT_NAME)]: " pname; \
+	pname=$${pname:-$(PROJECT_NAME)}; \
+	read -p "Project description [$(PROJECT_DESCRIPTION)]: " pdesc; \
+	pdesc=$${pdesc:-$(PROJECT_DESCRIPTION)}; \
+	read -p "Requirements path [$(REQUIREMENTS_PATH)]: " rpath; \
+	rpath=$${rpath:-$(REQUIREMENTS_PATH)}; \
+	read -p "Run command [$(PROJECT_MAKE_TARGET)]: " ptarget; \
+	ptarget=$${ptarget:-$(PROJECT_MAKE_TARGET)}; \
+	echo ""; \
+	$(MAKE) generate-governance-files FORCE=$(FORCE) \
+		PROJECT_NAME="$$pname" \
+		PROJECT_DESCRIPTION="$$pdesc" \
+		REQUIREMENTS_PATH="$$rpath" \
+		PROJECT_MAKE_TARGET="$$ptarget"
 
 ## Generate project governance files from .butler templates
 generate-governance-files:
