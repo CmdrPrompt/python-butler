@@ -5,7 +5,7 @@ Shared infrastructure for Python projects — Makefile targets and AI agents for
 ## What's included
 
 - **`Makefile`** — linting, testing, and task workflow targets built on [uv](https://github.com/astral-sh/uv)
-- **`.claude/agents/`** — Claude Code agents
+- **`claude-agents/`** — Claude Code agent source files
 - **`templates/`** — templates for `CLAUDE.md`, Copilot instructions, and Copilot agents
 - **`scaffold/`** — project scaffolding templates (`pyproject.toml`, `.gitignore`, `.pre-commit-config.yaml`)
 
@@ -33,10 +33,17 @@ echo 'include .butler/Makefile' > Makefile
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 5. Install dependencies and activate pre-commit hooks
+# 5. Trim .butler/ down to just the Makefile — everything else has been applied
+make butler-trim
+
+# 6. Commit everything
+git add -A .butler/ Makefile CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
+git commit -m "Bootstrap project with python-butler"
+
+# 7. Install dependencies and activate pre-commit hooks
 make install
 
-# 6. Commit the generated files (use the commands printed by init-project), then push
+# 8. Push
 git push -u origin main
 ```
 
@@ -56,10 +63,17 @@ printf 'include .butler/Makefile\n\n' | cat - Makefile > Makefile.tmp && mv Make
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 4. Install dependencies and activate pre-commit hooks
+# 4. Trim .butler/ down to just the Makefile — everything else has been applied
+make butler-trim
+
+# 5. Commit
+git add -A .butler/ CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
+git commit -m "Add python-butler"
+
+# 6. Install dependencies and activate pre-commit hooks
 make install
 
-# 5. Commit the generated files (use the commands printed by init-project), then push
+# 7. Push
 git push -u origin main
 ```
 
@@ -70,8 +84,21 @@ git push -u origin main
 ## Keeping butler up to date
 
 ```bash
-git subtree pull --prefix=.butler \
-  https://github.com/CmdrPrompt/python-butler.git main --squash
+make butler-pull
+```
+
+This pulls the latest butler and trims `.butler/` back to just the `Makefile`.
+
+## Regenerating governance files
+
+If you need to update `CLAUDE.md`, agent files, or other generated files from
+the latest templates, restore the butler sources first:
+
+```bash
+make butler-fetch                # pull latest butler without trimming
+make generate-governance-files   # or make init-project, or individual generate-* targets
+make butler-trim                 # trim back to Makefile only
+git add -A && git commit -m "chore: regenerate governance files"
 ```
 
 ## Contributing changes back

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- `make butler-trim` strips `.butler/` down to just `Makefile` after `make init-project`
+  has applied all templates and scaffold files; adopting projects no longer commit
+  sources that have no ongoing function. (TASK-015)
+- `make butler-fetch` pulls the latest butler without trimming, restoring `templates/`,
+  `scaffold/`, and `claude-agents/` when governance files need to be regenerated. (TASK-015)
+- `make butler-pull` pulls the latest butler and immediately trims — for keeping
+  `.butler/Makefile` up to date without regenerating anything. (TASK-015)
+- Claude Code agent source files moved to `claude-agents/` (previously `.claude/agents/`);
+  `generate-governance-files` updated accordingly. (TASK-015)
+
 ### Fixed
 
 - README "Adopting in an existing project": replaced macOS-incompatible `sed -i`
