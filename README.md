@@ -9,23 +9,63 @@ Shared infrastructure for Python projects — Makefile targets and AI agents for
 - **`templates/`** — templates for `CLAUDE.md`, Copilot instructions, and Copilot agents
 - **`scaffold/`** — project scaffolding templates (e.g. `pyproject.toml`)
 
-## Adopting in a project
+## Prerequisites
+
+- [uv](https://github.com/astral-sh/uv) — install once with `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- [gh](https://cli.github.com) — needed for PR and merge targets
+
+## Adopting in a new project
 
 Run all commands from **your project's root**.
 
 ```bash
-# Add (one-time)
+# 1. Add butler as a subtree
 git subtree add --prefix=.butler \
   https://github.com/CmdrPrompt/python-butler.git main --squash
 
-# Include in your Makefile
-echo 'include .butler/Makefile' >> Makefile
+# 2. Create a minimal Makefile that includes butler's targets
+echo 'include .butler/Makefile' > Makefile
 
-# Pull updates later
-git subtree pull --prefix=.butler \
+# 3. Generate CLAUDE.md and all governance files (interactive)
+make init-project
+
+# 4. Install dependencies and activate pre-commit hooks
+make install
+```
+
+## Adopting in an existing project
+
+```bash
+# 1. Add butler as a subtree
+git subtree add --prefix=.butler \
   https://github.com/CmdrPrompt/python-butler.git main --squash
 
-# Contribute changes back
+# 2. Add the include at the TOP of your existing Makefile
+#    (butler defines default variable values — placing it first lets
+#    your own variable assignments override them)
+sed -i '1s/^/include .butler\/Makefile\n\n/' Makefile
+
+# 3. Generate governance files
+make init-project
+
+# 4. Install dependencies and activate pre-commit hooks
+make install
+```
+
+> **Note:** If your Makefile already defines targets with the same names as butler's
+> (e.g. `lint`, `test`), place the `include` *after* your own targets to let yours take
+> precedence. Review `make help` after adding the include to spot any conflicts.
+
+## Keeping butler up to date
+
+```bash
+git subtree pull --prefix=.butler \
+  https://github.com/CmdrPrompt/python-butler.git main --squash
+```
+
+## Contributing changes back
+
+```bash
 git subtree push --prefix=.butler \
   https://github.com/CmdrPrompt/python-butler.git main
 # No push access? Push to a fork and open a PR against main instead.
@@ -33,16 +73,8 @@ git subtree push --prefix=.butler \
 
 ## Governance files
 
-For a guided setup, run:
-
-```bash
-make init-project
-```
-
-This prompts for project name, description, requirements path, and run command, then
-generates `CLAUDE.md`, `.github/copilot-instructions.md`, and all agent files.
-
-To generate non-interactively (e.g. in CI):
+`make init-project` generates `CLAUDE.md`, `.github/copilot-instructions.md`, and all
+agent files interactively. To regenerate non-interactively (e.g. in CI):
 
 ```bash
 make generate-governance-files \
@@ -52,8 +84,7 @@ make generate-governance-files \
   PROJECT_MAKE_TARGET="make web"
 ```
 
-Both commands are safe to re-run — they exit with an error if `CLAUDE.md` already exists.
-Pass `FORCE=1` to overwrite.
+Both commands exit with an error if `CLAUDE.md` already exists. Pass `FORCE=1` to overwrite.
 
 ## Agents
 
