@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Note
 
@@ -31,11 +31,11 @@ target already guards against this (`[ -f CLAUDE.md ] || ...`), but
 
 ## Acceptance criteria
 
-- [ ] `.butler/templates/CLAUDE.md.tmpl` is a proper project-scoped CLAUDE.md
+- [x] `.butler/templates/CLAUDE.md.tmpl` is a proper project-scoped CLAUDE.md
   template containing all supported placeholders:
   `{{PROJECT_NAME}}`, `{{PROJECT_DESCRIPTION}}`, `{{REQUIREMENTS_PATH}}`,
   `{{WORKFLOW_GUARDIAN_NAME}}`, `{{BUG_TRIAGE_NAME}}`, `{{PROJECT_MAKE_TARGET}}`
-- [ ] `generate-governance-files` guards against overwriting an existing `CLAUDE.md`
+- [x] `generate-governance-files` guards against overwriting an existing `CLAUDE.md`
   (and `copilot-instructions.md`) unless `FORCE=1` is passed:
 
   ```makefile
@@ -59,10 +59,16 @@ target already guards against this (`[ -f CLAUDE.md ] || ...`), but
 
 ## Completion
 
-<!-- Fill in when done -->
-**Date:**
-**Summary:**
+**Date:** 2026-04-30
+**Summary:** Replaced `templates/CLAUDE.md.tmpl` (which contained the python-butler README)
+with a proper project-scoped CLAUDE.md template using all six supported placeholders.
+Added overwrite guards for both `CLAUDE.md` and `.github/copilot-instructions.md` in the
+`generate-governance-files` make target. End-to-end verification in an adopting project
+is pending and should be done before merging.
 **Files changed:**
-**Branch:**
-**Stage:**
-**Commit:**
+- `templates/CLAUDE.md.tmpl` — rewritten as project-scoped template
+- `Makefile` — overwrite guards added to `generate-governance-files`
+- `CHANGELOG.md` — created with behavior-first entry
+**Branch:** `git checkout task/001-fix-butler-claude-md-template`
+**Stage:** `git add templates/CLAUDE.md.tmpl Makefile CHANGELOG.md docs/tasks/TASK-001-fix-butler-claude-md-template.md`
+**Commit:** `git commit -m "Fix CLAUDE.md.tmpl template and add overwrite guard to generate-governance-files"`

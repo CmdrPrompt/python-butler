@@ -204,6 +204,10 @@ test:
 
 ## Generate project governance files from .butler templates
 generate-governance-files:
+	@[ ! -f CLAUDE.md ] || [ "$(FORCE)" = "1" ] || \
+		(echo "CLAUDE.md already exists. Run with FORCE=1 to overwrite."; exit 1)
+	@[ ! -f .github/copilot-instructions.md ] || [ "$(FORCE)" = "1" ] || \
+		(echo ".github/copilot-instructions.md already exists. Run with FORCE=1 to overwrite."; exit 1)
 	@mkdir -p .github .github/agents
 	@sed \
 		-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
