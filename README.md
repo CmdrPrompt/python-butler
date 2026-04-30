@@ -7,7 +7,7 @@ Shared infrastructure for Python projects — Makefile targets and AI agents for
 - **`Makefile`** — linting, testing, and task workflow targets built on [uv](https://github.com/astral-sh/uv)
 - **`.claude/agents/`** — Claude Code agents
 - **`templates/`** — templates for `CLAUDE.md`, Copilot instructions, and Copilot agents
-- **`scaffold/`** — project scaffolding templates (e.g. `pyproject.toml`)
+- **`scaffold/`** — project scaffolding templates (`pyproject.toml`, `.gitignore`, `.pre-commit-config.yaml`)
 
 ## Prerequisites
 
@@ -46,13 +46,17 @@ git subtree add --prefix=.butler \
 # 2. Add the include at the TOP of your existing Makefile
 #    (butler defines default variable values — placing it first lets
 #    your own variable assignments override them)
-sed -i '1s/^/include .butler\/Makefile\n\n/' Makefile
+printf 'include .butler/Makefile\n\n' | cat - Makefile > Makefile.tmp && mv Makefile.tmp Makefile
 
-# 3. Generate governance files
+# 3. Generate governance files (interactive)
+#    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
 # 4. Install dependencies and activate pre-commit hooks
 make install
+
+# 5. Commit the generated files (use the commands printed by init-project), then push
+git push -u origin main
 ```
 
 > **Note:** If your Makefile already defines targets with the same names as butler's
@@ -76,8 +80,11 @@ git subtree push --prefix=.butler \
 
 ## Governance files
 
-`make init-project` generates `CLAUDE.md`, `.github/copilot-instructions.md`, and all
-agent files interactively. To regenerate non-interactively (e.g. in CI):
+`make init-project` generates the following files interactively:
+`CLAUDE.md`, `pyproject.toml`, `.gitignore`, `.pre-commit-config.yaml`,
+`.github/copilot-instructions.md`, and all agent files.
+
+To regenerate non-interactively (e.g. in CI):
 
 ```bash
 make generate-governance-files \
