@@ -30,10 +30,14 @@ git subtree add --prefix=.butler \
 echo 'include .butler/Makefile' > Makefile
 
 # 4. Generate CLAUDE.md and all governance files (interactive)
+#    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
 # 5. Install dependencies and activate pre-commit hooks
 make install
+
+# 6. Commit the generated files (use the commands printed by init-project), then push
+git push -u origin main
 ```
 
 ## Adopting in an existing project
