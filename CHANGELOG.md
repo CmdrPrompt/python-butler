@@ -9,6 +9,8 @@
   `generate-governance-files` CI-safe while giving humans a guided entry point. (TASK-002)
 - README now has separate step-by-step adoption flows for new and existing projects,
   prerequisites section, and explicit ordering (subtree → include → init-project). (TASK-003)
+- README adoption guide clarifies that an initial empty commit is required only when
+  the repo was created locally with `git init`, not when cloned from GitHub. (TASK-004)
 
 ### Changed
 

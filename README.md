@@ -19,17 +19,20 @@ Shared infrastructure for Python projects — Makefile targets and AI agents for
 Run all commands from **your project's root**.
 
 ```bash
-# 1. Add butler as a subtree
+# 1. If you created the repo locally with git init (skip if you cloned from GitHub):
+git commit --allow-empty -m "Initial commit"
+
+# 2. Add butler as a subtree
 git subtree add --prefix=.butler \
   https://github.com/CmdrPrompt/python-butler.git main --squash
 
-# 2. Create a minimal Makefile that includes butler's targets
+# 3. Create a minimal Makefile that includes butler's targets
 echo 'include .butler/Makefile' > Makefile
 
-# 3. Generate CLAUDE.md and all governance files (interactive)
+# 4. Generate CLAUDE.md and all governance files (interactive)
 make init-project
 
-# 4. Install dependencies and activate pre-commit hooks
+# 5. Install dependencies and activate pre-commit hooks
 make install
 ```
 
