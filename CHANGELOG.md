@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- `make butler-trim` removes butler-internal files (`.claude/`, `.gitignore`,
+  `CHANGELOG.md`, `docs/`, `README.md`) from `.butler/` in an adopting project so
+  the repo only tracks what is functionally needed (`Makefile`, `templates/`,
+  `scaffold/`, `claude-agents/`). (TASK-015)
+- `make butler-pull` pulls the latest butler via git subtree and immediately trims
+  butler-internal files in one step. (TASK-015)
+- Claude Code agent source files moved to `claude-agents/` (previously `.claude/agents/`),
+  making the separation between development environment and reusable sources explicit.
+  `generate-governance-files` updated accordingly. (TASK-015)
+
 ### Fixed
 
 - README "Adopting in an existing project": replaced macOS-incompatible `sed -i`

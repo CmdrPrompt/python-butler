@@ -5,7 +5,7 @@ Shared infrastructure for Python projects — Makefile targets and AI agents for
 ## What's included
 
 - **`Makefile`** — linting, testing, and task workflow targets built on [uv](https://github.com/astral-sh/uv)
-- **`.claude/agents/`** — Claude Code agents
+- **`claude-agents/`** — Claude Code agent source files
 - **`templates/`** — templates for `CLAUDE.md`, Copilot instructions, and Copilot agents
 - **`scaffold/`** — project scaffolding templates (`pyproject.toml`, `.gitignore`, `.pre-commit-config.yaml`)
 
@@ -29,14 +29,19 @@ git subtree add --prefix=.butler \
 # 3. Create a minimal Makefile that includes butler's targets
 echo 'include .butler/Makefile' > Makefile
 
-# 4. Generate CLAUDE.md and all governance files (interactive)
+# 4. Remove butler-internal files that don't belong in your repo
+make butler-trim
+git add -A .butler/ Makefile
+git commit -m "Add python-butler"
+
+# 5. Generate CLAUDE.md and all governance files (interactive)
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 5. Install dependencies and activate pre-commit hooks
+# 6. Install dependencies and activate pre-commit hooks
 make install
 
-# 6. Commit the generated files (use the commands printed by init-project), then push
+# 7. Commit the generated files (use the commands printed by init-project), then push
 git push -u origin main
 ```
 
@@ -52,14 +57,19 @@ git subtree add --prefix=.butler \
 #    your own variable assignments override them)
 printf 'include .butler/Makefile\n\n' | cat - Makefile > Makefile.tmp && mv Makefile.tmp Makefile
 
-# 3. Generate governance files (interactive)
+# 3. Remove butler-internal files that don't belong in your repo
+make butler-trim
+git add -A .butler/
+git commit -m "Add python-butler"
+
+# 4. Generate governance files (interactive)
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 4. Install dependencies and activate pre-commit hooks
+# 5. Install dependencies and activate pre-commit hooks
 make install
 
-# 5. Commit the generated files (use the commands printed by init-project), then push
+# 6. Commit the generated files (use the commands printed by init-project), then push
 git push -u origin main
 ```
 
@@ -70,9 +80,10 @@ git push -u origin main
 ## Keeping butler up to date
 
 ```bash
-git subtree pull --prefix=.butler \
-  https://github.com/CmdrPrompt/python-butler.git main --squash
+make butler-pull
 ```
+
+This pulls the latest butler and removes butler-internal files in one step.
 
 ## Contributing changes back
 

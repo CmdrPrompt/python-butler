@@ -1,8 +1,10 @@
 .PHONY: all help setup install lint fix stage branch-task stage-task commit-task \
         pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task test clean clean-complexity generate-governance-files \
-	generate-pyproject generate-gitignore generate-pre-commit-config init-project
+	generate-pyproject generate-gitignore generate-pre-commit-config init-project \
+	butler-trim butler-pull
 
+BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
 TASKS_DIR ?= docs/tasks
 SRC_DIR ?= src
 TESTS_DIR ?= tests
@@ -21,6 +23,10 @@ all: help
 help:
 	@echo ""
 	@echo "Available commands:"
+	@echo ""
+	@echo "  Keeping butler up to date:"
+	@echo "    make butler-pull  -- Pull butler updates and trim butler-internal files"
+	@echo "    make butler-trim  -- Remove butler-internal files from .butler/ (idempotent)"
 	@echo ""
 	@echo "  First time on a new project:"
 	@echo "    make init-project  -- Interactively generate CLAUDE.md and governance files"
@@ -255,6 +261,31 @@ init-project:
 	echo "  git add CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/"; \
 	echo "  git commit -m \"Bootstrap project with python-butler\""
 
+## Remove butler-internal files that serve no purpose in an adopting project
+butler-trim:
+	@echo "Trimming butler-internal files from .butler/ ..."
+	@git rm -r --ignore-unmatch --cached \
+		.butler/.claude \
+		.butler/.gitignore \
+		.butler/CHANGELOG.md \
+		.butler/docs \
+		.butler/README.md
+	@rm -rf \
+		.butler/.claude \
+		.butler/.gitignore \
+		.butler/CHANGELOG.md \
+		.butler/docs \
+		.butler/README.md
+	@echo "✓ Trim complete. Stage and commit the removals with:"
+	@echo ""
+	@echo "  git add -A .butler/"
+	@echo "  git commit -m \"chore: trim butler-internal files from .butler/\""
+
+## Pull the latest python-butler and trim butler-internal files
+butler-pull:
+	git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
+	$(MAKE) butler-trim
+
 ## Generate project governance files from .butler templates
 generate-governance-files:
 	@[ ! -f CLAUDE.md ] || [ "$(FORCE)" = "1" ] || \
@@ -283,7 +314,7 @@ generate-governance-files:
 			.butler/templates/$$agent.agent.md.tmpl > .github/agents/$$agent.agent.md; \
 	done
 	@mkdir -p .claude/agents
-	@cp .butler/.claude/agents/*.agent.md .claude/agents/
+	@cp .butler/claude-agents/*.agent.md .claude/agents/
 	@echo "✓ Generated CLAUDE.md, .github/copilot-instructions.md, .github/agents/, and .claude/agents/"
 
 ## Remove generated complexipy artifacts
