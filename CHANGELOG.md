@@ -14,6 +14,12 @@
 
 ### Added
 
+- `make butler-check` compares the butler commit SHA in `.butler-version` against
+  the remote HEAD and reports whether the project is up to date or suggests
+  `make butler-pull`. (TASK-016)
+- `make butler-trim` now writes `.butler-version` to the project root with the full
+  butler commit SHA; `make butler-pull` keeps it current automatically. (TASK-016)
+
 - `scaffold/.pymarkdown` and `make generate-pymarkdown` target: new projects now get a
   `.pymarkdown` config with the standard disabled rules (md003, md013, md022, md024, md032,
   md033, md040, md041). Generated automatically by `make generate-pyproject` and

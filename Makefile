@@ -2,7 +2,7 @@
         pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
-	butler-trim butler-fetch butler-pull
+	butler-trim butler-fetch butler-pull butler-check
 
 BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
 TASKS_DIR ?= docs/tasks
@@ -25,6 +25,7 @@ help:
 	@echo "Available commands:"
 	@echo ""
 	@echo "  Keeping butler up to date:"
+	@echo "    make butler-check  -- Check if butler updates are available"
 	@echo "    make butler-pull   -- Pull butler updates and trim (updates .butler/Makefile only)"
 	@echo "    make butler-fetch  -- Pull butler without trimming (use before regenerating files)"
 	@echo "    make butler-trim   -- Remove all but .butler/Makefile (run after init-project)"
@@ -293,10 +294,34 @@ butler-trim:
 		.butler/README.md \
 		.butler/scaffold \
 		.butler/templates
+	@BUTLER_SHORT=$$(git log --format="%B" | grep -m1 "Squashed '.butler/' content from commit" | awk '{print $$NF}'); \
+	if [ -n "$$BUTLER_SHORT" ]; then \
+		BUTLER_SHA=$$(git rev-parse "$$BUTLER_SHORT" 2>/dev/null || echo "$$BUTLER_SHORT"); \
+		echo "$$BUTLER_SHA" > .butler-version; \
+		echo "✓ Recorded butler version: $$BUTLER_SHA"; \
+	else \
+		echo "Warning: could not determine butler commit SHA — .butler-version not written"; \
+	fi
 	@echo "✓ Trim complete. Stage and commit with:"
 	@echo ""
-	@echo "  git add -A .butler/"
+	@echo "  git add -A .butler/ .butler-version"
 	@echo "  git commit -m \"chore: trim .butler/ down to Makefile\""
+
+## Check if butler updates are available
+butler-check:
+	@[ -f .butler-version ] || (echo "No .butler-version found. Run make butler-trim first."; exit 1)
+	@CURRENT=$$(cat .butler-version); \
+	echo "Checking for butler updates..."; \
+	LATEST=$$(git ls-remote $(BUTLER_REMOTE) refs/heads/main | cut -f1); \
+	[ -n "$$LATEST" ] || (echo "Could not reach $(BUTLER_REMOTE)"; exit 1); \
+	if [ "$$CURRENT" = "$$LATEST" ]; then \
+		echo "✓ butler is up to date ($$CURRENT)"; \
+	else \
+		echo "Updates available."; \
+		echo "  Current: $$CURRENT"; \
+		echo "  Latest:  $$LATEST"; \
+		echo "  Run: make butler-pull"; \
+	fi
 
 ## Pull the latest butler without trimming — use before regenerating governance files
 butler-fetch:

@@ -84,10 +84,17 @@ git push -u origin main
 ## Keeping butler up to date
 
 ```bash
-make butler-pull
+make butler-check  # check if updates are available
+make butler-pull   # pull latest and trim
 ```
 
-This pulls the latest butler and trims `.butler/` back to just the `Makefile`.
+`butler-pull` trims `.butler/` back to just `Makefile` and records the new
+butler version in `.butler-version`. Commit the result afterwards:
+
+```bash
+git add -A .butler/ .butler-version
+git commit -m "chore: update butler"
+```
 
 ## Regenerating governance files
 
