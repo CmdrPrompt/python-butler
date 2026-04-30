@@ -2,7 +2,7 @@
         pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config init-project \
-	butler-trim butler-pull
+	butler-trim butler-fetch butler-pull
 
 BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
 TASKS_DIR ?= docs/tasks
@@ -25,8 +25,9 @@ help:
 	@echo "Available commands:"
 	@echo ""
 	@echo "  Keeping butler up to date:"
-	@echo "    make butler-pull  -- Pull butler updates and trim butler-internal files"
-	@echo "    make butler-trim  -- Remove butler-internal files from .butler/ (idempotent)"
+	@echo "    make butler-pull   -- Pull butler updates and trim (updates .butler/Makefile only)"
+	@echo "    make butler-fetch  -- Pull butler without trimming (use before regenerating files)"
+	@echo "    make butler-trim   -- Remove all but .butler/Makefile (run after init-project)"
 	@echo ""
 	@echo "  First time on a new project:"
 	@echo "    make init-project  -- Interactively generate CLAUDE.md and governance files"
@@ -261,27 +262,37 @@ init-project:
 	echo "  git add CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/"; \
 	echo "  git commit -m \"Bootstrap project with python-butler\""
 
-## Remove butler-internal files that serve no purpose in an adopting project
+## Remove all but .butler/Makefile — run after make init-project (idempotent)
 butler-trim:
-	@echo "Trimming butler-internal files from .butler/ ..."
+	@echo "Trimming .butler/ down to Makefile only ..."
 	@git rm -r --ignore-unmatch --cached \
 		.butler/.claude \
 		.butler/.gitignore \
 		.butler/CHANGELOG.md \
+		.butler/claude-agents \
 		.butler/docs \
-		.butler/README.md
+		.butler/README.md \
+		.butler/scaffold \
+		.butler/templates
 	@rm -rf \
 		.butler/.claude \
 		.butler/.gitignore \
 		.butler/CHANGELOG.md \
+		.butler/claude-agents \
 		.butler/docs \
-		.butler/README.md
-	@echo "✓ Trim complete. Stage and commit the removals with:"
+		.butler/README.md \
+		.butler/scaffold \
+		.butler/templates
+	@echo "✓ Trim complete. Stage and commit with:"
 	@echo ""
 	@echo "  git add -A .butler/"
-	@echo "  git commit -m \"chore: trim butler-internal files from .butler/\""
+	@echo "  git commit -m \"chore: trim .butler/ down to Makefile\""
 
-## Pull the latest python-butler and trim butler-internal files
+## Pull the latest butler without trimming — use before regenerating governance files
+butler-fetch:
+	git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
+
+## Pull the latest butler and trim — updates .butler/Makefile only
 butler-pull:
 	git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
 	$(MAKE) butler-trim

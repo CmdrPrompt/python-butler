@@ -4,14 +4,14 @@
 
 ### Added
 
-- `make butler-trim` removes butler-internal files (`.claude/`, `.gitignore`,
-  `CHANGELOG.md`, `docs/`, `README.md`) from `.butler/` in an adopting project so
-  the repo only tracks what is functionally needed (`Makefile`, `templates/`,
-  `scaffold/`, `claude-agents/`). (TASK-015)
-- `make butler-pull` pulls the latest butler via git subtree and immediately trims
-  butler-internal files in one step. (TASK-015)
-- Claude Code agent source files moved to `claude-agents/` (previously `.claude/agents/`),
-  making the separation between development environment and reusable sources explicit.
+- `make butler-trim` strips `.butler/` down to just `Makefile` after `make init-project`
+  has applied all templates and scaffold files; adopting projects no longer commit
+  sources that have no ongoing function. (TASK-015)
+- `make butler-fetch` pulls the latest butler without trimming, restoring `templates/`,
+  `scaffold/`, and `claude-agents/` when governance files need to be regenerated. (TASK-015)
+- `make butler-pull` pulls the latest butler and immediately trims — for keeping
+  `.butler/Makefile` up to date without regenerating anything. (TASK-015)
+- Claude Code agent source files moved to `claude-agents/` (previously `.claude/agents/`);
   `generate-governance-files` updated accordingly. (TASK-015)
 
 ### Fixed

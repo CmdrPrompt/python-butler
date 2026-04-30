@@ -29,19 +29,21 @@ git subtree add --prefix=.butler \
 # 3. Create a minimal Makefile that includes butler's targets
 echo 'include .butler/Makefile' > Makefile
 
-# 4. Remove butler-internal files that don't belong in your repo
-make butler-trim
-git add -A .butler/ Makefile
-git commit -m "Add python-butler"
-
-# 5. Generate CLAUDE.md and all governance files (interactive)
+# 4. Generate CLAUDE.md and all governance files (interactive)
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 6. Install dependencies and activate pre-commit hooks
+# 5. Trim .butler/ down to just the Makefile — everything else has been applied
+make butler-trim
+
+# 6. Commit everything
+git add -A .butler/ Makefile CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
+git commit -m "Bootstrap project with python-butler"
+
+# 7. Install dependencies and activate pre-commit hooks
 make install
 
-# 7. Commit the generated files (use the commands printed by init-project), then push
+# 8. Push
 git push -u origin main
 ```
 
@@ -57,19 +59,21 @@ git subtree add --prefix=.butler \
 #    your own variable assignments override them)
 printf 'include .butler/Makefile\n\n' | cat - Makefile > Makefile.tmp && mv Makefile.tmp Makefile
 
-# 3. Remove butler-internal files that don't belong in your repo
-make butler-trim
-git add -A .butler/
-git commit -m "Add python-butler"
-
-# 4. Generate governance files (interactive)
+# 3. Generate governance files (interactive)
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 5. Install dependencies and activate pre-commit hooks
+# 4. Trim .butler/ down to just the Makefile — everything else has been applied
+make butler-trim
+
+# 5. Commit
+git add -A .butler/ CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
+git commit -m "Add python-butler"
+
+# 6. Install dependencies and activate pre-commit hooks
 make install
 
-# 6. Commit the generated files (use the commands printed by init-project), then push
+# 7. Push
 git push -u origin main
 ```
 
@@ -83,7 +87,19 @@ git push -u origin main
 make butler-pull
 ```
 
-This pulls the latest butler and removes butler-internal files in one step.
+This pulls the latest butler and trims `.butler/` back to just the `Makefile`.
+
+## Regenerating governance files
+
+If you need to update `CLAUDE.md`, agent files, or other generated files from
+the latest templates, restore the butler sources first:
+
+```bash
+make butler-fetch                # pull latest butler without trimming
+make generate-governance-files   # or make init-project, or individual generate-* targets
+make butler-trim                 # trim back to Makefile only
+git add -A && git commit -m "chore: regenerate governance files"
+```
 
 ## Contributing changes back
 

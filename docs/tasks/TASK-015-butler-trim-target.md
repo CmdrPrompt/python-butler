@@ -1,36 +1,44 @@
-# TASK-015 Add butler-trim, butler-add, and butler-pull targets
+# TASK-015 Add butler-trim, butler-fetch, and butler-pull targets
 
 ## Status
-done
+in-progress
 
 ## Description
 
 When a project adopts python-butler via `git subtree add --prefix=.butler`, the
-entire butler repo lands in `.butler/`. That includes files that only exist to
-manage the butler project itself — docs, changelog, .gitignore, .claude/ — none
-of which serve any purpose in an adopting project. Committing them is unnecessary
+entire butler repo lands in `.butler/`. Most of it has no function in an adopting
+project once governance files have been generated. Committing it is unnecessary
 noise in the adopting repo's history.
 
-This task adds three Makefile targets so adopters can keep `.butler/` lean:
+This task adds three Makefile targets:
 
-- **`butler-trim`** — removes butler-internal files from `.butler/` using
-  `git rm -r --ignore-unmatch`, leaving only what is functionally required.
-- **`butler-add`** — convenience wrapper: runs `git subtree add` followed by
-  `butler-trim`, then prints suggested staging/commit commands.
-- **`butler-pull`** — convenience wrapper: runs `git subtree pull` followed by
-  `butler-trim`, then prints suggested staging/commit commands.
+- **`butler-trim`** — removes everything from `.butler/` except `Makefile`, which
+  is the only file needed for daily use. Run after `make init-project`.
+- **`butler-fetch`** — pulls the latest butler via git subtree without trimming,
+  restoring `templates/`, `scaffold/`, and `claude-agents/` so governance files
+  can be regenerated.
+- **`butler-pull`** — pulls the latest butler and immediately trims, for when you
+  only want to update `.butler/Makefile` without regenerating anything.
 
 Files removed by `butler-trim`:
 - `.butler/.claude/` — butler's dev-agent definitions and local settings
-- `.butler/.gitignore` — butler's own gitignore (can conflict with project's)
+- `.butler/.gitignore` — butler's own gitignore
 - `.butler/CHANGELOG.md` — butler's release notes
+- `.butler/claude-agents/` — agent sources (already copied to `.claude/agents/` by `init-project`)
 - `.butler/docs/` — butler's tasks and internal documentation
 - `.butler/README.md` — butler's README
+- `.butler/scaffold/` — scaffolding templates (already applied by `init-project`)
+- `.butler/templates/` — governance templates (already applied by `init-project`)
 
-Files kept in `.butler/` (functionally required):
-- `.butler/Makefile`
-- `.butler/templates/`
-- `.butler/scaffold/`
+Only `.butler/Makefile` remains after trim.
+
+Regeneration workflow (when governance files need updating):
+```bash
+make butler-fetch                  # restore templates/scaffold/claude-agents/
+make generate-governance-files     # or make init-project, or individual generate-* targets
+make butler-trim                   # clean up again
+git add ... && git commit ...
+```
 
 ## Branch
 **Branch name:** `task/015-butler-trim-target`
@@ -40,22 +48,24 @@ Files kept in `.butler/` (functionally required):
 ## Acceptance criteria
 
 - [ ] `make butler-trim` removes `.butler/.claude/`, `.butler/.gitignore`,
-  `.butler/CHANGELOG.md`, `.butler/docs/`, `.butler/README.md` via
+  `.butler/CHANGELOG.md`, `.butler/claude-agents/`, `.butler/docs/`,
+  `.butler/README.md`, `.butler/scaffold/`, `.butler/templates/` via
   `git rm -r --ignore-unmatch` (idempotent: safe to run twice)
-- [ ] `make butler-add` runs `git subtree add --prefix=.butler $(BUTLER_REMOTE) main --squash`
-  then calls `butler-trim` and prints suggested git commands
-- [ ] `make butler-pull` runs `git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash`
-  then calls `butler-trim` and prints suggested git commands
+- [ ] Only `.butler/Makefile` remains after `butler-trim`
+- [ ] `make butler-fetch` runs `git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash`
+  without trimming, restoring all source files
+- [ ] `make butler-pull` runs `git subtree pull` then `butler-trim`
+  (updates `.butler/Makefile` only)
 - [ ] `BUTLER_REMOTE` defaults to `https://github.com/CmdrPrompt/python-butler.git`
   and can be overridden by the caller
-- [ ] README adoption guide is updated to show `make butler-add` instead of the
-  manual `git subtree add` command, with a note about `make butler-pull` for updates
+- [ ] README adoption guide shows `butler-trim` after `init-project`, not before
+- [ ] README documents the `butler-fetch` → regenerate → `butler-trim` workflow
 - [ ] `make lint && make test` pass in the butler repo
 
 ## Completion
 **Date:** 2026-04-30
-**Summary:** Added `butler-trim` and `butler-pull` targets to Makefile. Moved Claude Code agent source files from `.claude/agents/` to `claude-agents/` so `.claude/` can be safely trimmed. Updated `generate-governance-files` to use new path. Updated README adoption guide and CHANGELOG.
-**Files changed:** `Makefile`, `claude-agents/` (new directory, 7 files), `README.md`, `CHANGELOG.md`, `docs/tasks/TASK-015-butler-trim-target.md`
+**Summary:** Added `butler-trim`, `butler-fetch`, and `butler-pull` targets. `butler-trim` removes everything from `.butler/` except `Makefile`. `butler-fetch` restores sources without trimming for regeneration. `butler-pull` fetches + trims. Moved Claude Code agent sources to `claude-agents/`. Updated README adoption flows and added regeneration workflow section.
+**Files changed:** `Makefile`, `claude-agents/` (new, 7 files), `README.md`, `CHANGELOG.md`, `docs/tasks/TASK-015-butler-trim-target.md`
 **Branch:** `task/015-butler-trim-target`
 **Stage:** `git add Makefile claude-agents/ README.md CHANGELOG.md docs/tasks/TASK-015-butler-trim-target.md`
-**Commit:** `git commit -m "Add butler-trim and butler-pull targets; move Claude agents to claude-agents/ (TASK-015)"`
+**Commit:** `git commit -m "Add butler-trim, butler-fetch, butler-pull; trim .butler/ to Makefile only (TASK-015)"`
