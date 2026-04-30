@@ -4,6 +4,9 @@
 
 ### Added
 
+- README "Adopting in a new project" now includes the commit and push steps
+  after `make install`. (TASK-012)
+
 - `make init-project` now generates `.gitignore` from `scaffold/.gitignore.tmpl`;
   `make install` also auto-generates it if missing. (TASK-010)
 - `make init-project` now generates `.pre-commit-config.yaml` from scaffold with
