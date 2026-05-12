@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- `make pr-task` and `make branch-task` no longer print `fatal: a branch named
+  '...' already exists` when the task branch already exists; they now check with
+  `git show-ref` and choose the correct `checkout` form silently. (TASK-019)
+
 - `butler-trim` now removes all files and directories under `.butler/` except
   `Makefile` dynamically, replacing a hardcoded list that silently left behind
   any file added to python-butler after the list was written (e.g. `LICENSE`).

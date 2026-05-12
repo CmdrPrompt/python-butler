@@ -147,10 +147,12 @@ branch-task:
 	CMD=$$(grep '\*\*Switch/create:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
 	[ -n "$$CMD" ] || CMD=$$(grep '\*\*Branch:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
 	[ -n "$$CMD" ] || (echo "No **Switch/create:** or **Branch:** line found in $$TASK_FILE"; exit 1); \
-	echo "Running: $$CMD"; \
-	if eval "$$CMD"; then true; else \
-		ALT=$$(echo "$$CMD" | sed 's/^git checkout -b /git checkout /'); \
-		[ "$$ALT" != "$$CMD" ] && eval "$$ALT" || exit 1; \
+	BRANCH=$$(echo "$$CMD" | sed 's/^git checkout -b //'); \
+	echo "Running: git checkout $$BRANCH"; \
+	if git show-ref --verify --quiet "refs/heads/$$BRANCH"; then \
+		git checkout "$$BRANCH"; \
+	else \
+		git checkout -b "$$BRANCH"; \
 	fi
 
 ## Auto-fix and stage files listed in a task file: make stage-task f=TASK-001
@@ -200,7 +202,12 @@ pr-task:
 	CMD=$$(grep '\*\*Switch/create:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
 	[ -n "$$CMD" ] || CMD=$$(grep '\*\*Branch:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
 	if [ -n "$$CMD" ]; then \
-		eval "$$CMD" || eval "$$(echo "$$CMD" | sed 's/^git checkout -b /git checkout /')"; \
+		BRANCH=$$(echo "$$CMD" | sed 's/^git checkout -b //'); \
+		if git show-ref --verify --quiet "refs/heads/$$BRANCH"; then \
+			git checkout "$$BRANCH"; \
+		else \
+			git checkout -b "$$BRANCH"; \
+		fi; \
 	fi; \
 	TITLE=$$(head -1 "$$TASK_FILE" | sed 's/^# //'); \
 	BODY=$$(awk '/^## Description/{f=1} /^## Completion/{f=0} f{print}' "$$TASK_FILE"); \
