@@ -167,3 +167,7 @@ requirements-drafter → workflow-guardian → implementation-worker → pr-revi
 - Tasks live in `docs/tasks/TASK-<NNN>-short-description.md`
 - Every task runs on its own `task/<NNN>-short-description` branch
 - Always commit via `make commit-current-task`, never `git commit` directly
+
+## License
+
+[MIT](LICENSE)
