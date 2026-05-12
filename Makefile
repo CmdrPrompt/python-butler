@@ -283,24 +283,9 @@ init-project:
 ## Remove all but .butler/Makefile — run after make init-project (idempotent)
 butler-trim:
 	@echo "Trimming .butler/ down to Makefile only ..."
-	@git rm -r --ignore-unmatch --cached \
-		.butler/.claude \
-		.butler/.gitignore \
-		.butler/CHANGELOG.md \
-		.butler/claude-agents \
-		.butler/docs \
-		.butler/README.md \
-		.butler/scaffold \
-		.butler/templates
-	@rm -rf \
-		.butler/.claude \
-		.butler/.gitignore \
-		.butler/CHANGELOG.md \
-		.butler/claude-agents \
-		.butler/docs \
-		.butler/README.md \
-		.butler/scaffold \
-		.butler/templates
+	@FILES=$$(git ls-files .butler/ | grep -v '^\.butler/Makefile$$'); \
+	[ -n "$$FILES" ] && echo "$$FILES" | xargs git rm -r --cached --ignore-unmatch || true
+	@find .butler/ -mindepth 1 -maxdepth 1 ! -name 'Makefile' -exec rm -rf {} +
 	@BUTLER_SHA=$$(git ls-remote $(BUTLER_REMOTE) refs/heads/main | cut -f1); \
 	if [ -n "$$BUTLER_SHA" ]; then \
 		echo "$$BUTLER_SHA" > .butler-version; \
