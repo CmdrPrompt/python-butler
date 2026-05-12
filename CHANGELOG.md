@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- `butler-trim` now removes all files and directories under `.butler/` except
+  `Makefile` dynamically, replacing a hardcoded list that silently left behind
+  any file added to python-butler after the list was written (e.g. `LICENSE`).
+  (TASK-018)
+
 - `butler-trim` now records the remote HEAD SHA via `git ls-remote` instead of
   extracting from the squash-merge commit message, which did not reliably match
   the branch tip. `butler-check` now correctly reports "up to date" after a pull.
