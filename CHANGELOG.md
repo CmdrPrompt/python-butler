@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- `make pr-task` and `make branch-task` no longer print `fatal: a branch named
+  '...' already exists` when the task branch already exists; they now check with
+  `git show-ref` and choose the correct `checkout` form silently. (TASK-019)
+
 - `butler-trim` now records the remote HEAD SHA via `git ls-remote` instead of
   extracting from the squash-merge commit message, which did not reliably match
   the branch tip. `butler-check` now correctly reports "up to date" after a pull.
