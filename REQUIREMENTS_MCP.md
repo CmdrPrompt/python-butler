@@ -199,10 +199,10 @@ inlining `grep`/`sed` parsing, without changing target names, arguments
 
 ```makefile
 branch-task:
-	@butler task branch $(f)
+    @butler task branch $(f)
 
 commit-task:
-	@butler task commit $(f)
+    @butler task commit $(f)
 ```
 
 **Constraint:** If the CLI is not installed, targets must fail with a clear

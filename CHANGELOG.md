@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+
+- Python package skeleton (`pyproject.toml`, `src/butler_core/`, `src/butler_cli/`, `mcp/`,
+  `tests/`) and dev dependencies (`ruff`, `mypy`, `bandit`, `pytest`, `hypothesis`) so
+  subsequent tasks can implement and test real code. (TASK-021)
+- `make sync-main` merges `main` into the current task branch — replaces the previous
+  instruction to run `git merge main` directly. (TASK-021)
+- `make merge-worktree b=<branch>` merges a worktree sub-agent branch back into the
+  current branch after the agent finishes. (TASK-021)
+- `make commit-output f="..." m="..."` stages and commits arbitrary files with a given
+  message, for agents that operate outside a task branch. (TASK-021)
+- Agent files (`implementation-worker`, `requirements-drafter`, `characterization-test-writer`,
+  `test-writer`, `bug-triage`, `dependency-auditor`, `test-design-reviewer`) updated with
+  `write` tool access, worktree execution context, and a rule to use `make` targets for all
+  git operations instead of direct `git` commands. (TASK-021)
+- New agent files `test-writer.agent.md` and `test-design-reviewer.agent.md` added to
+  `.claude/agents/`. (TASK-021)
+
 ### Fixed
 
 - `make pr-task` and `make branch-task` no longer print `fatal: a branch named

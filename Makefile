@@ -1,6 +1,6 @@
-.PHONY: all help setup install lint fix stage branch-task stage-task commit-task \
-        pr-task merge-pr stage-current-task commit-current-task pr-current-task \
-	merge-current-task test clean clean-complexity generate-governance-files \
+.PHONY: all help setup install lint fix stage branch-task sync-main stage-task commit-task \
+        commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
+	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
 	butler-trim butler-fetch butler-pull butler-check
 
@@ -48,6 +48,7 @@ help:
 	@echo ""
 	@echo "  Task workflow (explicit task ID):"
 	@echo "    make branch-task f=TASK-001  -- Create/switch to task branch"
+	@echo "    make sync-main               -- Merge main into current task branch"
 	@echo "    make stage-task f=TASK-001   -- Fix + stage files listed in task"
 	@echo "    make commit-task f=TASK-001  -- Commit with message from task file"
 	@echo "    make pr-task f=TASK-001      -- Open PR on GitHub"
@@ -58,6 +59,11 @@ help:
 	@echo "    make commit-current-task     -- Commit for current task"
 	@echo "    make pr-current-task         -- Open PR for current task"
 	@echo "    make merge-current-task      -- Squash-merge PR, pull main"
+	@echo ""
+	@echo "  Agent / worktree helpers:"
+	@echo "    make sync-main                          -- Merge main into current branch"
+	@echo "    make merge-worktree b=<branch>          -- Merge a worktree branch into current branch"
+	@echo "    make commit-output f='files' m='msg'    -- Stage and commit arbitrary files"
 	@echo ""
 
 ## Generate pyproject.toml and .pymarkdown from templates if missing
@@ -155,6 +161,12 @@ branch-task:
 		git checkout -b "$$BRANCH"; \
 	fi
 
+## Merge main into the current task branch (sync before coding)
+sync-main:
+	@BRANCH=$$(git branch --show-current); \
+	[ "$$BRANCH" != "main" ] || (echo "Already on main — switch to a task branch first"; exit 1)
+	git merge main
+
 ## Auto-fix and stage files listed in a task file: make stage-task f=TASK-001
 stage-task:
 	@[ -n "$(f)" ] || (echo "Usage: make stage-task f=<task-id>"; exit 1)
@@ -193,6 +205,13 @@ commit-current-task:
 	NUM=$$(echo "$$BRANCH" | sed -n 's#^task/\([0-9][0-9][0-9]\)-.*#\1#p'); \
 	[ -n "$$NUM" ] || (echo "Not on a task branch (expected task/<NNN>-...)"; exit 1); \
 	$(MAKE) commit-task f=TASK-$$NUM
+
+## Stage and commit arbitrary files with a given message (for agents not on a task branch)
+commit-output:
+	@[ -n "$(f)" ] || (echo "Usage: make commit-output f='file1 file2' m='commit message'"; exit 1)
+	@[ -n "$(m)" ] || (echo "Usage: make commit-output f='file1 file2' m='commit message'"; exit 1)
+	git add -- $(f)
+	git commit -m "$(m)"
 
 ## Open a GitHub PR using task title and description: make pr-task f=TASK-001
 pr-task:
@@ -245,6 +264,11 @@ merge-current-task:
 	NUM=$$(echo "$$BRANCH" | sed -n 's#^task/\([0-9][0-9][0-9]\)-.*#\1#p'); \
 	[ -n "$$NUM" ] || (echo "Not on a task branch (expected task/<NNN>-...)"; exit 1); \
 	$(MAKE) merge-pr f=TASK-$$NUM
+
+## Merge a worktree branch result back into the current branch
+merge-worktree:
+	@[ -n "$(b)" ] || (echo "Usage: make merge-worktree b=<branch-name>"; exit 1)
+	git merge $(b)
 
 ## Run tests with coverage
 test:
