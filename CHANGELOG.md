@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Python package skeleton (`pyproject.toml`, `src/butler_core/`, `src/butler_cli/`, `mcp/`,
+  `tests/`) and dev dependencies (`ruff`, `mypy`, `bandit`, `pytest`, `hypothesis`) so
+  subsequent tasks can implement and test real code. (TASK-021)
+
 ### Fixed
 
 - `make pr-task` and `make branch-task` no longer print `fatal: a branch named

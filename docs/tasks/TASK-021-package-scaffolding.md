@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -22,27 +22,31 @@ empty package.
 
 ## Acceptance criteria
 
-- [ ] `pyproject.toml` exists and declares `butler_core` and `butler_cli` as packages under `src/`
-- [ ] `src/butler_core/__init__.py` and `src/butler_cli/__init__.py` exist
-- [ ] `mcp/` directory exists with a placeholder `server.py`
-- [ ] `tests/` directory exists with a placeholder test
-- [ ] `make install` succeeds (uv sync + pre-commit install)
-- [ ] `make lint && make test` pass on the empty skeleton
+- [x] `pyproject.toml` exists and declares `butler_core` and `butler_cli` as packages under `src/`
+- [x] `src/butler_core/__init__.py` and `src/butler_cli/__init__.py` exist
+- [x] `mcp/` directory exists with a placeholder `server.py`
+- [x] `tests/` directory exists with a placeholder test
+- [x] `make install` succeeds (uv sync + pre-commit install)
+- [x] `make lint && make test` pass on the empty skeleton
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-07
+**Summary:** Created `pyproject.toml`, package init files under `src/`, `mcp/` placeholder,
+`tests/` placeholder, and `.pymarkdown` config. Installed dev dependencies via `uv sync`.
+`make lint` and `make test` both pass.
 **Files changed:**
 
 - `pyproject.toml` — created
+- `.pymarkdown` — created (copied from scaffold)
 - `src/butler_core/__init__.py` — created
 - `src/butler_cli/__init__.py` — created
+- `src/butler_cli/__main__.py` — created
 - `mcp/__init__.py` — created
 - `mcp/server.py` — created
 - `tests/__init__.py` — created
 - `tests/test_placeholder.py` — created
 
 **Branch:** `git checkout task/021-package-scaffolding`
-**Stage:** `git add pyproject.toml src/ mcp/ tests/ CHANGELOG.md docs/tasks/TASK-021-package-scaffolding.md`
+**Stage:** `git add pyproject.toml .pymarkdown src/ mcp/ tests/ CHANGELOG.md docs/tasks/TASK-021-package-scaffolding.md`
 **Commit:** `git commit -m "Scaffold butler_core, butler_cli, and mcp package structure"`
