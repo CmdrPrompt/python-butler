@@ -162,6 +162,7 @@ cython_debug/
 
 # Complexipy output
 complexipy_results_*.json
+complexipy-results*.json
 .complexipy_cache/
 
 # PyPI configuration file
