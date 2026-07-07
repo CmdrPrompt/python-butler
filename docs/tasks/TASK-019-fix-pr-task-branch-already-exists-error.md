@@ -2,7 +2,7 @@
 
 ## Status
 
-in progress
+done
 
 ## Description
 
@@ -18,11 +18,11 @@ The fix checks whether the branch already exists before deciding which form of
 
 ## Acceptance criteria
 
-- [ ] Running `make pr-current-task` from the task branch produces no `fatal:`
+- [x] Running `make pr-current-task` from the task branch produces no `fatal:`
   output
-- [ ] Running `make branch-task f=TASK-NNN` when the branch already exists
+- [x] Running `make branch-task f=TASK-NNN` when the branch already exists
   switches to it silently, with no `fatal:` output
-- [ ] Running `make branch-task f=TASK-NNN` when the branch does not exist
+- [x] Running `make branch-task f=TASK-NNN` when the branch does not exist
   creates and switches to it as before
 
 ## Branch
@@ -31,5 +31,15 @@ The fix checks whether the branch already exists before deciding which form of
 
 ## Completion
 
+**Date:** 2026-05-12
+**Summary:** Added `git show-ref --verify --quiet` check before `git checkout` in
+`branch-task` and `pr-task` to pick the correct form silently when the branch exists.
+**Files changed:**
+
+- `Makefile` — modified (branch-task and pr-task targets)
+- `CHANGELOG.md` — modified
+- `docs/tasks/TASK-019-fix-pr-task-branch-already-exists-error.md` — created
+
+**Branch:** `git checkout task/019-fix-pr-task-branch-already-exists-error`
 **Stage:** `git add Makefile CHANGELOG.md docs/tasks/TASK-019-fix-pr-task-branch-already-exists-error.md`
 **Commit:** `git commit -m "Fix spurious fatal error in pr-task and branch-task when branch already exists"`

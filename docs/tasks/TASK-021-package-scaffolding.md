@@ -39,6 +39,8 @@ empty package.
 
 - `pyproject.toml` — created
 - `.pymarkdown` — created (copied from scaffold)
+- `.pre-commit-config.yaml` — created (copied from scaffold)
+- `uv.lock` — created
 - `src/butler_core/__init__.py` — created
 - `src/butler_cli/__init__.py` — created
 - `src/butler_cli/__main__.py` — created
@@ -46,7 +48,29 @@ empty package.
 - `mcp/server.py` — created
 - `tests/__init__.py` — created
 - `tests/test_placeholder.py` — created
+- `Makefile` — modified (sync-main, merge-worktree, commit-output targets added)
+- `REQUIREMENTS_MCP.md` — modified (pymarkdown auto-fix)
+- `.claude/agents/bug-triage.agent.md` — modified (write tool, execution context, no direct git)
+- `.claude/agents/characterization-test-writer.agent.md` — modified (write tool, execution context)
+- `.claude/agents/dependency-auditor.agent.md` — modified (write tool, execution context, no direct git)
+- `.claude/agents/implementation-worker.agent.md` — modified (write tool, execution context)
+- `.claude/agents/requirements-drafter.agent.md` — modified (execution context, no direct git)
+- `.claude/agents/workflow-guardian.agent.md` — modified (worktree isolation, no direct git)
+- `.claude/agents/test-design-reviewer.agent.md` — created (new agent)
+- `.claude/agents/test-writer.agent.md` — created (new agent)
+- `claude-agents/bug-triage.agent.md` — modified (mirrors .claude/agents/)
+- `claude-agents/characterization-test-writer.agent.md` — modified
+- `claude-agents/dependency-auditor.agent.md` — modified
+- `claude-agents/implementation-worker.agent.md` — modified
+- `claude-agents/requirements-drafter.agent.md` — modified
+- `claude-agents/workflow-guardian.agent.md` — modified
+- `docs/tasks/TASK-014-fix-pyproject-scaffold.md` — modified (pymarkdown auto-fix)
+- `docs/tasks/TASK-015-butler-trim-target.md` — modified (pymarkdown auto-fix)
+- `docs/tasks/TASK-017-add-mit-license.md` — modified (status → done, completion filled)
+- `docs/tasks/TASK-018-fix-butler-trim-hardcoded-list.md` — modified (status → done, completion filled)
+- `docs/tasks/TASK-019-fix-pr-task-branch-already-exists-error.md` — modified (status → done, completion filled)
+- `docs/tasks/TASK-020-clarify-agent-invocation.md` — modified (status → done)
 
 **Branch:** `git checkout task/021-package-scaffolding`
-**Stage:** `git add pyproject.toml .pymarkdown src/ mcp/ tests/ CHANGELOG.md docs/tasks/TASK-021-package-scaffolding.md`
-**Commit:** `git commit -m "Scaffold butler_core, butler_cli, and mcp package structure"`
+**Stage:** `git add pyproject.toml .pymarkdown .pre-commit-config.yaml uv.lock src/ mcp/ tests/ Makefile REQUIREMENTS_MCP.md .claude/agents/ claude-agents/ docs/tasks/ CHANGELOG.md docs/tasks/TASK-021-package-scaffolding.md`
+**Commit:** `git commit -m "Add agent governance improvements and Makefile worktree helpers"`

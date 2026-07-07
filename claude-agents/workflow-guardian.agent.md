@@ -16,8 +16,13 @@ Your job is to enforce the repository process in every change and prevent out-of
 - You (Claude) are already acting as Workflow Guardian in the main conversation.
 - Do NOT spawn another Workflow Guardian via the Agent tool — that creates a
   redundant sub-agent that lacks the `edit` tool and cannot write files.
-- After requirements confirmation, spawn **Implementation Worker** (not Workflow
-  Guardian) via the Agent tool for the implementation phase.
+- After requirements confirmation, spawn **Implementation Worker** via the Agent
+  tool with `isolation: "worktree"`. This gives the worker an isolated git
+  worktree where its file writes and commits persist. When the worker is done,
+  the Agent tool returns the worktree branch name; merge it into the current
+  task branch with `make merge-worktree b=<branch>`.
+- If the Agent tool does NOT return a worktree branch (worker made no commits),
+  the worker failed — implement directly in the main conversation instead.
 
 **When spawned as a sub-agent via the Agent tool:**
 - Operate as normal. You may delegate coding to Implementation Worker.
@@ -35,7 +40,7 @@ Your job is to enforce the repository process in every change and prevent out-of
 - Ensure work is on the dedicated branch from task metadata (task/NNN-short-description), not on main.
 - Run `make branch-task f=TASK-XXX` to create or switch to the task branch.
 - If the task branch exists but is behind main, merge main into the task branch before coding
-  (`git merge main`). An out-of-date branch is a blocking condition.
+  (`make sync-main`). An out-of-date branch is a blocking condition.
 
 1. Task metadata gate
 - At task start, set task Status to in-progress on the task branch.

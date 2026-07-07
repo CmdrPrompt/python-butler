@@ -2,7 +2,7 @@
 
 ## Status
 
-in progress
+done
 
 ## Description
 
@@ -13,10 +13,10 @@ the terms for all current and future adopters, including `python-butler-cli`.
 
 ## Acceptance criteria
 
-- [ ] `LICENSE` file exists in the repository root with standard MIT license
+- [x] `LICENSE` file exists in the repository root with standard MIT license
   text, copyright holder Thomas Lindqvist, year 2026
-- [ ] `README.md` includes a license section referencing the MIT license
-- [ ] No other files are modified
+- [x] `README.md` includes a license section referencing the MIT license
+- [x] No other files are modified
 
 ## Branch
 
@@ -24,5 +24,14 @@ the terms for all current and future adopters, including `python-butler-cli`.
 
 ## Completion
 
+**Date:** 2026-05-12
+**Summary:** Added MIT LICENSE file and a license section to README.md.
+**Files changed:**
+
+- `LICENSE` — created
+- `README.md` — modified (license section added)
+- `docs/tasks/TASK-017-add-mit-license.md` — created
+
+**Branch:** `git checkout task/017-add-mit-license`
 **Stage:** `git add LICENSE README.md docs/tasks/TASK-017-add-mit-license.md`
 **Commit:** `git commit -m "Add MIT license"`

@@ -9,10 +9,19 @@ disable-model-invocation: false
 
 You implement approved work only after requirements are confirmed.
 
+## Execution context
+
+You are typically spawned with `isolation: "worktree"`, meaning you work in a
+temporary isolated copy of the repository on a dedicated git branch. Your file
+writes and commits in this worktree persist and are returned to the Workflow
+Guardian when you finish. Use `make` targets for all git operations — do not
+run `git commit`, `git add`, or `git push` directly.
+
 ## Preconditions
 
 - Requirements update and explicit confirmation are already completed.
-- Work is on the dedicated task branch for the TASK-ID.
+- Work is on the dedicated task branch for the TASK-ID (already checked out in
+  the worktree by the time you are invoked).
 - Task branch is synced with main (merge main done if branch was behind).
 - Task-start coverage baseline has been recorded by the Guardian.
 

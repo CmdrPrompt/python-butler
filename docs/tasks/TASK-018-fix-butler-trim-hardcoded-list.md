@@ -2,7 +2,7 @@
 
 ## Status
 
-in progress
+done
 
 ## Description
 
@@ -17,11 +17,11 @@ in `.butler/` except `Makefile`, both from the git index and the filesystem.
 
 ## Acceptance criteria
 
-- [ ] `butler-trim` removes all files and directories under `.butler/` except
+- [x] `butler-trim` removes all files and directories under `.butler/` except
   `Makefile`, regardless of what python-butler adds in the future
-- [ ] Running `butler-trim` on a project where `.butler/` only contains
+- [x] Running `butler-trim` on a project where `.butler/` only contains
   `Makefile` is a no-op (idempotent)
-- [ ] The hardcoded list of paths is gone from the target
+- [x] The hardcoded list of paths is gone from the target
 
 ## Branch
 
@@ -29,5 +29,16 @@ in `.butler/` except `Makefile`, both from the git index and the filesystem.
 
 ## Completion
 
+**Date:** 2026-05-12
+**Summary:** Replaced the hardcoded path list in `butler-trim` with a dynamic
+`git ls-files` + `find` approach that removes everything under `.butler/` except
+`Makefile`.
+**Files changed:**
+
+- `Makefile` — modified (butler-trim target)
+- `CHANGELOG.md` — modified
+- `docs/tasks/TASK-018-fix-butler-trim-hardcoded-list.md` — created
+
+**Branch:** `git checkout task/018-fix-butler-trim-hardcoded-list`
 **Stage:** `git add Makefile CHANGELOG.md docs/tasks/TASK-018-fix-butler-trim-hardcoded-list.md`
 **Commit:** `git commit -m "Fix butler-trim to remove all non-Makefile files dynamically"`
