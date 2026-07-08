@@ -4,6 +4,11 @@
 
 ### Added
 
+- The `butler` CLI (`src/butler_cli/__main__.py`) now exposes `butler task list [--status ...]`,
+  `show`, `create --title --description`, `check --criterion N` (1-based), `branch`, `stage`,
+  `commit`, `pr`, and `merge` as thin subcommand wrappers over `butler_core.tasks` and
+  `butler_core.git_ops`, so a developer in a terminal (including GitHub Codespaces) can drive
+  the full task workflow without `make`. (TASK-024)
 - `make merge-worktree` now squash-merges (`git merge --squash`) instead of a plain merge, so
   Workflow Guardian creates the single real commit itself after a worktree sub-agent's work is
   brought in; Implementation Worker now commits from an isolated worktree with
