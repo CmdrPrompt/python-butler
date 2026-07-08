@@ -47,10 +47,10 @@ class TestShow:
         main(["--tasks-dir", str(tmp_path), "task", "show", "TASK-001"])
 
         out = capsys.readouterr().out
-        assert "TASK-001" in out
-        assert "Some feature" in out
-        assert "todo" in out
-        assert "A description." in out
+        assert "TASK-001" in out, f"expected the task id in output, got {out!r}"
+        assert "Some feature" in out, f"expected the task title in output, got {out!r}"
+        assert "todo" in out, f"expected the task status in output, got {out!r}"
+        assert "A description." in out, f"expected the task description in output, got {out!r}"
 
     def test_prints_acceptance_criteria_with_check_marks(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -66,8 +66,10 @@ class TestShow:
         main(["--tasks-dir", str(tmp_path), "task", "show", task.id])
 
         out = capsys.readouterr().out
-        assert "[x] done thing" in out
-        assert "[ ] pending thing" in out
+        assert "[x] done thing" in out, f"expected a checked criterion mark in output, got {out!r}"
+        assert "[ ] pending thing" in out, (
+            f"expected an unchecked criterion mark in output, got {out!r}"
+        )
 
     def test_prints_completion_info_when_present(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -81,8 +83,12 @@ class TestShow:
         main(["--tasks-dir", str(tmp_path), "task", "show", task.id])
 
         out = capsys.readouterr().out
-        assert "Completion date: 2026-01-01" in out
-        assert "Completion summary: All done" in out
+        assert "Completion date: 2026-01-01" in out, (
+            f"expected the completion date in output, got {out!r}"
+        )
+        assert "Completion summary: All done" in out, (
+            f"expected the completion summary in output, got {out!r}"
+        )
 
     def test_raises_clean_error_for_unknown_task(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -127,8 +133,12 @@ class TestCreate:
         )
 
         created = read_task("TASK-001", tasks_dir=str(tmp_path))
-        assert created.title == "New feature"
-        assert created.description == "Implement it."
+        assert created.title == "New feature", (
+            f"expected title 'New feature', got {created.title!r}"
+        )
+        assert created.description == "Implement it.", (
+            f"expected description 'Implement it.', got {created.description!r}"
+        )
 
 
 class TestCheck:

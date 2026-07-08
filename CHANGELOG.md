@@ -48,6 +48,11 @@
   id, since they're observed through different mechanisms and don't imply one another) or
   renamed to a single unifying name where the two facts were one cohesive behaviour (e.g.
   "prints an error and exits 1" -> "fails cleanly"). (TASK-031)
+- `tests/test_cli.py` multi-assert tests (`test_prints_structured_task_data`,
+  `test_prints_acceptance_criteria_with_check_marks`, `test_prints_completion_info_when_present`,
+  `test_creates_task_file_with_correct_metadata`) now carry a failure message on every `assert`
+  stating what was expected, so a failure pinpoints the diverging field without reading the
+  test body. (TASK-032)
 
 ### Fixed
 

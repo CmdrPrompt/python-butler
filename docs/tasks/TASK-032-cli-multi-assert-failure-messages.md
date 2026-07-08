@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -30,18 +30,29 @@ review.
 
 ## Acceptance criteria
 
-- [ ] Identified tests refactored to address the finding
-- [ ] Farley Index re-evaluated — blended score for this property does not decrease
-- [ ] make lint && make test pass
-- [ ] CHANGELOG.md updated
+- [x] Identified tests refactored to address the finding
+- [x] Farley Index re-evaluated — blended score for this property does not decrease
+- [x] make lint && make test pass
+- [x] CHANGELOG.md updated
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-08
+**Summary:** Added a descriptive failure message to every `assert` in the four target tests
+(names updated by TASK-031, which landed first: `test_prints_structured_task_data`,
+`test_prints_acceptance_criteria_with_check_marks` (was
+`test_prints_checked_and_unchecked_acceptance_criteria`),
+`test_prints_completion_info_when_present` (was
+`test_prints_completion_date_and_summary_when_present`), and
+`test_creates_task_file_with_correct_metadata` (the 2-assert half of the test TASK-031 split
+off from `test_creates_new_task_file_and_prints_id`)). Each message states the specific
+field expected and echoes the actual captured value/output for debugging. Test Design
+Reviewer scored Understandable at blended 9.0 (target 9.0, up from baseline 8.4) — target met.
 **Files changed:**
 
 - `tests/test_cli.py` — modified
+- `docs/tasks/TASK-032-cli-multi-assert-failure-messages.md` — modified
+- `CHANGELOG.md` — modified
 
 **Branch:** `git checkout task/032-cli-multi-assert-failure-messages`
 **Stage:** `git add tests/test_cli.py CHANGELOG.md`
