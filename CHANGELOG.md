@@ -4,6 +4,16 @@
 
 ### Added
 
+- `make merge-worktree` now squash-merges (`git merge --squash`) instead of a plain merge, so
+  Workflow Guardian creates the single real commit itself after a worktree sub-agent's work is
+  brought in; Implementation Worker now commits from an isolated worktree with
+  `make commit-output` (its branch does not match `task/<NNN>-...`, so `stage-current-task`/
+  `commit-current-task` aren't available there) instead of leaving edits uncommitted, so its
+  work reliably survives worktree cleanup. Workflow Guardian now also reads test/production
+  file content itself and pastes it inline into the Test Design Reviewer prompt instead of
+  having the reviewer read files independently, and independently re-verifies every
+  Implementation Worker / Test Design Reviewer report (file contents, test counts, commit
+  hashes, coverage) against ground truth before trusting it. (TASK-029)
 - `butler_core.git_ops` provides `branch_for`, `stage_for`, `commit_for`, `open_pr_for`, and
   `merge_pr_for`, extracting the git/`gh` workflow logic previously inlined in the `Makefile`'s
   `branch-task`, `stage-task`, `commit-task`, `pr-task`, and `merge-pr` targets into reusable,

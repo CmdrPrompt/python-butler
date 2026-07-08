@@ -47,7 +47,12 @@ Each property is scored 0–10 independently, then blended into an overall Farle
 
 ### 1 — Locate the test suite
 
-Find all test files within scope (typically `tests/`, `test_*.py`, `*_test.py`).
+If the Workflow Guardian (or caller) has already pasted the test file(s) and corresponding
+production file(s) content directly into your prompt, use that content as-is — do not
+re-read the files from disk, and do not report on files or content not present in the prompt
+or found via your own tool calls.
+
+Otherwise, find all test files within scope (typically `tests/`, `test_*.py`, `*_test.py`).
 Read every in-scope test file completely before scoring. Do not sample.
 Also read the corresponding production code to evaluate design influence (Property 8).
 
