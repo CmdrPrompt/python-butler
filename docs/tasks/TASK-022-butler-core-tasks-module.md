@@ -64,4 +64,4 @@ coverage rose from the 0% baseline to 95%. `make lint && make test` pass.
 
 **Branch:** `git checkout task/022-butler-core-tasks-module`
 **Stage:** `git add src/butler_core/tasks.py tests/test_tasks.py CHANGELOG.md docs/tasks/TASK-022-butler-core-tasks-module.md`
-**Commit:** `git commit -m "Implement butler_core tasks module with parse, list, create, and update operations"`
+**Commit:** `git commit -m "Use pytest.raises in tasks module tests (test-design review follow-up)"`

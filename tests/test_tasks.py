@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -131,12 +132,8 @@ def test_set_status_updates_status_line_without_touching_description(tmp_path: P
 
 
 def test_read_task_raises_for_unknown_task_id(tmp_path: Path) -> None:
-    try:
+    with pytest.raises(FileNotFoundError):
         read_task("TASK-999", tasks_dir=str(tmp_path))
-    except FileNotFoundError:
-        pass
-    else:
-        raise AssertionError("expected FileNotFoundError")
 
 
 _safe_field = st.text(
