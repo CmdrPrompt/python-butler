@@ -35,6 +35,15 @@
   against Dave Farley's 8 Properties of Good Tests, before `make stage-current-task`/
   `stage-task` — real findings must be addressed before staging. (TASK-028)
 
+### Changed
+
+- `tests/test_cli.py::TestGitDelegation` now mocks `subprocess.run` at the real git/`gh`
+  process boundary instead of the CLI's internal `git_ops` collaborator functions, so the
+  five delegation tests (branch/stage/commit/pr/merge) assert on the actual external command
+  the full CLI pipeline would run (and the CLI's exit code) instead of only that an internal
+  function was called with a given object — regression protection now survives internal
+  signature refactors. (TASK-030)
+
 ### Fixed
 
 - `templates/` (the Copilot-facing `.tmpl` counterparts rendered into an adopting project's

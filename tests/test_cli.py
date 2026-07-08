@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -134,50 +135,87 @@ class TestCheck:
 
 
 class TestGitDelegation:
-    @patch("butler_cli.__main__.branch_for")
-    def test_branch_delegates_to_git_ops(self, mock_branch_for: MagicMock, tmp_path: Path) -> None:
-        create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+    """Mocks subprocess.run at the git_ops module's external boundary (not the CLI's
+    internal git_ops imports) so these tests observe the actual git/gh commands the
+    full CLI -> git_ops pipeline would run, rather than merely that an internal
+    collaborator function was invoked."""
 
-        main(["--tasks-dir", str(tmp_path), "task", "branch", "TASK-001"])
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_branch_creates_new_branch_for_task(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        # non-zero => _branch_exists() reports False, forcing the create-branch path
+        mock_run.return_value = MagicMock(returncode=1)
 
-        assert mock_branch_for.call_count == 1
-        assert mock_branch_for.call_args.args[0].id == "TASK-001"
+        exit_code = main(["--tasks-dir", str(tmp_path), "task", "branch", task.id])
 
-    @patch("butler_cli.__main__.stage_for")
-    def test_stage_delegates_to_git_ops(self, mock_stage_for: MagicMock, tmp_path: Path) -> None:
-        create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        assert exit_code == 0, "branch command should exit 0 on success"
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        assert ["git", "checkout", "-b", task.branch_name] in commands, (
+            f"expected a 'git checkout -b {task.branch_name}' invocation, got {commands}"
+        )
 
-        main(["--tasks-dir", str(tmp_path), "task", "stage", "TASK-001"])
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_stage_runs_tasks_stage_command(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        mock_run.return_value = MagicMock(returncode=0)
 
-        assert mock_stage_for.call_count == 1
-        assert mock_stage_for.call_args.args[0].id == "TASK-001"
+        exit_code = main(["--tasks-dir", str(tmp_path), "task", "stage", task.id])
 
-    @patch("butler_cli.__main__.commit_for")
-    def test_commit_delegates_to_git_ops(self, mock_commit_for: MagicMock, tmp_path: Path) -> None:
-        create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        assert exit_code == 0, "stage command should exit 0 on success"
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        assert shlex.split(task.stage_cmd) in commands, (
+            f"expected the task's stage command {task.stage_cmd!r} to run, got {commands}"
+        )
 
-        main(["--tasks-dir", str(tmp_path), "task", "commit", "TASK-001"])
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_commit_runs_git_commit_with_task_message(
+        self, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
+        task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        mock_run.return_value = MagicMock(returncode=0)
 
-        assert mock_commit_for.call_count == 1
-        assert mock_commit_for.call_args.args[0].id == "TASK-001"
+        exit_code = main(["--tasks-dir", str(tmp_path), "task", "commit", task.id])
 
-    @patch("butler_cli.__main__.open_pr_for")
-    def test_pr_delegates_to_git_ops(self, mock_open_pr_for: MagicMock, tmp_path: Path) -> None:
-        create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        assert exit_code == 0, "commit command should exit 0 on success"
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        assert ["git", "commit", "-m", task.commit_message] in commands, (
+            f"expected a git commit with message {task.commit_message!r}, got {commands}"
+        )
 
-        main(["--tasks-dir", str(tmp_path), "task", "pr", "TASK-001"])
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_pr_opens_pr_with_task_title(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        mock_run.return_value = MagicMock(returncode=0)
 
-        assert mock_open_pr_for.call_count == 1
-        assert mock_open_pr_for.call_args.args[0].id == "TASK-001"
+        exit_code = main(["--tasks-dir", str(tmp_path), "task", "pr", task.id])
 
-    @patch("butler_cli.__main__.merge_pr_for")
-    def test_merge_delegates_to_git_ops(self, mock_merge_pr_for: MagicMock, tmp_path: Path) -> None:
-        create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+        assert exit_code == 0, "pr command should exit 0 on success"
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        expected_title = f"{task.id} {task.title}"
+        assert any(
+            cmd[:3] == ["gh", "pr", "create"] and expected_title in cmd for cmd in commands
+        ), f"expected a 'gh pr create' with title {expected_title!r}, got {commands}"
 
-        main(["--tasks-dir", str(tmp_path), "task", "merge", "TASK-001"])
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_merge_squash_merges_tasks_pr(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
 
-        assert mock_merge_pr_for.call_count == 1
-        assert mock_merge_pr_for.call_args.args[0].id == "TASK-001"
+        def run_side_effect(cmd: list[str], **_kwargs: object) -> MagicMock:
+            if cmd[:3] == ["gh", "pr", "list"]:
+                return MagicMock(returncode=0, stdout="42\n")
+            if cmd[:3] == ["gh", "pr", "view"]:
+                return MagicMock(returncode=0, stdout="MERGEABLE\n")
+            return MagicMock(returncode=0)
+
+        mock_run.side_effect = run_side_effect
+
+        exit_code = main(["--tasks-dir", str(tmp_path), "task", "merge", task.id])
+
+        assert exit_code == 0, "merge command should exit 0 on success"
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        assert ["gh", "pr", "merge", "42", "--squash", "--delete-branch"] in commands, (
+            f"expected a squash-merge of PR 42, got {commands}"
+        )
 
 
 class TestErrorHandling:
