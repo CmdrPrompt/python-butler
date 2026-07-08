@@ -116,6 +116,46 @@ git subtree push --prefix=.butler \
 # No push access? Push to a fork and open a PR against main instead.
 ```
 
+## CLI (optional)
+
+The Makefile targets call a small CLI, `butler`, that wraps task-file parsing
+and git/gh operations. Adopting butler via the Makefile alone (as described
+above) works without installing anything — `make branch-task`, `stage-task`,
+etc. run the same logic through `.butler/Makefile` regardless.
+
+Installing the CLI directly is an optional convenience for developers who
+want to run `butler` commands (or use the MCP server, see below) outside of
+`make`:
+
+```bash
+# From a checkout of this repo:
+uv tool install .
+
+# Or straight from GitHub, without cloning:
+uv tool install git+https://github.com/CmdrPrompt/python-butler.git
+```
+
+This installs a `butler` command backed by `butler_cli`/`butler_core`. It is
+not published to PyPI — `pip install butler-cli` without a path or URL will
+not work; install from source or a Git URL as shown above.
+
+## MCP server (optional)
+
+`mcp/` contains a separate, optional MCP server (`butler-mcp`) that exposes
+butler's task and git/gh operations as tools over stdio, for use by Claude
+Code or any other MCP-compatible agent. It depends on `butler_core` but ships
+its own `pyproject.toml` so the MCP SDK dependency doesn't leak into projects
+that only use the Makefile or CLI.
+
+```bash
+cd mcp
+uv sync
+```
+
+Point your MCP client at `uv run --directory mcp server.py` (or the
+equivalent absolute path) to use it. Like the CLI, this is a purely optional
+addition — nothing else in this repo requires the MCP server to be installed.
+
 ## Governance files
 
 `make init-project` generates the following files interactively:

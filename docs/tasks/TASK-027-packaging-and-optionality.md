@@ -29,21 +29,29 @@ optional additions, separate from the base Makefile adoption flow.
 
 ## Acceptance criteria
 
-- [ ] `uv tool install .` (from repo root) installs the `butler` CLI entry point
-- [ ] A project that only includes `.butler/Makefile` (no Python package installed) still has fully working `make branch-task`, `stage-task`, `commit-task`, `pr-task`, `merge-pr` targets (falls back gracefully or the Makefile-only path is preserved)
-- [ ] `mcp/pyproject.toml` is independently installable and does not pull in `butler_core`'s dev dependencies
-- [ ] README has a section documenting CLI installation (`uv tool install`) and a section documenting MCP server setup, both clearly marked as optional
-- [ ] `make lint && make test` pass
+- [x] `uv tool install .` (from repo root) installs the `butler` CLI entry point
+- [x] A project that only includes `.butler/Makefile` (no Python package installed) still has fully working `make branch-task`, `stage-task`, `commit-task`, `pr-task`, `merge-pr` targets (falls back gracefully or the Makefile-only path is preserved)
+- [x] `mcp/pyproject.toml` is independently installable and does not pull in `butler_core`'s dev dependencies
+- [x] README has a section documenting CLI installation (`uv tool install`) and a section documenting MCP server setup, both clearly marked as optional
+- [x] `make lint && make test` pass
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-09
+**Summary:** Verified via a new `tests/test_packaging.py` suite that the CLI entry point, MCP
+server packaging isolation, and Makefile-only `check-butler` fallback already satisfied
+Requirement 9 (added as characterization/regression tests). Added the two README sections that
+were the only genuinely missing piece: CLI installation (`uv tool install`) and MCP server setup
+(`cd mcp && uv sync`), both marked optional. Also added a namespace-collision constraint and a
+"no PyPI release required" scope note to REQUIREMENTS_MCP.md Requirement 9 after discussion.
 **Files changed:**
 
-- `pyproject.toml` — modified (finalize entry points)
-- `README.md` — modified (CLI and MCP server sections)
+- `README.md` — modified (added "CLI (optional)" and "MCP server (optional)" sections)
+- `tests/test_packaging.py` — added (packaging/optionality test suite)
+- `REQUIREMENTS_MCP.md` — modified (Requirement 9: scope note + namespace collision constraint)
+- `CHANGELOG.md` — modified (documented the README additions and test coverage)
+- `docs/tasks/TASK-027-packaging-and-optionality.md` — modified (acceptance criteria + completion)
 
 **Branch:** `git checkout task/027-packaging-and-optionality`
-**Stage:** `git add pyproject.toml README.md CHANGELOG.md docs/tasks/TASK-027-packaging-and-optionality.md`
-**Commit:** `git commit -m "Finalize packaging and document CLI and MCP server as optional additions"`
+**Stage:** `git add README.md tests/test_packaging.py REQUIREMENTS_MCP.md CHANGELOG.md docs/tasks/TASK-027-packaging-and-optionality.md`
+**Commit:** `git commit -m "Document CLI and MCP server installation as optional additions, verify packaging isolation"`
