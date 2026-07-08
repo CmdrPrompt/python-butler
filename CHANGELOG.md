@@ -4,6 +4,11 @@
 
 ### Added
 
+- `butler_core.git_ops` provides `branch_for`, `stage_for`, `commit_for`, `open_pr_for`, and
+  `merge_pr_for`, extracting the git/`gh` workflow logic previously inlined in the `Makefile`'s
+  `branch-task`, `stage-task`, `commit-task`, `pr-task`, and `merge-pr` targets into reusable,
+  testable Python operations on the `Task` dataclass, matching the Makefile's behavior and
+  error messages exactly. (TASK-023)
 - `butler_core.tasks` reads, lists, creates, and updates `docs/tasks/TASK-*.md` files as
   structured `Task` data — `read_task`, `list_tasks`, `create_task`, `check_criterion`,
   `set_status` — while staying byte-compatible with the `grep`/`sed` parsing in `Makefile`
@@ -20,7 +25,6 @@
 - `claude-agents/` was missing `test-design-reviewer.agent.md` and `test-writer.agent.md`,
   and its `workflow-guardian.agent.md` was stale relative to `.claude/agents/`; both
   directories are now identical. (TASK-028)
-
 
 - Python package skeleton (`pyproject.toml`, `src/butler_core/`, `src/butler_cli/`, `mcp/`,
   `tests/`) and dev dependencies (`ruff`, `mypy`, `bandit`, `pytest`, `hypothesis`) so
