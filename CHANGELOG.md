@@ -55,6 +55,11 @@
 
 ### Changed
 
+- `make branch-task`, `stage-task`, `commit-task`, `pr-task`, and `merge-pr` (and their
+  `-current-task` variants) now delegate to the `butler` CLI instead of inlining `grep`/`sed`
+  parsing of task files; target names, `f=TASK-XXX` arguments, and observable behavior are
+  unchanged. If `butler-cli` is not installed, these targets now fail with a clear install
+  instruction instead of a cryptic `grep`/`sed` error. (TASK-026)
 - `tests/test_cli.py::TestGitDelegation` now mocks `subprocess.run` at the real git/`gh`
   process boundary instead of the CLI's internal `git_ops` collaborator functions, so the
   five delegation tests (branch/stage/commit/pr/merge) assert on the actual external command

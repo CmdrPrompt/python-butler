@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -27,22 +27,36 @@ traceback.
 
 ## Acceptance criteria
 
-- [ ] `make branch-task f=TASK-021` delegates to `butler task branch TASK-021`
-- [ ] `make stage-task f=TASK-021` delegates to `butler task stage TASK-021`
-- [ ] `make commit-task f=TASK-021` delegates to `butler task commit TASK-021`
-- [ ] `make pr-task f=TASK-021` delegates to `butler task pr TASK-021`
-- [ ] `make merge-pr f=TASK-021` delegates to `butler task merge TASK-021`
-- [ ] All `-current-task` variants still derive TASK-NNN from branch name and delegate correctly
-- [ ] When `butler-cli` is not installed, each target prints a clear install instruction and exits 1
-- [ ] `make lint && make test` pass
+- [x] `make branch-task f=TASK-021` delegates to `butler task branch TASK-021`
+- [x] `make stage-task f=TASK-021` delegates to `butler task stage TASK-021`
+- [x] `make commit-task f=TASK-021` delegates to `butler task commit TASK-021`
+- [x] `make pr-task f=TASK-021` delegates to `butler task pr TASK-021`
+- [x] `make merge-pr f=TASK-021` delegates to `butler task merge TASK-021`
+- [x] All `-current-task` variants still derive TASK-NNN from branch name and delegate correctly
+- [x] When `butler-cli` is not installed, each target prints a clear install instruction and exits 1
+- [x] `make lint && make test` pass
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-08
+**Summary:** Replaced the `grep`/`sed` task-file parsing in `branch-task`, `stage-task`,
+`commit-task`, `pr-task`, and `merge-pr` with delegation to `butler --tasks-dir $(TASKS_DIR)
+task <cmd> $(f)`, added a `check-butler` prerequisite target that fails with a clear install
+instruction (not a traceback) when `butler` is not on PATH, and kept the `-current-task`
+variants unchanged since they already derive `TASK-NNN` from the branch and call the
+corresponding `-task` target. `pr-task` retains an explicit `butler task branch $(f)` call
+before `butler task pr $(f)` because `open_pr_for` (unlike the old inline logic) does not
+itself checkout/create the branch first. The Implementation Worker sub-agent spawned for this
+task failed to commit (only read the Makefile, then stopped after ~4s with no worktree branch
+returned) — per the Subagent verification gate this was treated as a failed run and the change
+was implemented directly instead. No Python source or tests changed, so coverage stayed at the
+task-start baseline (34 tests passed, 282 stmts / 4 miss / 99% total); no new test files exist
+for this task so the Test Design Reviewer step does not apply.
 **Files changed:**
 
 - `Makefile` — modified
+- `CHANGELOG.md` — modified
+- `docs/tasks/TASK-026-makefile-refactor.md` — modified
 
 **Branch:** `git checkout task/026-makefile-refactor`
 **Stage:** `git add Makefile CHANGELOG.md docs/tasks/TASK-026-makefile-refactor.md`
