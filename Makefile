@@ -1,4 +1,4 @@
-.PHONY: all help setup install lint fix stage branch-task sync-main stage-task commit-task \
+.PHONY: all help setup install lint check-agents-sync fix stage branch-task sync-main stage-task commit-task \
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
@@ -116,8 +116,34 @@ install:
 	@[ -f CLAUDE.md ] || $(MAKE) generate-governance-files
 	@echo "✓ Environment ready"
 
+## Fail if claude-agents/ and .claude/agents/ have drifted apart
+check-agents-sync:
+	@status=0; \
+	for f in claude-agents/*.agent.md; do \
+		base=$$(basename "$$f"); \
+		other=".claude/agents/$$base"; \
+		if [ ! -f "$$other" ]; then \
+			echo "check-agents-sync: '$$base' exists in claude-agents/ but not in .claude/agents/"; \
+			status=1; \
+		elif ! diff -q "$$f" "$$other" > /dev/null 2>&1; then \
+			echo "check-agents-sync: '$$base' differs between claude-agents/ and .claude/agents/"; \
+			status=1; \
+		fi; \
+	done; \
+	for f in .claude/agents/*.agent.md; do \
+		base=$$(basename "$$f"); \
+		[ -f "claude-agents/$$base" ] || { \
+			echo "check-agents-sync: '$$base' exists in .claude/agents/ but not in claude-agents/"; \
+			status=1; \
+		}; \
+	done; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "claude-agents/ and .claude/agents/ must stay identical — sync the files above."; \
+		exit 1; \
+	fi
+
 ## Run linters
-lint:
+lint: check-agents-sync
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy $(SRC_DIR)/

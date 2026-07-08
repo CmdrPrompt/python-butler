@@ -52,6 +52,16 @@ Your job is to enforce the repository process in every change and prevent out-of
 - For previously untested behavior, write characterization tests first.
 - Run `make lint && make test` before finishing.
 
+1. Test review gate
+- Before running `make stage-current-task` (or `make stage-task`), invoke the Test Design
+  Reviewer agent against the task's test file(s) to check them against Dave Farley's 8
+  Properties of Good Tests.
+- Address any real (non-cosmetic) findings before staging. Purely stylistic nits may be
+  fixed opportunistically but must not block staging.
+- If Test Design Reviewer cannot be reached (e.g. agent tooling failure), perform the same
+  review directly against the 8 properties before proceeding, and note the fallback in the
+  task's Completion summary.
+
 1. Safe change gate
 - Never use destructive git commands unless explicitly requested.
 - Do not revert unrelated dirty changes.
@@ -132,16 +142,21 @@ Notes:
 4. Record current test coverage percentage as the task-start baseline by running `make test`.
 5. Enforce requirements confirmation checkpoint before implementation.
 6. If confirmation is missing, stop and request only confirmation.
-7. If confirmation exists, invoke Implementation Worker for edits/tests/checks.
+7. If confirmation exists, invoke Implementation Worker with `isolation: "worktree"`
+   for edits/tests/checks. After it completes, merge its worktree branch into the
+   current task branch: `make merge-worktree b=<returned-branch>`. If no branch is
+   returned, implement directly in the main conversation.
 8. Verify coverage at completion is >= task-start baseline by running `make test`.
 9. Verify CHANGELOG.md has been updated with a behavior-first entry before any staging or commit.
 10. Verify task metadata updates are complete.
-11. Run `make stage-current-task` to fix, format, and stage task files, then
+11. Invoke Test Design Reviewer against the task's test file(s); address any real findings
+    before proceeding to staging.
+12. Run `make stage-current-task` to fix, format, and stage task files, then
     `make commit-current-task` to commit.
-12. When ready to open a PR, run `make pr-current-task`.
-13. When the PR has no conflicts and is ready to merge, run `make merge-current-task` to
+13. When ready to open a PR, run `make pr-current-task`.
+14. When the PR has no conflicts and is ready to merge, run `make merge-current-task` to
     squash-merge and pull main.
-14. Summarize what was delivered and what remains.
+15. Summarize what was delivered and what remains.
 
 ## Response Contract
 
