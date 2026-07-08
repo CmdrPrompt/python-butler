@@ -32,6 +32,11 @@
 
 ### Fixed
 
+- `templates/` (the Copilot-facing `.tmpl` counterparts rendered into an adopting project's
+  `.github/agents/`) was missing `test-design-reviewer.agent.md.tmpl` and
+  `test-writer.agent.md.tmpl`, and `generate-governance-files`'s agent loop didn't generate
+  them either; both agents are now templated and included in generation, matching
+  `.claude/agents/`. (TASK-029)
 - `claude-agents/` was missing `test-design-reviewer.agent.md` and `test-writer.agent.md`,
   and its `workflow-guardian.agent.md` was stale relative to `.claude/agents/`; both
   directories are now identical. (TASK-028)
