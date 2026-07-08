@@ -4,6 +4,10 @@
 
 ### Added
 
+- `butler_core.tasks` reads, lists, creates, and updates `docs/tasks/TASK-*.md` files as
+  structured `Task` data — `read_task`, `list_tasks`, `create_task`, `check_criterion`,
+  `set_status` — while staying byte-compatible with the `grep`/`sed` parsing in `Makefile`
+  targets like `branch-task`, `stage-task`, and `commit-task`. (TASK-022)
 - `make check-agents-sync` fails `make lint` if `claude-agents/` (the distributable agent
   sources) and `.claude/agents/` (the in-repo copy) have drifted apart, catching missing or
   differing `.agent.md` files before merge instead of silently. (TASK-028)
@@ -16,6 +20,7 @@
 - `claude-agents/` was missing `test-design-reviewer.agent.md` and `test-writer.agent.md`,
   and its `workflow-guardian.agent.md` was stale relative to `.claude/agents/`; both
   directories are now identical. (TASK-028)
+
 
 - Python package skeleton (`pyproject.toml`, `src/butler_core/`, `src/butler_cli/`, `mcp/`,
   `tests/`) and dev dependencies (`ruff`, `mypy`, `bandit`, `pytest`, `hypothesis`) so
