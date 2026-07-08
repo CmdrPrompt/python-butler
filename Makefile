@@ -1,4 +1,4 @@
-.PHONY: all help setup install lint check-agents-sync fix stage branch-task sync-main stage-task commit-task \
+.PHONY: all help setup install lint check-agents-sync check-butler fix stage branch-task sync-main stage-task commit-task \
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
@@ -171,21 +171,15 @@ stage:
 	[ -n "$$STAGED" ] && echo "$$STAGED" | xargs git add -- || true; \
 	git update-index -q --refresh
 
+## Fail with a clear message if butler-cli is not installed
+check-butler:
+	@command -v butler > /dev/null 2>&1 || \
+		(echo "butler-cli is not installed. Install it with: uv pip install -e . (see README for details)"; exit 1)
+
 ## Create/switch task branch from task file: make branch-task f=TASK-001
-branch-task:
+branch-task: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make branch-task f=<task-id>"; exit 1)
-	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
-	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
-	CMD=$$(grep '\*\*Switch/create:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
-	[ -n "$$CMD" ] || CMD=$$(grep '\*\*Branch:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
-	[ -n "$$CMD" ] || (echo "No **Switch/create:** or **Branch:** line found in $$TASK_FILE"; exit 1); \
-	BRANCH=$$(echo "$$CMD" | sed 's/^git checkout -b //'); \
-	echo "Running: git checkout $$BRANCH"; \
-	if git show-ref --verify --quiet "refs/heads/$$BRANCH"; then \
-		git checkout "$$BRANCH"; \
-	else \
-		git checkout -b "$$BRANCH"; \
-	fi
+	butler --tasks-dir $(TASKS_DIR) task branch $(f)
 
 ## Merge main into the current task branch (sync before coding)
 sync-main:
@@ -194,29 +188,14 @@ sync-main:
 	git merge main
 
 ## Auto-fix and stage files listed in a task file: make stage-task f=TASK-001
-stage-task:
+stage-task: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make stage-task f=<task-id>"; exit 1)
-	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
-	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
-	CMD=$$(grep '\*\*Stage:\*\*' "$$TASK_FILE" | sed 's/.*`\(git add[^`]*\)`.*/\1/'); \
-	[ -n "$$CMD" ] || (echo "No **Stage:** line found in $$TASK_FILE"; exit 1); \
-	uv run ruff check --fix .; \
-	uv run ruff format .; \
-	uv run pymarkdown --config .pymarkdown fix \
-		$$(find . -name "*.md" -not -path "./.venv/*" -not -path "./.butler/.github/*" -not -path "./libs/*" -not -path "./.claude/*"); \
-	echo "Running: $$CMD"; \
-	eval "$$CMD"; \
-	git update-index -q --refresh
+	butler --tasks-dir $(TASKS_DIR) task stage $(f)
 
 ## Commit using message from task file: make commit-task f=TASK-001
-commit-task:
+commit-task: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make commit-task f=<task-id>"; exit 1)
-	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
-	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
-	MSG=$$(grep '\*\*Commit:\*\*' "$$TASK_FILE" | sed 's/.*`git commit -m "\(.*\)"`.*/\1/'); \
-	[ -n "$$MSG" ] || (echo "No **Commit:** line found in $$TASK_FILE"; exit 1); \
-	echo "Running: git commit -m \"$$MSG\""; \
-	git commit -m "$$MSG"
+	butler --tasks-dir $(TASKS_DIR) task commit $(f)
 
 ## Auto-fix and stage files for the current task branch
 stage-current-task:
@@ -240,27 +219,10 @@ commit-output:
 	git commit -m "$(m)"
 
 ## Open a GitHub PR using task title and description: make pr-task f=TASK-001
-pr-task:
+pr-task: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make pr-task f=<task-id>"; exit 1)
-	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
-	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
-	CMD=$$(grep '\*\*Switch/create:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
-	[ -n "$$CMD" ] || CMD=$$(grep '\*\*Branch:\*\*' "$$TASK_FILE" | sed 's/.*`\(git checkout[^`]*\)`.*/\1/' | head -1); \
-	if [ -n "$$CMD" ]; then \
-		BRANCH=$$(echo "$$CMD" | sed 's/^git checkout -b //'); \
-		if git show-ref --verify --quiet "refs/heads/$$BRANCH"; then \
-			git checkout "$$BRANCH"; \
-		else \
-			git checkout -b "$$BRANCH"; \
-		fi; \
-	fi; \
-	TITLE=$$(head -1 "$$TASK_FILE" | sed 's/^# //'); \
-	BODY=$$(awk '/^## Description/{f=1} /^## Completion/{f=0} f{print}' "$$TASK_FILE"); \
-	[ -n "$$TITLE" ] || (echo "Could not extract title from $$TASK_FILE"; exit 1); \
-	echo "Creating PR: $$TITLE"; \
-	git push -u origin HEAD; \
-	gh pr create --title "$$TITLE" --body "$$BODY" --base main; \
-	git checkout main
+	butler --tasks-dir $(TASKS_DIR) task branch $(f)
+	butler --tasks-dir $(TASKS_DIR) task pr $(f)
 
 ## Open PR using task file metadata for the current task branch
 pr-current-task:
@@ -270,19 +232,9 @@ pr-current-task:
 	$(MAKE) pr-task f=TASK-$$NUM
 
 ## Squash-merge the open PR for a task branch: make merge-pr f=TASK-001
-merge-pr:
+merge-pr: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make merge-pr f=<task-id>"; exit 1)
-	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
-	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
-	BRANCH=$$(grep '\*\*Branch name:\*\*' "$$TASK_FILE" | sed 's/.*`\([^`]*\)`.*/\1/' | head -1); \
-	[ -n "$$BRANCH" ] || (echo "No **Branch name:** line found in $$TASK_FILE"; exit 1); \
-	PR=$$(gh pr list --head "$$BRANCH" --json number --jq '.[0].number' 2>/dev/null); \
-	[ -n "$$PR" ] || (echo "No open PR for branch $$BRANCH"; exit 1); \
-	STATE=$$(gh pr view "$$PR" --json mergeable --jq '.mergeable'); \
-	[ "$$STATE" = "MERGEABLE" ] || (echo "PR #$$PR not mergeable ($$STATE)"; exit 1); \
-	gh pr merge "$$PR" --squash --delete-branch; \
-	git checkout main; \
-	git pull
+	butler --tasks-dir $(TASKS_DIR) task merge $(f)
 
 ## Squash-merge the open PR for the current task branch, then pull main
 merge-current-task:
