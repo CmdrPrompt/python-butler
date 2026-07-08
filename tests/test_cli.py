@@ -52,7 +52,7 @@ class TestShow:
         assert "todo" in out
         assert "A description." in out
 
-    def test_prints_checked_and_unchecked_acceptance_criteria(
+    def test_prints_acceptance_criteria_with_check_marks(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
@@ -69,7 +69,7 @@ class TestShow:
         assert "[x] done thing" in out
         assert "[ ] pending thing" in out
 
-    def test_prints_completion_date_and_summary_when_present(
+    def test_prints_completion_info_when_present(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
@@ -95,9 +95,7 @@ class TestShow:
 
 
 class TestCreate:
-    def test_creates_new_task_file_and_prints_id(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_prints_new_task_id(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         main(
             [
                 "--tasks-dir",
@@ -113,6 +111,21 @@ class TestCreate:
 
         out = capsys.readouterr().out
         assert "TASK-001" in out
+
+    def test_creates_task_file_with_correct_metadata(self, tmp_path: Path) -> None:
+        main(
+            [
+                "--tasks-dir",
+                str(tmp_path),
+                "task",
+                "create",
+                "--title",
+                "New feature",
+                "--description",
+                "Implement it.",
+            ]
+        )
+
         created = read_task("TASK-001", tasks_dir=str(tmp_path))
         assert created.title == "New feature"
         assert created.description == "Implement it."
@@ -219,7 +232,7 @@ class TestGitDelegation:
 
 
 class TestErrorHandling:
-    def test_task_not_found_error_prints_message_and_returns_exit_code_1(
+    def test_fails_cleanly_when_task_not_found(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         exit_code = main(["--tasks-dir", str(tmp_path), "task", "branch", "TASK-999"])
@@ -229,7 +242,7 @@ class TestErrorHandling:
         assert "No task file found matching 'TASK-999'" in err
 
     @patch("butler_cli.__main__.merge_pr_for")
-    def test_git_ops_error_prints_message_and_returns_exit_code_1(
+    def test_fails_cleanly_on_git_ops_error(
         self, mock_merge_pr_for: MagicMock, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         create_task("Some feature", "desc", tasks_dir=str(tmp_path))
@@ -241,7 +254,7 @@ class TestErrorHandling:
         err = capsys.readouterr().err
         assert "No open PR for branch task/001-some-feature" in err
 
-    def test_check_index_error_prints_message_and_returns_exit_code_1(
+    def test_fails_cleanly_on_invalid_criterion_index(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         create_task("Some feature", "desc", tasks_dir=str(tmp_path))

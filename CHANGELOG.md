@@ -43,6 +43,11 @@
   the full CLI pipeline would run (and the CLI's exit code) instead of only that an internal
   function was called with a given object — regression protection now survives internal
   signature refactors. (TASK-030)
+- `tests/test_cli.py` test names each now state a single behaviour claim: names containing
+  "and" were either split into two independent tests (creating a task file vs. printing its
+  id, since they're observed through different mechanisms and don't imply one another) or
+  renamed to a single unifying name where the two facts were one cohesive behaviour (e.g.
+  "prints an error and exits 1" -> "fails cleanly"). (TASK-031)
 
 ### Fixed
 

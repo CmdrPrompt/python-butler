@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -34,18 +34,32 @@ review.
 
 ## Acceptance criteria
 
-- [ ] Identified tests refactored to address the finding
-- [ ] Farley Index re-evaluated — blended score for this property does not decrease
-- [ ] make lint && make test pass
-- [ ] CHANGELOG.md updated
+- [x] Identified tests refactored to address the finding
+- [x] Farley Index re-evaluated — blended score for this property does not decrease
+- [x] make lint && make test pass
+- [x] CHANGELOG.md updated
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-08
+**Summary:** Renamed 5 tests to single unifying names for cohesive two-fact behaviours
+(`test_fails_cleanly_when_task_not_found`, `test_fails_cleanly_on_git_ops_error`,
+`test_fails_cleanly_on_invalid_criterion_index`, `test_prints_acceptance_criteria_with_check_marks`,
+`test_prints_completion_info_when_present`), and split `test_creates_new_task_file_and_prints_id`
+into two independent tests (`test_prints_new_task_id` observing stdout only, and
+`test_creates_task_file_with_correct_metadata` observing the persisted file via `read_task`
+only) since printing the id and persisting the file are independent outcomes reached through
+different mechanisms. Test count went from 34 to 35 (the one split). Test Design Reviewer
+scored Granular at blended 7.8 (target 7.8, up from baseline 6.8) on first pass — a marginal
+pass — and flagged one real residual finding: the split-off test still had "and" in its name
+(`test_creates_task_file_with_given_title_and_description`), inconsistent with the refactor's
+own stated policy since both fields are one cohesive persisted-metadata check. Renamed to
+`test_creates_task_file_with_correct_metadata` before staging.
 **Files changed:**
 
 - `tests/test_cli.py` — modified
+- `docs/tasks/TASK-031-cli-test-names-single-behavior.md` — modified
+- `CHANGELOG.md` — modified
 
 **Branch:** `git checkout task/031-cli-test-names-single-behavior`
 **Stage:** `git add tests/test_cli.py CHANGELOG.md`
