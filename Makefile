@@ -274,8 +274,8 @@ merge-pr:
 	@[ -n "$(f)" ] || (echo "Usage: make merge-pr f=<task-id>"; exit 1)
 	@TASK_FILE=$$(find $(TASKS_DIR) -name "$(f)*.md" | head -1); \
 	[ -n "$$TASK_FILE" ] || (echo "No task file found matching '$(f)' in $(TASKS_DIR)"; exit 1); \
-	BRANCH=$$(echo "$$(basename "$$TASK_FILE" .md)" | \
-		sed 's/^\(TASK-[0-9]*\)-/task\/\1-/' | tr '[:upper:]' '[:lower:]'); \
+	BRANCH=$$(grep '\*\*Branch name:\*\*' "$$TASK_FILE" | sed 's/.*`\([^`]*\)`.*/\1/' | head -1); \
+	[ -n "$$BRANCH" ] || (echo "No **Branch name:** line found in $$TASK_FILE"; exit 1); \
 	PR=$$(gh pr list --head "$$BRANCH" --json number --jq '.[0].number' 2>/dev/null); \
 	[ -n "$$PR" ] || (echo "No open PR for branch $$BRANCH"; exit 1); \
 	STATE=$$(gh pr view "$$PR" --json mergeable --jq '.mergeable'); \
