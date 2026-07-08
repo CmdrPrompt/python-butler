@@ -217,6 +217,27 @@ The MCP server depends on `butler_core` but is distributed separately (own
 `pyproject.toml`, e.g. under `mcp/`) so its dependencies (MCP SDK) don't leak
 into projects that don't use it.
 
+## Requirement 10: Bugfix — `merge-pr`/`merge-current-task` branch-name derivation
+
+**Description:** `merge-pr` (Makefile) SHALL derive the task branch name by
+reading the `**Branch name:**` line directly from the task file — the same
+source `branch-task`, `stage-task`, `commit-task`, and `pr-task` already use
+— instead of recomputing it from the task file's filename. The current `sed`
+expression produces `task/task-<NNN>-<slug>` (with a duplicated `task-`
+segment), which never matches the real branch convention `task/<NNN>-<slug>`,
+so `make merge-pr`/`make merge-current-task` always fail with "No open PR for
+branch ..." even when a valid, mergeable PR exists.
+
+**Use case:** A developer or Workflow Guardian runs `make merge-current-task`
+after a PR has been approved, expecting it to find and squash-merge the
+correct PR without falling back to a manual `gh pr merge`.
+
+```bash
+make merge-current-task
+# currently: "No open PR for branch task/task-025-mcp-server"
+# expected: squash-merges the PR open on task/025-mcp-server
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] `butler_core.tasks` provides `read_task`, `list_tasks`, `create_task`,

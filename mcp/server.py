@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from mcp.server.fastmcp import FastMCP
+
 from butler_core import git_ops
 from butler_core import tasks as core_tasks
-from mcp.server.fastmcp import FastMCP
 
 app = FastMCP("butler")
 

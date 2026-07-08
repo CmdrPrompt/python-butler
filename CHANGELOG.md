@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `make merge-pr`/`make merge-current-task` now read the task branch name from the task file's
+  `**Branch name:**` line instead of recomputing it from the filename, fixing a mismatch
+  (`task/task-<NNN>-<slug>` vs. the real `task/<NNN>-<slug>` convention) that made these targets
+  always fail with "No open PR for branch ..." even when a valid, mergeable PR existed. (TASK-033)
+- Pinned the `ruff-pre-commit` hook to `v0.15.20`, matching the project's `ruff` dev dependency,
+  and re-sorted `mcp/server.py`'s imports accordingly — the two had drifted apart (`v0.11.0` vs.
+  latest), so a commit that passed the pre-commit hook could still fail a plain `make lint`.
+  (TASK-033)
+
 ### Added
 
 - A standalone MCP server (`mcp/server.py`, its own `mcp/pyproject.toml`) exposes `list_tasks`,
