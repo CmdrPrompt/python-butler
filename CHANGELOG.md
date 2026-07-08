@@ -4,6 +4,10 @@
 
 ### Added
 
+- `butler_core.tasks` reads, lists, creates, and updates `docs/tasks/TASK-*.md` files as
+  structured `Task` data — `read_task`, `list_tasks`, `create_task`, `check_criterion`,
+  `set_status` — while staying byte-compatible with the `grep`/`sed` parsing in `Makefile`
+  targets like `branch-task`, `stage-task`, and `commit-task`. (TASK-022)
 - Python package skeleton (`pyproject.toml`, `src/butler_core/`, `src/butler_cli/`, `mcp/`,
   `tests/`) and dev dependencies (`ruff`, `mypy`, `bandit`, `pytest`, `hypothesis`) so
   subsequent tasks can implement and test real code. (TASK-021)
