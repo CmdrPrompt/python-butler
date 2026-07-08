@@ -4,6 +4,13 @@
 
 ### Added
 
+- A standalone MCP server (`mcp/server.py`, its own `mcp/pyproject.toml`) exposes `list_tasks`,
+  `get_task`, `create_task`, `check_acceptance_criterion`, `set_task_status`, `branch_task`,
+  `stage_task`, `commit_task`, `open_pr_for_task`, and `merge_task_pr` as MCP tools over stdio,
+  each a thin one-to-one wrapper over `butler_core.tasks`/`butler_core.git_ops` with no implicit
+  batching of git operations, so Claude Code or any MCP-compatible agent can drive the task
+  workflow directly instead of shelling out to `make` or the CLI. The MCP SDK dependency stays
+  isolated to `mcp/`'s own environment and does not affect the base package. (TASK-025)
 - The `butler` CLI (`src/butler_cli/__main__.py`) now exposes `butler task list [--status ...]`,
   `show`, `create --title --description`, `check --criterion N` (1-based), `branch`, `stage`,
   `commit`, `pr`, and `merge` as thin subcommand wrappers over `butler_core.tasks` and
