@@ -13,9 +13,24 @@ You implement approved work only after requirements are confirmed.
 
 You are typically spawned with `isolation: "worktree"`, meaning you work in a
 temporary isolated copy of the repository on a dedicated git branch. Your file
-writes and commits in this worktree persist and are returned to the Workflow
-Guardian when you finish. Use `make` targets for all git operations — do not
-run `git commit`, `git add`, or `git push` directly.
+writes persist ONLY if you commit them — an uncommitted worktree is torn down
+with no branch returned, silently discarding your work. Use `make` targets for
+all git operations — do not run `git commit`, `git add`, or `git push`
+directly.
+
+Your worktree's branch does not match `task/<NNN>-...`, so `make
+commit-current-task` and `make stage-current-task` are not available to you
+(they require that branch shape). Instead:
+
+- Run the equivalent auto-fix steps yourself (`ruff check --fix .`, `ruff
+  format .`, pymarkdown fix) and `git add` the changed files.
+- Commit with `make commit-output f="<changed files>" m="wip(TASK-XXX):
+  <short summary>"`, substituting the real TASK-ID and a one-line summary of
+  what you did. This is the only commit path guaranteed to work from an
+  isolated worktree branch.
+- The Workflow Guardian squashes this commit into the task branch and creates
+  the final real commit — your commit message does not need to match the task
+  file's `**Commit:**` line.
 
 ## Preconditions
 
@@ -36,15 +51,17 @@ run `git commit`, `git add`, or `git push` directly.
    Follow the style rules in the Changelog section of CLAUDE.md.
 6. Ensure CHANGELOG.md is included on the `**Stage:**` line in the task file (or stage it
    explicitly with `git add CHANGELOG.md`) so it is not missed by `make stage-task`.
-7. Stage and commit using the Makefile targets in this order:
-   - `make stage-current-task` — auto-fixes formatting and stages files listed in the task file
-   - `make commit-current-task` — commits using the message from the task file
-8. Update task file metadata for status and completion before staging.
+7. Fix, format, `git add` the changed files, and commit with
+   `make commit-output f="<changed files>" m="wip(TASK-XXX): <short summary>"`
+   (see Execution context above — `stage-current-task`/`commit-current-task` are not
+   available on a worktree branch).
+8. Update task file metadata for status and completion before committing.
 9. Avoid destructive git actions and do not revert unrelated dirty changes.
 
 ## Output Contract
 
 - Report files changed, checks run, coverage before/after, and pass/fail status.
-- Confirm that CHANGELOG.md was updated before staging.
-- Confirm that `make stage-current-task` and `make commit-current-task` were run successfully.
+- Confirm that CHANGELOG.md was updated before committing.
+- Confirm that `make commit-output` ran successfully and report the resulting commit hash
+  (`git log -1 --format=%H`) so the Workflow Guardian can verify it independently.
 - Report any blocked step with exact remediation.

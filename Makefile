@@ -62,7 +62,7 @@ help:
 	@echo ""
 	@echo "  Agent / worktree helpers:"
 	@echo "    make sync-main                          -- Merge main into current branch"
-	@echo "    make merge-worktree b=<branch>          -- Merge a worktree branch into current branch"
+	@echo "    make merge-worktree b=<branch>          -- Squash-merge a worktree branch into current branch"
 	@echo "    make commit-output f='files' m='msg'    -- Stage and commit arbitrary files"
 	@echo ""
 
@@ -291,10 +291,10 @@ merge-current-task:
 	[ -n "$$NUM" ] || (echo "Not on a task branch (expected task/<NNN>-...)"; exit 1); \
 	$(MAKE) merge-pr f=TASK-$$NUM
 
-## Merge a worktree branch result back into the current branch
+## Squash a worktree sub-agent branch's commit(s) into staged changes on the current branch
 merge-worktree:
 	@[ -n "$(b)" ] || (echo "Usage: make merge-worktree b=<branch-name>"; exit 1)
-	git merge $(b)
+	git merge --squash $(b)
 
 ## Run tests with coverage
 test:
