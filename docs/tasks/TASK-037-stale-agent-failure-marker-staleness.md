@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -60,17 +60,24 @@ PR.
 
 ## Acceptance criteria
 
-- [ ] `agent_result_gate.py` reads each marker's `detected_at` and classifies it as stale (>= 60 min old) or fresh
-- [ ] Fresh markers are reported/escalated exactly as before (stderr message, exit 2)
-- [ ] Stale markers are deleted (consumed) but excluded from the stderr message and do not force exit 2
-- [ ] If all found markers are stale, the hook exits 0 with no stderr output
-- [ ] A marker with missing/unparseable `detected_at` is treated as fresh
-- [ ] `tests/test_hooks.py` gains characterization/behavior tests for: all-stale (exit 0, silent), mixed stale+fresh (only fresh reported, stale still deleted), and missing/unparseable `detected_at` (treated as fresh)
-- [ ] README's "Agent configuration validation" section documents the staleness behavior
-- [ ] CHANGELOG.md has a behavior-first entry under Unreleased (TASK-037 suffix)
-- [ ] `make lint && make test` pass
-
+- [x] `agent_result_gate.py` reads each marker's `detected_at` and classifies it as stale (>= 60 min old) or fresh
+- [x] Fresh markers are reported/escalated exactly as before (stderr message, exit 2)
+- [x] Stale markers are deleted (consumed) but excluded from the stderr message and do not force exit 2
+- [x] If all found markers are stale, the hook exits 0 with no stderr output
+- [x] A marker with missing/unparseable `detected_at` is treated as fresh
+- [x] `tests/test_hooks.py` gains characterization/behavior tests for: all-stale (exit 0, silent), mixed stale+fresh (only fresh reported, stale still deleted), and missing/unparseable `detected_at` (treated as fresh)
+- [x] README's "Agent configuration validation" section documents the staleness behavior
+- [x] CHANGELOG.md has a behavior-first entry under Unreleased (TASK-037 suffix)
+- [x] `make lint && make test` pass
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-09
+**Summary:** Implemented staleness filtering for subagent failure markers. Markers older than 60 minutes are no longer reported as gate trips, preventing cross-session surprises. Markers are still consumed (deleted) on read. Added 5 new test cases covering all-stale, mixed stale/fresh, and invalid timestamp scenarios. Updated README and CHANGELOG.md. All 103 tests pass with 99% coverage baseline maintained.
+**Files changed:**
+- `.claude/hooks/agent_result_gate.py` — added staleness threshold constant and `is_marker_stale()` function to classify markers; modified `main()` to separate fresh from stale and only escalate fresh failures
+- `tests/test_hooks.py` — added helper `_write_marker_with_timestamp()` and 5 new test cases in `TestAgentResultGateStaleness` class
+- `README.md` — added "Stale marker handling" section to "Agent configuration validation"
+- `CHANGELOG.md` — added behavior-first entry under Fixed section
+**Branch:** `git checkout task/037-stale-agent-failure-marker-staleness`
+**Stage:** `git add .claude/hooks/agent_result_gate.py tests/test_hooks.py README.md CHANGELOG.md`
+**Commit:** `git commit -m "Fix: subagent failure markers older than 60 minutes no longer trip hard gate (TASK-037)"`

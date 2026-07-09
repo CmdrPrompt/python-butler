@@ -259,7 +259,34 @@ Two layers protect against this:
   escalates the flag to the coordinator as a blocking configuration error,
   instructing it to stop instead of retrying a subagent that cannot comply.
 
-The tool-name whitelist lives at the top of `scripts/validate_agents.py`.
+  **Stale marker handling:** `.claude/state/agent-failures/` is project-global
+  state, shared across all concurrent sessions. A marker from one task's session
+  could surface in another session's work, causing confusion. Markers older than
+  60 minutes are treated as informational only: they are still consumed (deleted)
+  on read, but not included in the error message or gate escalation. If all found
+  markers are stale, the gate exits silently with 0 (same as "no markers found")
+  rather than tripping for something no longer actionable. Markers with missing or
+  unparseable timestamps are treated as fresh (fail toward reporting, not toward
+  silent dropping).
+
+Claude Code silently drops unknown tool names in an agent's `tools:` frontmatter.
+A typo can therefore leave a subagent with **no tools at all**: it then narrates
+tool calls as plain text instead of executing them, and the task stalls.
+Two layers protect against this:
+
+- **Static validation**: `make validate-agents` checks every
+  `.claude/agents/*.agent.md` for valid tool names and required keys, including
+  that `tools:` is present and non-empty — an agent file with a missing `tools:`
+  key is rejected exactly like one with an empty list, since both leave the
+  subagent with no real tools at runtime. It runs in pre-commit and CI, so a
+  broken definition never reaches `main`.
+- **Runtime hard gate**: two hooks registered in `.claude/settings.json`.
+  `subagent_toolcheck.py` (SubagentStop) flags any subagent that finishes a turn
+  with zero tool calls, and `agent_result_gate.py` (PostToolUse on `Agent|Task`)
+  escalates the flag to the coordinator as a blocking configuration error,
+  instructing it to stop instead of retrying a subagent that cannot comply.
+
+ `scripts/validate_agents.py`.
 Extend it when new tools are adopted.
 
 ## Conventions

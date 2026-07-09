@@ -353,3 +353,151 @@ class TestAgentResultGateMain:
         exit_code = _run_main(gate, "not { valid json", monkeypatch, project_dir)
 
         assert exit_code == 0
+
+
+def _write_marker_with_timestamp(
+    project_dir: Path, agent_id: str, agent_type: str, detected_at: str
+) -> Path:
+    """Write a marker with an explicit detected_at timestamp."""
+    marker_dir = project_dir / ".claude" / "state" / "agent-failures"
+    marker_dir.mkdir(parents=True, exist_ok=True)
+    marker = marker_dir / f"{agent_id}.json"
+    marker.write_text(
+        json.dumps(
+            {
+                "agent_id": agent_id,
+                "agent_type": agent_type,
+                "detected_at": detected_at,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return marker
+
+
+class TestAgentResultGateStaleness:
+    def test_all_stale_markers_exits_zero_silently(
+        self,
+        tmp_path: Path,
+        gate: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """All markers older than 60 minutes should not trigger the gate."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        _stub_validator_subprocess(project_dir, gate, monkeypatch)
+
+        # Write markers that are > 60 minutes old
+        # Current time is used by gate's is_marker_stale(), so we use a very old timestamp
+        old_timestamp = "2000-01-01T00:00:00Z"
+        _write_marker_with_timestamp(project_dir, "agent-old-1", "test-writer", old_timestamp)
+        _write_marker_with_timestamp(project_dir, "agent-old-2", "test-reviewer", old_timestamp)
+
+        exit_code = _run_main(gate, "{}", monkeypatch, project_dir)
+
+        captured = capsys.readouterr()
+        assert exit_code == 0
+        assert captured.err == ""
+
+    def test_stale_markers_are_still_consumed(
+        self,
+        tmp_path: Path,
+        gate: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Stale markers should be deleted even though they don't trigger the gate."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        _stub_validator_subprocess(project_dir, gate, monkeypatch)
+
+        old_timestamp = "2000-01-01T00:00:00Z"
+        marker = _write_marker_with_timestamp(
+            project_dir, "agent-old", "test-writer", old_timestamp
+        )
+
+        _run_main(gate, "{}", monkeypatch, project_dir)
+
+        assert not marker.exists(), "stale marker should be consumed (deleted)"
+
+    def test_mixed_stale_and_fresh_reports_only_fresh(
+        self,
+        tmp_path: Path,
+        gate: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Mixed stale+fresh markers should report only fresh, exit 2, but delete all."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        _stub_validator_subprocess(project_dir, gate, monkeypatch)
+
+        # Very old marker (stale)
+        old_timestamp = "2000-01-01T00:00:00Z"
+        old_marker = _write_marker_with_timestamp(
+            project_dir, "agent-old", "old-writer", old_timestamp
+        )
+
+        # Recent marker (fresh, < 60 minutes old)
+        fresh_timestamp = "2100-12-31T23:59:59Z"  # Far in future to ensure freshness
+        fresh_marker = _write_marker_with_timestamp(
+            project_dir, "agent-fresh", "fresh-writer", fresh_timestamp
+        )
+
+        exit_code = _run_main(gate, "{}", monkeypatch, project_dir)
+
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert "SUBAGENT HARD GATE TRIPPED" in captured.err
+        # Fresh agent should be in message
+        assert "fresh-writer (agent-fresh)" in captured.err
+        # Stale agent should NOT be in message
+        assert "old-writer" not in captured.err
+        # Both should be deleted
+        assert not old_marker.exists(), "stale marker should be deleted"
+        assert not fresh_marker.exists(), "fresh marker should be deleted"
+
+    def test_missing_detected_at_treated_as_fresh(
+        self,
+        tmp_path: Path,
+        gate: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Marker without detected_at should be treated as fresh and trigger gate."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        _stub_validator_subprocess(project_dir, gate, monkeypatch)
+
+        _write_marker(project_dir, "agent-no-timestamp", "test-writer")
+
+        exit_code = _run_main(gate, "{}", monkeypatch, project_dir)
+
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert "SUBAGENT HARD GATE TRIPPED" in captured.err
+        assert "test-writer (agent-no-timestamp)" in captured.err
+
+    def test_invalid_detected_at_format_treated_as_fresh(
+        self,
+        tmp_path: Path,
+        gate: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Marker with unparseable detected_at should be treated as fresh."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        _stub_validator_subprocess(project_dir, gate, monkeypatch)
+
+        _write_marker_with_timestamp(
+            project_dir, "agent-bad-timestamp", "test-writer", "not-a-valid-timestamp"
+        )
+
+        exit_code = _run_main(gate, "{}", monkeypatch, project_dir)
+
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert "SUBAGENT HARD GATE TRIPPED" in captured.err
+        assert "test-writer (agent-bad-timestamp)" in captured.err
