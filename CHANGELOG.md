@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- Fixed invalid `tools:` frontmatter in all nine `.claude/agents/*.agent.md` definitions (and
+  their `claude-agents/` sources): the generic names `read, search, edit, write, execute, todo,
+  agent` are not Claude Code tool names and were silently dropped, leaving every subagent with an
+  empty tool set. Affected subagents (Test Writer, PR Reviewer, Implementation Worker) narrated
+  tool calls as plain text instead of executing them and stalled with zero tool uses, the failure
+  mode previously documented in TASK-025. Replaced with the real names (`Read`, `Grep`, `Glob`,
+  `Edit`, `Write`, `Bash`, `TodoWrite`, `Task`) and updated the prose in the Tool usage sections
+  to match. (TASK-035)
 - `make merge-pr`/`make merge-current-task` now read the task branch name from the task file's
   `**Branch name:**` line instead of recomputing it from the filename, fixing a mismatch
   (`task/task-<NNN>-<slug>` vs. the real `task/<NNN>-<slug>` convention) that made these targets
@@ -15,6 +23,17 @@
 
 ### Added
 
+- Added `make validate-agents` (`scripts/validate_agents.py`, stdlib-only): validates the YAML
+  frontmatter of every `.claude/agents/*.agent.md`: required keys present, `tools:` non-empty and
+  containing only real Claude Code tool names (with did-you-mean hints for case errors, and
+  `mcp__server__tool` names allowed by pattern). Wired into pre-commit and CI so a broken agent
+  definition can never reach `main`. (TASK-035)
+- Added a runtime hard gate against silent subagent failure, registered in `.claude/settings.json`:
+  `.claude/hooks/subagent_toolcheck.py` (SubagentStop) detects any subagent turn that ends with
+  zero `tool_use` blocks and writes a failure marker, and `.claude/hooks/agent_result_gate.py`
+  (PostToolUse on `Agent|Task`) picks the marker up in the coordinator's session, runs the
+  validator, and exits 2 with a directive to treat the failure as a configuration error and stop
+  instead of retrying a subagent that has no tools and cannot comply. (TASK-035)
 - Added `make butler-uninstall CATEGORIES=subtree,makefile,governance` to remove butler's
   footprint from an adopting project (the `.butler/` subtree, the Makefile `include` line, and/or
   generated governance files) — supports `DRY_RUN=1` to preview changes and requires a clean

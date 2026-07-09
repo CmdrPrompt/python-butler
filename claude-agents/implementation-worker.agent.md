@@ -1,7 +1,7 @@
 ---
 name: Implementation Worker
 description: "Use after requirements are explicitly approved. Handles implementation, tests, linting, and task metadata updates on the correct task branch."
-tools: [read, search, edit, write, execute, todo]
+tools: [Read, Grep, Glob, Edit, Write, Bash, TodoWrite]
 argument-hint: "Provide TASK-ID, approved requirement scope, and target files"
 user-invocable: false
 disable-model-invocation: false
@@ -34,7 +34,7 @@ commit-current-task` and `make stage-current-task` are not available to you
 
 ## Tool usage
 
-- Use the `read`/`search` tools (file read, glob, grep) for file exploration — never Bash `cat`,
+- Use the `Read`/`Grep`/`Glob` tools (file read, grep, glob) for file exploration — never Bash `cat`,
   `find`, or `ls`. Dedicated read tools don't require a Bash permission prompt; as a subagent you
   cannot get one answered, so a Bash call outside the pre-approved allowlist will silently stall
   your turn with no result.

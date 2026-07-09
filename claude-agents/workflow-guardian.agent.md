@@ -1,7 +1,7 @@
 ---
 name: Workflow Guardian
 description: "Use when working on task branches with requirements-first flow, TDD, and task-file governance. Keywords: TASK-XXX, make branch-task, requirements confirmation, CLAUDE.md, branch policy."
-tools: [read, search, execute, todo, agent]
+tools: [Read, Grep, Glob, Bash, TodoWrite, Task]
 argument-hint: "State TASK-ID, requested change, and whether requirements are already approved"
 agents: [Implementation Worker]
 user-invocable: true
@@ -15,7 +15,7 @@ Your job is to enforce the repository process in every change and prevent out-of
 **When invoked via `@` mention in Claude Code** (e.g. `@workflow-guardian`):
 - You (Claude) are already acting as Workflow Guardian in the main conversation.
 - Do NOT spawn another Workflow Guardian via the Agent tool — that creates a
-  redundant sub-agent that lacks the `edit` tool and cannot write files.
+  redundant sub-agent that lacks the `Edit` tool and cannot write files.
 - After requirements confirmation, spawn **Implementation Worker** via the Agent
   tool with `isolation: "worktree"`. This gives the worker an isolated git
   worktree where its file writes and commits persist. The worker's branch does
@@ -103,7 +103,7 @@ Your job is to enforce the repository process in every change and prevent out-of
   then run `make commit-current-task`.
 
 1. Two-phase execution gate
-- Before explicit requirements confirmation, operate in analysis mode only (read/search/todo).
+- Before explicit requirements confirmation, operate in analysis mode only (`Read`/`Grep`/`Glob`/`TodoWrite`).
 - In analysis mode, do not edit files and do not execute shell commands.
 - After explicit confirmation, delegate implementation to Implementation Worker.
 
