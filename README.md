@@ -96,6 +96,39 @@ git add -A .butler/ .butler-version
 git commit -m "chore: update butler"
 ```
 
+## Removing butler
+
+If you want to switch to different infrastructure, remove butler's footprint
+per category — nothing under `docs/tasks/` is ever touched:
+
+```bash
+# Preview what would be removed, without changing anything
+make butler-uninstall CATEGORIES=subtree,makefile,governance DRY_RUN=1
+
+# Remove only the .butler/ subtree and the Makefile include line,
+# keeping CLAUDE.md and the generated agent files as regular project files
+make butler-uninstall CATEGORIES=subtree,makefile
+
+# Remove everything butler generated
+make butler-uninstall CATEGORIES=subtree,makefile,governance
+```
+
+Categories:
+
+| Category | Removes |
+|---|---|
+| `subtree` | `.butler/` |
+| `makefile` | The `include .butler/Makefile` line in `Makefile` |
+| `governance` | `CLAUDE.md`, `.github/copilot-instructions.md`, `.github/agents/`, `.claude/agents/` |
+
+The command refuses to run on a dirty working tree — commit or stash first,
+or pass `FORCE=1`. It is implemented in plain shell, so it works even in a
+legacy project that adopted butler before the CLI existed and has no
+`butler_core`/`butler-cli` installed.
+
+If the CLI is installed, an equivalent `butler uninstall --categories
+subtree,makefile,governance [--dry-run] [--force]` command is available.
+
 ## Regenerating governance files
 
 If you need to update `CLAUDE.md`, agent files, or other generated files from

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from butler_core.git_ops import (
     GitOpsError,
@@ -20,6 +21,12 @@ from butler_core.tasks import (
     create_task,
     list_tasks,
     read_task,
+)
+from butler_core.uninstall import (
+    DirtyWorkingTreeError,
+    InvalidCategoryError,
+    apply_uninstall,
+    plan_uninstall,
 )
 
 
@@ -48,6 +55,12 @@ def _build_parser() -> argparse.ArgumentParser:
     for name in ("branch", "stage", "commit", "pr", "merge"):
         sub = task_subparsers.add_parser(name)
         sub.add_argument("task_id")
+
+    uninstall_parser = subparsers.add_parser("uninstall")
+    uninstall_parser.add_argument("--categories", required=True)
+    uninstall_parser.add_argument("--project-root", default=".")
+    uninstall_parser.add_argument("--dry-run", action="store_true")
+    uninstall_parser.add_argument("--force", action="store_true")
 
     return parser
 
@@ -101,6 +114,17 @@ def _cmd_merge(args: argparse.Namespace) -> None:
     merge_pr_for(read_task(args.task_id, tasks_dir=args.tasks_dir))
 
 
+def _cmd_uninstall(args: argparse.Namespace) -> None:
+    project_root = Path(args.project_root)
+    categories = [c.strip() for c in args.categories.split(",") if c.strip()]
+    if args.dry_run:
+        for action in plan_uninstall(project_root, categories):
+            print(f"Would {action}")
+        return
+    for action in apply_uninstall(project_root, categories, force=args.force):
+        print(action)
+
+
 _TASK_HANDLERS = {
     "list": _cmd_list,
     "show": _cmd_show,
@@ -118,10 +142,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
-    handler = _TASK_HANDLERS[args.task_command]
     try:
-        handler(args)
-    except (TaskNotFoundError, GitOpsError, ValueError, IndexError) as exc:
+        if args.command == "uninstall":
+            _cmd_uninstall(args)
+        else:
+            _TASK_HANDLERS[args.task_command](args)
+    except (
+        TaskNotFoundError,
+        GitOpsError,
+        ValueError,
+        IndexError,
+        DirtyWorkingTreeError,
+        InvalidCategoryError,
+    ) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     return 0

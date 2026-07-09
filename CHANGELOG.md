@@ -15,6 +15,13 @@
 
 ### Added
 
+- Added `make butler-uninstall CATEGORIES=subtree,makefile,governance` to remove butler's
+  footprint from an adopting project (the `.butler/` subtree, the Makefile `include` line, and/or
+  generated governance files) — supports `DRY_RUN=1` to preview changes and requires a clean
+  working tree unless `FORCE=1` is passed. `docs/tasks/` is never touched. Implemented in plain
+  shell so it works even in legacy projects with no `butler_core`/`butler-cli` installed. An
+  equivalent `butler uninstall --categories ... [--dry-run] [--force]` CLI subcommand is available
+  as an optional alternative for projects that already have the CLI installed. (TASK-034)
 - README now documents the `butler` CLI (`uv tool install .` or a Git URL) and the standalone MCP
   server (`cd mcp && uv sync`) as optional additions to the base Makefile adoption flow, and a
   new test suite (`tests/test_packaging.py`) locks in the packaging isolation this depends on: the
