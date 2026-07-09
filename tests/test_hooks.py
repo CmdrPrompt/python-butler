@@ -109,11 +109,16 @@ class TestSubagentToolcheckMain:
     def test_zero_tool_uses_with_assistant_turn_writes_marker(
         self, tmp_path: Path, toolcheck: ModuleType, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # TASK-038: bare narration text with no tool-narration signature no
+        # longer triggers a marker (see TestCorroboratingEvidence below), so
+        # this fixture uses a real tool-narration pattern -- a bare tool name
+        # immediately followed by a JSON object of arguments -- matching the
+        # TASK-025/TASK-034 "narrated tool calls" failure shape.
         project_dir = tmp_path / "project"
         project_dir.mkdir()
         transcript = _write_transcript(
             tmp_path / "transcript.jsonl",
-            [_assistant_event([{"type": "text", "text": "narrating instead of acting"}])],
+            [_assistant_event([{"type": "text", "text": 'Read {"file_path": "foo.py"}'}])],
         )
         payload = json.dumps(
             {
@@ -132,6 +137,7 @@ class TestSubagentToolcheckMain:
         assert "validate-agents" in data.pop("diagnosis")
         data.pop("detected_at")
         data.pop("transcript")
+        data.pop("session_id")
         assert data == {
             "agent_id": "agent-123",
             "agent_type": "test-writer",
@@ -286,6 +292,11 @@ class TestAgentResultGateMain:
         assert "SUBAGENT HARD GATE TRIPPED" in captured.err
         assert "test-writer (agent-999)" in captured.err
         assert "validate-agents: OK" in captured.err
+        # TASK-038: when validate-agents passes, the message must not claim
+        # a frontmatter configuration error -- that framing belongs only to
+        # the validator-failed path.
+        assert "invalid 'tools:' frontmatter" not in captured.err
+        assert "NOT a frontmatter configuration error" in captured.err
 
     def test_validator_missing_uses_fallback_message(
         self,
@@ -303,6 +314,9 @@ class TestAgentResultGateMain:
         captured = capsys.readouterr()
         assert exit_code == 2
         assert "validator not found (scripts/validate_agents.py missing)" in captured.err
+        # When the validator can't confirm agent config is valid, the
+        # frontmatter configuration-error framing still applies.
+        assert "invalid 'tools:' frontmatter" in captured.err
 
     def test_markers_present_are_consumed(
         self,

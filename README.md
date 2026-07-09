@@ -254,20 +254,55 @@ Two layers protect against this:
   subagent with no real tools at runtime. It runs in pre-commit and CI, so a
   broken definition never reaches `main`.
 - **Runtime hard gate**: two hooks registered in `.claude/settings.json`.
-  `subagent_toolcheck.py` (SubagentStop) flags any subagent that finishes a turn
-  with zero tool calls, and `agent_result_gate.py` (PostToolUse on `Agent|Task`)
-  escalates the flag to the coordinator as a blocking configuration error,
-  instructing it to stop instead of retrying a subagent that cannot comply.
+  `subagent_toolcheck.py` (SubagentStop) flags a subagent that finishes a turn
+  with zero tool calls **and** corroborating evidence of the real "narrated
+  tool calls" failure mode, and `agent_result_gate.py` (PostToolUse on
+  `Agent|Task`) escalates the flag to the coordinator, instructing it how to
+  proceed depending on whether `make validate-agents` confirms a real
+  configuration problem.
 
-  **Stale marker handling:** `.claude/state/agent-failures/` is project-global
-  state, shared across all concurrent sessions. A marker from one task's session
-  could surface in another session's work, causing confusion. Markers older than
-  60 minutes are treated as informational only: they are still consumed (deleted)
-  on read, but not included in the error message or gate escalation. If all found
-  markers are stale, the gate exits silently with 0 (same as "no markers found")
-  rather than tripping for something no longer actionable. Markers with missing or
-  unparseable timestamps are treated as fresh (fail toward reporting, not toward
-  silent dropping).
+  **Corroborating-evidence heuristic (TASK-038):** a subagent turn with zero
+  tool calls is not automatically treated as a failure — some agents are
+  deliberately briefed to work entirely from pasted content and legitimately
+  produce a long free-text report with no tool calls at all. A marker is only
+  written when zero tool calls coincide with at least one signature of the
+  real failure: (a) an assistant text block matching a tool-narration pattern
+  — a bare tool name immediately followed by a JSON object of arguments, or a
+  response consisting solely of a JSON object — or (b) a coordinator
+  follow-up event in the transcript (`isMeta: true` with
+  `origin.kind == "coordinator"`), indicating the coordinator already
+  observed a stalled turn. A long free-text final report with zero tool
+  calls and neither signature does not trigger the gate.
+
+  **Per-agent opt-out:** agents whose task is genuinely text-in/text-out
+  (e.g. `test-design-reviewer`) can declare `allow-tool-free: true` in their
+  `.agent.md` frontmatter to skip the check entirely, regardless of
+  evidence. `make validate-agents` accepts the key and rejects non-boolean
+  values.
+
+  **Session-scoped markers:** `.claude/state/agent-failures/` is
+  project-global state, shared across all concurrent sessions. Each marker
+  now carries the `session_id` of the session that wrote it; a gate run only
+  treats markers from its own session as candidates to trigger, leaving
+  markers from other sessions in place for their own session to consume.
+  Regardless of session, any marker older than 24 hours is pruned (deleted)
+  on every run to prevent unbounded accumulation.
+
+  **Stale marker handling:** same-session markers older than 60 minutes are
+  treated as informational only: they are still consumed (deleted) on read,
+  but not included in the error message or gate escalation. If all
+  same-session markers are stale, the gate exits silently with 0 (same as
+  "no markers found") rather than tripping for something no longer
+  actionable. Markers with missing or unparseable timestamps are treated as
+  fresh (fail toward reporting, not toward silent dropping).
+
+  **Gate message wording:** when `make validate-agents` passes, the gate's
+  directive states that the configuration is valid and points the
+  coordinator at the subagent transcript and marker diagnosis for further
+  investigation, instead of unconditionally claiming a frontmatter error.
+  When `validate-agents` fails (or is missing), the message keeps the
+  configuration-error framing and tells the coordinator not to retry until
+  it passes.
 
 Claude Code silently drops unknown tool names in an agent's `tools:` frontmatter.
 A typo can therefore leave a subagent with **no tools at all**: it then narrates
