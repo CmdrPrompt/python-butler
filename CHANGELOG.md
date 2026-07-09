@@ -25,6 +25,14 @@
   latest), so a commit that passed the pre-commit hook could still fail a plain `make lint`.
   (TASK-033)
 
+- Subagent failure markers older than 60 minutes are no longer reported as gate trip
+  conditions. Markers in `.claude/state/agent-failures/` are project-global state shared
+  across concurrent sessions; a stale marker from one task could confuse another task's
+  session. Stale markers are still consumed (deleted) on read, but are excluded from the
+  hard-gate escalation message and exit code. If all found markers are stale, the gate
+  exits silently with 0 (matching "no markers found" behavior). Markers with missing or
+  unparseable `detected_at` timestamps are treated as fresh (fail toward reporting).
+  (TASK-037)
 ### Added
 
 - Added `make validate-agents` (`scripts/validate_agents.py`, stdlib-only): validates the YAML
