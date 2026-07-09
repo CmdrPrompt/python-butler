@@ -248,8 +248,11 @@ tool calls as plain text instead of executing them, and the task stalls.
 Two layers protect against this:
 
 - **Static validation**: `make validate-agents` checks every
-  `.claude/agents/*.agent.md` for valid tool names and required keys.
-  It runs in pre-commit and CI, so a broken definition never reaches `main`.
+  `.claude/agents/*.agent.md` for valid tool names and required keys, including
+  that `tools:` is present and non-empty — an agent file with a missing `tools:`
+  key is rejected exactly like one with an empty list, since both leave the
+  subagent with no real tools at runtime. It runs in pre-commit and CI, so a
+  broken definition never reaches `main`.
 - **Runtime hard gate**: two hooks registered in `.claude/settings.json`.
   `subagent_toolcheck.py` (SubagentStop) flags any subagent that finishes a turn
   with zero tool calls, and `agent_result_gate.py` (PostToolUse on `Agent|Task`)

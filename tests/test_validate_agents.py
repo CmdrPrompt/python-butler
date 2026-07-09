@@ -187,11 +187,11 @@ class TestValidateFile:
 
         assert errors == [], f"expected mcp-shaped tool name to be accepted, got {errors!r}"
 
-    def test_no_tools_key_at_all_is_not_reported_as_an_error(
+    def test_missing_tools_key_is_reported(
         self, tmp_path: Path, validate_agents: ModuleType
     ) -> None:
-        # `tools` is not in REQUIRED_KEYS, so its total absence is not flagged
-        # even though an empty list would be.
+        # A missing `tools:` key leaves the agent with no tools at runtime,
+        # exactly like an empty list -- so it is a required key too.
         path = _write_agent(
             tmp_path / "no_tools_key.agent.md",
             "name: Foo\ndescription: desc",
@@ -199,7 +199,8 @@ class TestValidateFile:
 
         errors = validate_agents.validate_file(path)
 
-        assert errors == []
+        assert len(errors) == 1
+        assert "missing required key 'tools'" in errors[0]
 
 
 class TestMain:

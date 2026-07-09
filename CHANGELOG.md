@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- `make validate-agents` now flags an `.agent.md` file with a missing `tools:` key as an error
+  (`missing required key 'tools'`), the same as an empty `tools: []` list -- previously a fully
+  absent `tools:` key silently passed validation even though it produces the identical "subagent
+  has no tools" runtime failure the validator exists to catch. (TASK-036)
 - Fixed invalid `tools:` frontmatter in all nine `.claude/agents/*.agent.md` definitions (and
   their `claude-agents/` sources): the generic names `read, search, edit, write, execute, todo,
   agent` are not Claude Code tool names and were silently dropped, leaving every subagent with an
