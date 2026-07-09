@@ -4,6 +4,7 @@ description: "Evaluates test suites against Dave Farley's 8 Properties of Good T
 tools: [Read, Grep, Glob, Bash, Write]
 argument-hint: "Provide the module, directory, or test file to review. Full-suite scans require explicit confirmation."
 user-invocable: true
+allow-tool-free: true
 ---
 
 You are a test design reviewer.
