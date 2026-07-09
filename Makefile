@@ -2,7 +2,7 @@
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
-	butler-trim butler-fetch butler-pull butler-check
+	butler-trim butler-fetch butler-pull butler-check butler-uninstall
 
 BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
 TASKS_DIR ?= docs/tasks
@@ -29,6 +29,9 @@ help:
 	@echo "    make butler-pull   -- Pull butler updates and trim (updates .butler/Makefile only)"
 	@echo "    make butler-fetch  -- Pull butler without trimming (use before regenerating files)"
 	@echo "    make butler-trim   -- Remove all but .butler/Makefile (run after init-project)"
+	@echo ""
+	@echo "  Removing butler:"
+	@echo "    make butler-uninstall CATEGORIES=subtree,makefile,governance  -- Remove butler's footprint (add DRY_RUN=1 or FORCE=1)"
 	@echo ""
 	@echo "  First time on a new project:"
 	@echo "    make init-project  -- Interactively generate CLAUDE.md and governance files"
@@ -299,6 +302,41 @@ butler-trim:
 	@echo ""
 	@echo "  git add -A .butler/ .butler-version"
 	@echo "  git commit -m \"chore: trim .butler/ down to Makefile\""
+
+## Remove butler's footprint from this project. Never touches docs/tasks/.
+## Usage: make butler-uninstall CATEGORIES=subtree,makefile,governance [DRY_RUN=1] [FORCE=1]
+## Pure shell (grep/sed/rm) so it works even without butler_core/butler-cli installed
+## (e.g. a legacy project that adopted butler before the CLI existed).
+butler-uninstall:
+	@[ -n "$(CATEGORIES)" ] || (echo "Usage: make butler-uninstall CATEGORIES=subtree,makefile,governance [DRY_RUN=1] [FORCE=1]"; exit 1)
+	@if [ -z "$(FORCE)" ] && [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: working tree has uncommitted changes. Commit/stash first, or pass FORCE=1."; \
+		exit 1; \
+	fi
+	@WANT_SUBTREE=$$(echo "$(CATEGORIES)" | tr ',' '\n' | grep -qx subtree && echo 1 || echo ""); \
+	WANT_MAKEFILE=$$(echo "$(CATEGORIES)" | tr ',' '\n' | grep -qx makefile && echo 1 || echo ""); \
+	WANT_GOVERNANCE=$$(echo "$(CATEGORIES)" | tr ',' '\n' | grep -qx governance && echo 1 || echo ""); \
+	if [ -n "$$WANT_SUBTREE" ] && [ -d .butler ]; then \
+		if [ -n "$(DRY_RUN)" ]; then echo "Would remove .butler/"; \
+		else rm -rf .butler; echo "Removed .butler/"; fi; \
+	fi; \
+	if [ -n "$$WANT_MAKEFILE" ] && [ -f Makefile ] && grep -q '^include \.butler/Makefile$$' Makefile; then \
+		if [ -n "$(DRY_RUN)" ]; then echo "Would remove 'include .butler/Makefile' line from Makefile"; \
+		else \
+			grep -v '^include \.butler/Makefile$$' Makefile > Makefile.tmp && mv Makefile.tmp Makefile; \
+			echo "Removed 'include .butler/Makefile' line from Makefile"; \
+		fi; \
+	fi; \
+	if [ -n "$$WANT_GOVERNANCE" ]; then \
+		for p in CLAUDE.md .github/copilot-instructions.md .github/agents .claude/agents; do \
+			if [ -e "$$p" ]; then \
+				if [ -n "$(DRY_RUN)" ]; then echo "Would remove $$p"; \
+				else rm -rf "$$p"; echo "Removed $$p"; fi; \
+			fi; \
+		done; \
+	fi
+	@echo ""
+	@echo "docs/tasks/ was not touched."
 
 ## Check if butler updates are available
 butler-check:

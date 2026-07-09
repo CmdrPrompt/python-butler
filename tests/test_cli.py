@@ -241,6 +241,65 @@ class TestGitDelegation:
         )
 
 
+class TestUninstall:
+    def test_dry_run_lists_planned_actions_without_removing_anything(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        (tmp_path / ".butler").mkdir()
+
+        exit_code = main(
+            [
+                "uninstall",
+                "--project-root",
+                str(tmp_path),
+                "--categories",
+                "subtree",
+                "--dry-run",
+            ]
+        )
+
+        assert exit_code == 0
+        out = capsys.readouterr().out
+        assert ".butler" in out, f"expected the planned action to mention .butler, got {out!r}"
+        assert (tmp_path / ".butler").exists(), "dry-run must not remove anything"
+
+    def test_apply_removes_selected_category(self, tmp_path: Path) -> None:
+        (tmp_path / ".butler").mkdir()
+
+        exit_code = main(
+            [
+                "uninstall",
+                "--project-root",
+                str(tmp_path),
+                "--categories",
+                "subtree",
+                "--force",
+            ]
+        )
+
+        assert exit_code == 0
+        assert not (tmp_path / ".butler").exists()
+
+    @patch("butler_core.uninstall.subprocess.run")
+    def test_refuses_when_working_tree_dirty_without_force(
+        self,
+        mock_run: MagicMock,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout=" M some_file.py\n")
+        (tmp_path / ".butler").mkdir()
+
+        exit_code = main(["uninstall", "--project-root", str(tmp_path), "--categories", "subtree"])
+
+        assert exit_code == 1
+        err = capsys.readouterr().err
+        assert "uncommitted" in err.lower(), (
+            f"expected a message about uncommitted changes, got {err!r}"
+        )
+        assert (tmp_path / ".butler").exists(), "nothing should be removed on refusal"
+
+
 class TestErrorHandling:
     def test_fails_cleanly_when_task_not_found(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
