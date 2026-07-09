@@ -1,7 +1,7 @@
 ---
 name: Test Writer
 description: "Use after a requirement is confirmed and the task branch is ready, before any production code exists. Writes failing tests (red) that specify observable behavior, guided by Dave Farley's Understandable, Maintainable, Repeatable, and Granular properties. Hands off to Implementation Worker for green."
-tools: [read, search, edit, write, execute, todo]
+tools: [Read, Grep, Glob, Edit, Write, Bash, TodoWrite]
 argument-hint: "Provide the confirmed requirement/use case, the TASK-ID, and the target module"
 user-invocable: true
 disable-model-invocation: false
@@ -22,7 +22,7 @@ before committing.
 
 ## Tool usage
 
-- Use the `read`/`search` tools (file read, glob, grep) for all file exploration — never Bash
+- Use the `Read`/`Grep`/`Glob` tools (file read, grep, glob) for all file exploration — never Bash
   `cat`, `find`, or `ls`. Dedicated read tools don't require a Bash permission prompt; as a
   subagent you cannot get one answered, so a Bash call outside the pre-approved allowlist will
   silently stall your turn with no result.

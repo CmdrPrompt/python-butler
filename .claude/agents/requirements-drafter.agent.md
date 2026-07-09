@@ -1,7 +1,7 @@
 ---
 name: Requirements Drafter
 description: "Use before implementing any new feature or change. Turns vague ideas into clear, testable requirements. Keywords: requirement, use case, feature request, specify, before implementation."
-tools: [read, search, write, todo]
+tools: [Read, Grep, Glob, Write, TodoWrite]
 argument-hint: "Describe the idea or feature you want to specify"
 user-invocable: true
 ---

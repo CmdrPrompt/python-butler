@@ -1,4 +1,4 @@
-.PHONY: all help setup install lint check-agents-sync check-butler fix stage branch-task sync-main stage-task commit-task \
+.PHONY: all help setup install lint check-agents-sync validate-agents check-butler fix stage branch-task sync-main stage-task commit-task \
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
@@ -45,6 +45,7 @@ help:
 	@echo "    make fix      -- Auto-fix ruff and pymarkdown issues"
 	@echo "    make stage    -- Auto-fix and re-stage all staged changes"
 	@echo "    make test     -- Run pytest with coverage"
+	@echo "    make validate-agents  -- Validate agent definitions (frontmatter and tool names)"
 	@echo ""
 	@echo "  Governance templates:"
 	@echo "    make generate-governance-files  -- Generate CLAUDE.md, .github/copilot-instructions.md, and .github/chatmodes/"
@@ -411,3 +412,7 @@ clean:
 		-o -name ".ruff_cache" -o -name ".pytest_cache" -o -name "*.egg-info" \) \
 		-exec rm -rf {} +
 	@echo "✓ Done"
+
+## Validate agent logs
+validate-agents:
+	@python3 scripts/validate_agents.py .claude/agents

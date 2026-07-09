@@ -8,6 +8,8 @@ Shared infrastructure for Python projects — Makefile targets and AI agents for
 - **`claude-agents/`** — Claude Code agent source files
 - **`templates/`** — templates for `CLAUDE.md`, Copilot instructions, and Copilot agents
 - **`scaffold/`** — project scaffolding templates (`pyproject.toml`, `.gitignore`, `.pre-commit-config.yaml`)
+- **`scripts/validate_agents.py`**: CI/pre-commit validation of agent definition frontmatter
+- **`.claude/hooks/`**: runtime guards for Claude Code subagents (zero-tool-call hard gate)
 
 ## Prerequisites
 
@@ -209,24 +211,27 @@ Both commands exit with an error if `CLAUDE.md` already exists. Pass `FORCE=1` t
 
 ## Agents
 
-Seven agents cover the full development workflow, available in both Claude Code and GitHub Copilot.
+Nine agents cover the full development workflow, available in both Claude Code and GitHub Copilot.
 
 ```
-requirements-drafter → workflow-guardian → implementation-worker → pr-reviewer → merge
+requirements-drafter → workflow-guardian → test-writer → implementation-worker → pr-reviewer → merge
                                ↑
              bug-triage ───────┤
  characterization-test-writer ─┘
-             dependency-auditor  (periodic / pre-release)
+             test-design-reviewer  (on demand)
+             dependency-auditor    (periodic / pre-release)
 ```
 
 | Agent | When | Purpose |
 |---|---|---|
 | `requirements-drafter` | Before coding | Turns vague ideas into confirmed, testable requirements |
 | `workflow-guardian` | Gate | Enforces task branches, TDD, and commit discipline |
+| `test-writer` | After requirement confirmed | Writes failing (red) tests before any production code exists |
 | `implementation-worker` | Coding | Implements approved work, runs lint/test, commits |
 | `pr-reviewer` | Before merge | Checks scope, tests, changelog, and acceptance criteria |
 | `bug-triage` | On demand | Finds bugs without fixing — produces task files |
 | `characterization-test-writer` | Before refactoring | Documents existing behavior with tests |
+| `test-design-reviewer` | On demand | Scores test suites against Farley's 8 Properties (Farley Index) |
 | `dependency-auditor` | Periodic | Audits for CVEs, outdated packages, license issues |
 
 ### Invoking agents
@@ -234,6 +239,25 @@ requirements-drafter → workflow-guardian → implementation-worker → pr-revi
 **Claude Code** — type `@agent-name` in chat, or describe your task and Claude suggests one automatically.
 
 **GitHub Copilot (VS Code 1.101+)** — run `make generate-governance-files` first, then use the **dropdown** at the bottom of the Copilot Chat panel to select an agent.
+
+### Agent configuration validation
+
+Claude Code silently drops unknown tool names in an agent's `tools:` frontmatter.
+A typo can therefore leave a subagent with **no tools at all**: it then narrates
+tool calls as plain text instead of executing them, and the task stalls.
+Two layers protect against this:
+
+- **Static validation**: `make validate-agents` checks every
+  `.claude/agents/*.agent.md` for valid tool names and required keys.
+  It runs in pre-commit and CI, so a broken definition never reaches `main`.
+- **Runtime hard gate**: two hooks registered in `.claude/settings.json`.
+  `subagent_toolcheck.py` (SubagentStop) flags any subagent that finishes a turn
+  with zero tool calls, and `agent_result_gate.py` (PostToolUse on `Agent|Task`)
+  escalates the flag to the coordinator as a blocking configuration error,
+  instructing it to stop instead of retrying a subagent that cannot comply.
+
+The tool-name whitelist lives at the top of `scripts/validate_agents.py`.
+Extend it when new tools are adopted.
 
 ## Conventions
 
