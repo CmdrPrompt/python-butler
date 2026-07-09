@@ -32,6 +32,19 @@ commit-current-task` and `make stage-current-task` are not available to you
   the final real commit — your commit message does not need to match the task
   file's `**Commit:**` line.
 
+## Tool usage
+
+- Use the `read`/`search` tools (file read, glob, grep) for file exploration — never Bash `cat`,
+  `find`, or `ls`. Dedicated read tools don't require a Bash permission prompt; as a subagent you
+  cannot get one answered, so a Bash call outside the pre-approved allowlist will silently stall
+  your turn with no result.
+- Do not pipe Bash commands through additional shell filters (`| tail`, `| head`, `| grep`) purely
+  to shorten output — a piped command may fall outside the allowlist even when its first command
+  alone is permitted. Run the plain command and let its full output return.
+- If a Bash call is nonetheless blocked or interrupted, state the exact command that was blocked
+  in your response instead of ending your turn silently — this is the only way the failure is
+  diagnosable from outside.
+
 ## Preconditions
 
 - Requirements update and explicit confirmation are already completed.
