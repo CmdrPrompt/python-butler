@@ -287,6 +287,23 @@ class TestAgentResultGateMain:
         assert "test-writer (agent-999)" in captured.err
         assert "validate-agents: OK" in captured.err
 
+    def test_validator_missing_uses_fallback_message(
+        self,
+        tmp_path: Path,
+        gate: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        _write_marker(project_dir, "agent-999", "test-writer")
+
+        exit_code = _run_main(gate, "{}", monkeypatch, project_dir)
+
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert "validator not found (scripts/validate_agents.py missing)" in captured.err
+
     def test_markers_present_are_consumed(
         self,
         tmp_path: Path,

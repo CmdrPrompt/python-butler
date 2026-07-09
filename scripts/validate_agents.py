@@ -2,7 +2,7 @@
 """Validate .claude/agents/*.agent.md frontmatter.
 
 Fails (exit 1) if any agent definition:
-  - lacks YAML frontmatter or required keys (name, description)
+  - lacks YAML frontmatter or required keys (name, description, tools)
   - declares a tool name not in VALID_TOOLS (unknown names are silently
     dropped by Claude Code, leaving the subagent with no tools at all --
     the root cause of the TASK-025/TASK-034 "narrated tool calls" failures)
@@ -41,7 +41,7 @@ VALID_TOOLS = {
 }
 MCP_TOOL_RE = re.compile(r"^mcp__[A-Za-z0-9_-]+__[A-Za-z0-9_-]+$")
 
-REQUIRED_KEYS = {"name", "description"}
+REQUIRED_KEYS = {"name", "description", "tools"}
 
 FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
