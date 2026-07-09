@@ -15,6 +15,12 @@
 
 ### Added
 
+- README now documents the `butler` CLI (`uv tool install .` or a Git URL) and the standalone MCP
+  server (`cd mcp && uv sync`) as optional additions to the base Makefile adoption flow, and a
+  new test suite (`tests/test_packaging.py`) locks in the packaging isolation this depends on: the
+  MCP server's distribution name can't collide with the `mcp` SDK it depends on, its
+  `pyproject.toml` can't pull in `butler_core`'s dev dependencies, and `make check-butler` still
+  fails with a clear message (not a traceback) when the CLI isn't installed. (TASK-027)
 - A standalone MCP server (`mcp/server.py`, its own `mcp/pyproject.toml`) exposes `list_tasks`,
   `get_task`, `create_task`, `check_acceptance_criterion`, `set_task_status`, `branch_task`,
   `stage_task`, `commit_task`, `open_pr_for_task`, and `merge_task_pr` as MCP tools over stdio,

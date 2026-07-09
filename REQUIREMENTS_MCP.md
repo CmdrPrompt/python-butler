@@ -217,6 +217,35 @@ The MCP server depends on `butler_core` but is distributed separately (own
 `pyproject.toml`, e.g. under `mcp/`) so its dependencies (MCP SDK) don't leak
 into projects that don't use it.
 
+**Scope note (no PyPI release required):** "Installable via `uv`/`pip`" in
+this requirement means installable from the local source tree
+(`uv tool install .` / `pip install .`) or from a Git URL
+(`uv tool install git+https://...`). It does NOT imply publishing to PyPI,
+maintaining a release/versioning process, or `pip install butler-cli`
+resolving without a path/URL. A PyPI-published release is out of scope for
+this requirement and would need its own future requirement (build/publish
+pipeline, versioning scheme) if ever desired.
+
+**Constraint (namespace collision):** The distribution name for the MCP
+server package (currently `butler-mcp`) MUST NOT be `mcp`, since the server
+depends on the official MCP SDK, which is itself published on PyPI as `mcp`.
+Additionally, because the server's own source directory is named `mcp/` at
+the repo root and contains no top-level `__init__.py`, it is susceptible to
+being picked up as an implicit Python namespace package (PEP 420) if the
+repo root ever ends up on `sys.path` (e.g. a script or test run from the
+repo root, or a `PYTHONPATH` misconfiguration) in an environment where the
+real `mcp` SDK is not installed. This would shadow the SDK import and
+produce a confusing `ImportError`/`AttributeError` instead of a clear
+"dependency not installed" error. Tooling and CI MUST invoke the MCP
+server and its tests via `uv run` from inside `mcp/` (using its own
+`.venv`), never from the repo root with the repo root on `sys.path`.
+
+**Use case:** A developer runs `make branch-task` from the repo root while
+the MCP server's dependencies aren't installed in that shell's environment.
+The Makefile/CLI tooling must not accidentally attempt to `import mcp` from
+repo-root context in a way that resolves to the local `mcp/` directory
+instead of failing clearly or not attempting the import at all.
+
 ## Requirement 10: Bugfix — `merge-pr`/`merge-current-task` branch-name derivation
 
 **Description:** `merge-pr` (Makefile) SHALL derive the task branch name by
