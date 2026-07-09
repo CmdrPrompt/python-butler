@@ -202,6 +202,43 @@ class TestValidateFile:
         assert len(errors) == 1
         assert "missing required key 'tools'" in errors[0]
 
+    def test_allow_tool_free_true_has_no_errors(
+        self, tmp_path: Path, validate_agents: ModuleType
+    ) -> None:
+        path = _write_agent(
+            tmp_path / "opt_out.agent.md",
+            "name: Foo\ndescription: desc\ntools: [Read]\nallow-tool-free: true",
+        )
+
+        errors = validate_agents.validate_file(path)
+
+        assert errors == [], f"expected no errors for allow-tool-free: true, got {errors!r}"
+
+    def test_allow_tool_free_false_has_no_errors(
+        self, tmp_path: Path, validate_agents: ModuleType
+    ) -> None:
+        path = _write_agent(
+            tmp_path / "opt_out_false.agent.md",
+            "name: Foo\ndescription: desc\ntools: [Read]\nallow-tool-free: false",
+        )
+
+        errors = validate_agents.validate_file(path)
+
+        assert errors == [], f"expected no errors for allow-tool-free: false, got {errors!r}"
+
+    def test_allow_tool_free_non_boolean_value_is_reported(
+        self, tmp_path: Path, validate_agents: ModuleType
+    ) -> None:
+        path = _write_agent(
+            tmp_path / "opt_out_bad.agent.md",
+            "name: Foo\ndescription: desc\ntools: [Read]\nallow-tool-free: yes",
+        )
+
+        errors = validate_agents.validate_file(path)
+
+        assert len(errors) == 1
+        assert "'allow-tool-free' must be a boolean" in errors[0]
+
 
 class TestMain:
     def test_all_valid_files_exit_zero_with_summary(

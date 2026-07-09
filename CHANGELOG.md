@@ -33,6 +33,22 @@
   exits silently with 0 (matching "no markers found" behavior). Markers with missing or
   unparseable `detected_at` timestamps are treated as fresh (fail toward reporting).
   (TASK-037)
+- The subagent zero-tool-call hard gate no longer fires on legitimately tool-free work: a
+  marker is now only written when zero tool calls coincide with corroborating evidence of
+  the real "narrated tool calls" failure (a tool-narration text pattern, or a coordinator
+  follow-up event in the transcript), so a long free-text report with zero tool calls (e.g.
+  Test Design Reviewer briefed to work entirely from pasted content) no longer trips the
+  gate. Agents whose task is genuinely text-in/text-out can also opt out entirely with a new
+  `allow-tool-free: true` frontmatter key (`make validate-agents` validates it as boolean);
+  `test-design-reviewer.agent.md` now declares it. Failure markers also carry a `session_id`,
+  and `agent_result_gate.py` only treats markers from its own session as candidates to
+  trigger, leaving other sessions' markers untouched (previously any marker in any session
+  could spuriously trip the gate) while still pruning any marker older than 24 hours
+  regardless of session. The gate's stderr directive no longer unconditionally claims a
+  frontmatter configuration error: when `validate-agents` passes, it now states that the
+  configuration is valid and points at the transcript and marker diagnosis for further
+  investigation instead. (TASK-038)
+
 ### Added
 
 - Added `make validate-agents` (`scripts/validate_agents.py`, stdlib-only): validates the YAML

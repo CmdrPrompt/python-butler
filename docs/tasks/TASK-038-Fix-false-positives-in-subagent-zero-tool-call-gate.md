@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -54,15 +54,15 @@ Fix in three parts:
 
 ## Acceptance criteria
 
-- [ ] Replaying the Test Design Reviewer transcript (`a92da30e8a38f59e8`, zero tool calls, long report) through `subagent_toolcheck.py` writes NO marker
-- [ ] Replaying the TASK-034 failure transcripts (Test Writer `a58422292d7c45fdf`, PR Reviewer `a01168c9db255b431`) still writes markers (regression guard for both signature types: narration pattern and coordinator follow-up)
-- [ ] `test-design-reviewer.agent.md` declares `allow-tool-free: true`; `subagent_toolcheck.py` skips agents with the flag; `validate_agents.py` accepts the key and rejects non-boolean values
-- [ ] Markers include `session_id`; `agent_result_gate.py` ignores markers from other sessions and prunes markers older than 24h
-- [ ] The gate's stderr directive no longer unconditionally claims a frontmatter error: when `validate-agents` passes, the message states that configuration is valid and points to the transcript and marker diagnosis instead
-- [ ] Unit tests cover: tool-free-with-report (no trigger), narration pattern (trigger), coordinator follow-up (trigger), opt-out flag (no trigger), cross-session marker (ignored), stale marker (pruned)
-- [ ] README's "Agent configuration validation" section documents `allow-tool-free` and the refined heuristic
-- [ ] CHANGELOG has a Fixed entry under Unreleased (TASK-038)
-- [ ] `make validate-agents && make lint && make test` pass
+- [x] Replaying the Test Design Reviewer transcript (`a92da30e8a38f59e8`, zero tool calls, long report) through `subagent_toolcheck.py` writes NO marker
+- [x] Replaying the TASK-034 failure transcripts (Test Writer `a58422292d7c45fdf`, PR Reviewer `a01168c9db255b431`) still writes markers (regression guard for both signature types: narration pattern and coordinator follow-up)
+- [x] `test-design-reviewer.agent.md` declares `allow-tool-free: true`; `subagent_toolcheck.py` skips agents with the flag; `validate_agents.py` accepts the key and rejects non-boolean values
+- [x] Markers include `session_id`; `agent_result_gate.py` ignores markers from other sessions and prunes markers older than 24h
+- [x] The gate's stderr directive no longer unconditionally claims a frontmatter error: when `validate-agents` passes, the message states that configuration is valid and points to the transcript and marker diagnosis instead
+- [x] Unit tests cover: tool-free-with-report (no trigger), narration pattern (trigger), coordinator follow-up (trigger), opt-out flag (no trigger), cross-session marker (ignored), stale marker (pruned)
+- [x] README's "Agent configuration validation" section documents `allow-tool-free` and the refined heuristic
+- [x] CHANGELOG has a Fixed entry under Unreleased (TASK-038)
+- [x] `make validate-agents && make lint && make test` pass
 
 ## Files
 
@@ -82,5 +82,22 @@ Fix in three parts:
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-09
+**Summary:** Replaced the blunt "zero tool calls == broken frontmatter" heuristic with a
+corroborating-evidence check (tool-narration text pattern or a coordinator follow-up event)
+so a legitimately tool-free subagent report no longer trips the gate. Added a per-agent
+`allow-tool-free: true` opt-out (declared on Test Design Reviewer, both copies) validated by
+`scripts/validate_agents.py`. Markers now carry `session_id`; `agent_result_gate.py` only
+treats same-session markers as trigger candidates (cross-session markers are left in place)
+and prunes any marker older than 24 hours regardless of session, independent of the existing
+60-minute same-session staleness behavior. The gate's stderr directive no longer
+unconditionally claims a frontmatter configuration error: when `validate-agents` passes it
+now states the configuration is valid and points at the transcript/marker diagnosis instead.
+**Files changed:** `.claude/hooks/subagent_toolcheck.py`, `.claude/hooks/agent_result_gate.py`,
+`scripts/validate_agents.py`, `.claude/agents/test-design-reviewer.agent.md`,
+`claude-agents/test-design-reviewer.agent.md`, `tests/test_subagent_gate.py` (new),
+`tests/test_hooks.py`, `tests/test_validate_agents.py`, `README.md`, `CHANGELOG.md`,
+`docs/tasks/TASK-038-Fix-false-positives-in-subagent-zero-tool-call-gate.md`
+**Branch:** `task/038-gate-false-positives`
+**Stage:** `git add .claude/hooks/subagent_toolcheck.py .claude/hooks/agent_result_gate.py scripts/validate_agents.py .claude/agents/test-design-reviewer.agent.md claude-agents/test-design-reviewer.agent.md tests/test_subagent_gate.py tests/test_hooks.py tests/test_validate_agents.py README.md CHANGELOG.md docs/tasks/TASK-038-Fix-false-positives-in-subagent-zero-tool-call-gate.md`
+**Commit:** `git commit -m "Fix false positives in subagent zero-tool-call gate"`

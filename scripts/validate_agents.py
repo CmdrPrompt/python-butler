@@ -7,6 +7,9 @@ Fails (exit 1) if any agent definition:
     dropped by Claude Code, leaving the subagent with no tools at all --
     the root cause of the TASK-025/TASK-034 "narrated tool calls" failures)
   - declares an empty tools list
+  - declares an `allow-tool-free` key with a non-boolean value (optional key;
+    when `true`, opts the agent out of the runtime zero-tool-call hard gate
+    for agents whose task is legitimately text-in/text-out, see TASK-038)
 
 Usage:
   python3 scripts/validate_agents.py [agents_dir]   (default .claude/agents)
@@ -42,6 +45,8 @@ VALID_TOOLS = {
 MCP_TOOL_RE = re.compile(r"^mcp__[A-Za-z0-9_-]+__[A-Za-z0-9_-]+$")
 
 REQUIRED_KEYS = {"name", "description", "tools"}
+OPTIONAL_BOOLEAN_KEYS = {"allow-tool-free"}
+VALID_BOOLEAN_LITERALS = {"true", "false"}
 
 FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
@@ -96,6 +101,15 @@ def validate_file(path: Path) -> list[str]:
                     "unknown names are dropped silently and the agent "
                     "may end up with NO tools"
                 )
+
+    for key in OPTIONAL_BOOLEAN_KEYS:
+        if key not in fm:
+            continue
+        value = fm[key]
+        if not isinstance(value, str) or value.lower() not in VALID_BOOLEAN_LITERALS:
+            errors.append(
+                f"{path.name}: '{key}' must be a boolean ('true' or 'false'), got: {value!r}"
+            )
     return errors
 
 
