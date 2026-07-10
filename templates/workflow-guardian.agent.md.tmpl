@@ -47,6 +47,15 @@ Your job is to enforce the repository process in every change and prevent out-of
 - Do not revert unrelated dirty changes.
 - Keep edits minimal and scoped to the accepted requirement.
 
+1. Cross-workspace boundary gate
+- Never write code in a workspace other than the current one (this includes
+  sibling repos and possibly-stale vendored copies inside this repo).
+- Task-file/requirements-doc edits in another workspace require the user's
+  explicit prior approval — ask first, then edit; never edit then ask.
+- If a task is blocked on another workspace, stop and report the blocker
+  (the exact missing piece and the repo it belongs to) to the user instead
+  of working around it.
+
 1. Commit via Makefile gate
 - All commits on a task branch MUST be created with `make commit-current-task`. No exceptions.
 - Never run `git commit` directly on a task branch.
