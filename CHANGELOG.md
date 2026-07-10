@@ -15,6 +15,11 @@
   end-to-end tests assert `butler task branch|stage|commit|pr|merge` complete without spawning a
   nested `butler` or `make` process. No production code changed; this formalizes behavior that
   already existed as of TASK-023 so it cannot silently regress. (TASK-043)
+- Added a test (`tests/test_makefile_cli_flag_drift.py`) that parses every `butler ...` invocation
+  in the root `Makefile`, extracts the flags they pass (currently `--tasks-dir`), and cross-checks
+  them against the CLI's argparse definition in `src/butler_cli/__main__.py`, failing `make test`
+  if the Makefile ever passes a flag the installed CLI no longer accepts. No production code
+  changed; this guards against silent drift going forward. (TASK-044)
 
 ### Fixed
 
