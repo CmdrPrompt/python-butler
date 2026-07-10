@@ -51,6 +51,10 @@
 
 ### Added
 
+- Generated `CLAUDE.md` and Workflow Guardian agent definitions now include a Cross-Workspace
+  Boundary section/gate: code must never be written in a sibling or dependency repo from the
+  current workspace, and task-file/requirements-doc edits in another workspace require the
+  user's explicit prior approval before editing. (TASK-041)
 - Added `make validate-agents` (`scripts/validate_agents.py`, stdlib-only): validates the YAML
   frontmatter of every `.claude/agents/*.agent.md`: required keys present, `tools:` non-empty and
   containing only real Claude Code tool names (with did-you-mean hints for case errors, and

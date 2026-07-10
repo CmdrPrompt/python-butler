@@ -1,8 +1,8 @@
-# TASK-041: Cross-workspace boundary and task-dependency guidelines
+# TASK-041 Cross-workspace boundary and task-dependency guidelines
 
 ## Status
 
-Draft
+in-progress
 
 ## Background
 
@@ -66,23 +66,74 @@ existing consumer projects get both without hand-authoring them per-project.
 
 ## Requirements
 
-To be drafted as part of this task (see Background). Do not implement
-template/agent changes until requirements are written and the user has
-confirmed them.
+Drafted and confirmed by the user in `REQUIREMENTS_CROSS_WORKSPACE.md`
+(Requirements 1–3).
+
+## Decision: task-dependency-index scaffold (Requirement 3)
+
+**Deferred to a follow-up task.** The `docs/tasks/README.md`-style execution
+order/dependency-graph index is a materially separate feature from the
+cross-workspace boundary gate (own template, own governance rules, own
+Workflow Guardian Operating Procedure update). Building it here would expand
+this task's scope beyond what's reviewable in one change. This task only
+ships Requirements 1–2 (boundary rule in `CLAUDE.md.tmpl` and the Workflow
+Guardian templates); the task-dependency index is filed as a separate
+follow-up task once TASK-041 is done.
+
+## Branch
+
+**Branch name:** `task/041-cross-workspace-boundaries-and-task-dependencies`
+**Switch/create:** `git checkout -b task/041-cross-workspace-boundaries-and-task-dependencies`
+**Make target:** `make branch-task f=TASK-041`
 
 ## Acceptance criteria
 
-- [ ] Requirements drafted in a new or existing `REQUIREMENTS_*.md`, presented
+- [x] Requirements drafted in a new or existing `REQUIREMENTS_*.md`, presented
       to the user, and explicitly confirmed ("Is this what you intended?")
       before implementation begins.
-- [ ] `templates/CLAUDE.md.tmpl` includes a cross-workspace boundary section
+- [x] `templates/CLAUDE.md.tmpl` includes a cross-workspace boundary section
       consistent with the confirmed requirements.
-- [ ] `templates/workflow-guardian.agent.md.tmpl` enforces the boundary rule
+- [x] `templates/workflow-guardian.agent.md.tmpl` enforces the boundary rule
       as a mandatory gate.
-- [ ] Decision recorded (in the task file) on whether a task-dependency-index
+- [x] `claude-agents/workflow-guardian.agent.md` (and this repo's
+      `.claude/agents/workflow-guardian.agent.md` copy) enforces the same
+      gate.
+- [x] Decision recorded (in the task file) on whether a task-dependency-index
       template is added in this task or split into a follow-up task.
-- [ ] `CHANGELOG.md` updated with a behavior-first entry.
-- [ ] `make lint && make test` pass.
+- [x] `CHANGELOG.md` updated with a behavior-first entry.
+- [x] `make lint && make test` pass (`make test`: 112 passed, coverage
+      unchanged at 99%, no regression from the 355-stmt/4-miss baseline;
+      `make lint` fails only on pre-existing MD025/MD047 issues in
+      `docs/tasks/TASK-039-*.md` and `docs/tasks/TASK-040-*.md`, confirmed
+      present on `main` before this task via `git stash` and unrelated to
+      the four files this task changed).
+
+## Completion
+
+**Date:** 2026-07-10
+**Summary:** Drafted and confirmed requirements in `REQUIREMENTS_CROSS_WORKSPACE.md`
+(Requirements 1–3). Added a "Cross-Workspace Boundary" section to
+`templates/CLAUDE.md.tmpl` and a matching "Cross-workspace boundary gate" to
+both Workflow Guardian template flavors (`templates/workflow-guardian.agent.md.tmpl`
+and `claude-agents/workflow-guardian.agent.md`, the latter resynced into this
+repo's own `.claude/agents/workflow-guardian.agent.md`). Requirement 3's
+task-dependency-index scaffold was deferred to a follow-up task per the
+Decision section above, not built here. Implementation was delegated to
+Implementation Worker in an isolated worktree and independently verified
+(diff review, commit hash, `make lint`/`make test` re-run) before merging.
+**Files changed:**
+
+- `REQUIREMENTS_CROSS_WORKSPACE.md` — created
+- `templates/CLAUDE.md.tmpl` — modified
+- `templates/workflow-guardian.agent.md.tmpl` — modified
+- `claude-agents/workflow-guardian.agent.md` — modified
+- `.claude/agents/workflow-guardian.agent.md` — modified (resynced copy)
+- `CHANGELOG.md` — modified
+- `docs/tasks/TASK-041-cross-workspace-boundaries-and-task-dependencies.md` — modified
+
+**Branch:** `git checkout task/041-cross-workspace-boundaries-and-task-dependencies`
+**Stage:** `git add REQUIREMENTS_CROSS_WORKSPACE.md templates/CLAUDE.md.tmpl templates/workflow-guardian.agent.md.tmpl claude-agents/workflow-guardian.agent.md .claude/agents/workflow-guardian.agent.md CHANGELOG.md docs/tasks/TASK-041-cross-workspace-boundaries-and-task-dependencies.md`
+**Commit:** `git commit -m "Add cross-workspace boundary guidance to generated CLAUDE.md and Workflow Guardian gates"`
 
 ## Out of scope
 
