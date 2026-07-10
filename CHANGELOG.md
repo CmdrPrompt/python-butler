@@ -8,6 +8,13 @@
   requirements into INVEST-compliant task files with Gherkin acceptance criteria, splitting this
   responsibility out of `requirements-drafter`. `workflow-guardian` now delegates task-file
   drafting to it and gates implementation on the task's Status not being `blocked`. (TASK-042)
+- Added regression tests (`tests/test_no_make_recursion.py`) protecting the non-recursive
+  `butler task <cmd>` <-> vendored Makefile architecture: a static/AST scan asserts
+  `butler_core.git_ops`'s `branch_for`, `stage_for`, `commit_for`, `open_pr_for`, and
+  `merge_pr_for` never construct a `subprocess` call whose first argument is `"make"`, and
+  end-to-end tests assert `butler task branch|stage|commit|pr|merge` complete without spawning a
+  nested `butler` or `make` process. No production code changed; this formalizes behavior that
+  already existed as of TASK-023 so it cannot silently regress. (TASK-043)
 
 ### Fixed
 
