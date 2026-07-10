@@ -4,6 +4,13 @@
 
 ### Added
 
+- Added a `butler sync` CLI command that refreshes a consumer project's vendored
+  `.butler/Makefile` to match the version bundled in the currently installed `butler` package,
+  comparing content by hash so it only overwrites when the files actually differ (`--dry-run` to
+  preview, `--force` to override the dirty-working-tree guard). Consumer projects that end up
+  pinned to a stale vendored Makefile snapshot -- as `firefly-python-api` was before TASK-043 --
+  now have a supported way to correct the drift without manually diffing and patching files by
+  hand. (TASK-045)
 - Added a `task-drafter` agent (Claude Code and GitHub Copilot flavors) that turns confirmed
   requirements into INVEST-compliant task files with Gherkin acceptance criteria, splitting this
   responsibility out of `requirements-drafter`. `workflow-guardian` now delegates task-file
