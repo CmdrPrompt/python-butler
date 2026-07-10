@@ -2,7 +2,7 @@
 
 ## Status
 
-in-progress
+done
 
 ## Background
 
@@ -133,7 +133,7 @@ Implementation Worker in an isolated worktree and independently verified
 
 **Branch:** `git checkout task/041-cross-workspace-boundaries-and-task-dependencies`
 **Stage:** `git add REQUIREMENTS_CROSS_WORKSPACE.md templates/CLAUDE.md.tmpl templates/workflow-guardian.agent.md.tmpl claude-agents/workflow-guardian.agent.md .claude/agents/workflow-guardian.agent.md CHANGELOG.md docs/tasks/TASK-041-cross-workspace-boundaries-and-task-dependencies.md`
-**Commit:** `git commit -m "Add cross-workspace boundary guidance to generated CLAUDE.md and Workflow Guardian gates"`
+**Commit:** `git commit -m "Mark TASK-041 done"`
 
 ## Out of scope
 
