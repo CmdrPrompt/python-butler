@@ -125,3 +125,5 @@ step into a shared internal target (e.g. `_butler-restore`) used by both
   them; verify any MCP client configuration examples in docs do not reference
   paths under `.butler/`.
 - Add a CHANGELOG.md entry.
+<<<<<<< HEAD
+=======

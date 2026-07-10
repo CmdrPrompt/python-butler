@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shlex
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -74,8 +75,46 @@ class TestStageFor:
         assert commands[2][:4] == ["uv", "run", "pymarkdown", "--config"]
         assert "./README.md" in commands[2]
         assert not any("venv" in f for f in commands[2])
+        assert "--return-code-scheme" in commands[2]
+        scheme_index = commands[2].index("--return-code-scheme")
+        assert commands[2][scheme_index + 1] == "minimal"
         assert commands[3] == shlex.split(task.stage_cmd)
         assert commands[4] == ["git", "update-index", "-q", "--refresh"]
+
+    def test_does_not_raise_when_pymarkdown_fixes_a_file(self, tmp_path: Path) -> None:
+        (tmp_path / "README.md").write_text("# hi\n")
+        task = create_task("Some task", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
+
+        def fake_run(
+            cmd: list[str], check: bool = False, cwd: Path | None = None, **kwargs: object
+        ) -> MagicMock:
+            if "pymarkdown" in cmd:
+                assert "--return-code-scheme" in cmd
+                assert cmd[cmd.index("--return-code-scheme") + 1] == "minimal"
+                return _completed(returncode=0)
+            return _completed(returncode=0)
+
+        with patch("butler_core.git_ops.subprocess.run", side_effect=fake_run):
+            stage_for(task, repo_root=tmp_path)
+
+    def test_raises_when_pymarkdown_reports_a_genuine_error(self, tmp_path: Path) -> None:
+        (tmp_path / "README.md").write_text("# hi\n")
+        task = create_task("Some task", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
+
+        def fake_run(
+            cmd: list[str], check: bool = False, cwd: Path | None = None, **kwargs: object
+        ) -> MagicMock:
+            if "pymarkdown" in cmd:
+                if check:
+                    raise subprocess.CalledProcessError(2, cmd)
+                return _completed(returncode=2)
+            return _completed(returncode=0)
+
+        with (
+            patch("butler_core.git_ops.subprocess.run", side_effect=fake_run),
+            pytest.raises(subprocess.CalledProcessError),
+        ):
+            stage_for(task, repo_root=tmp_path)
 
 
 class TestCommitFor:
