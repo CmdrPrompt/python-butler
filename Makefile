@@ -389,7 +389,7 @@ generate-governance-files:
 		-e 's|{{WORKFLOW_GUARDIAN_REF}}|$(WORKFLOW_GUARDIAN_REF)|g' \
 		-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
 		.butler/templates/copilot-instructions.md.tmpl > .github/copilot-instructions.md
-	@for agent in workflow-guardian implementation-worker bug-triage characterization-test-writer requirements-drafter pr-reviewer dependency-auditor test-design-reviewer test-writer; do \
+	@for agent in workflow-guardian implementation-worker bug-triage characterization-test-writer requirements-drafter task-drafter pr-reviewer dependency-auditor test-design-reviewer test-writer; do \
 		sed \
 			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
 			.butler/templates/$$agent.agent.md.tmpl > .github/agents/$$agent.agent.md; \

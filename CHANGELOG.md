@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added a `task-drafter` agent (Claude Code and GitHub Copilot flavors) that turns confirmed
+  requirements into INVEST-compliant task files with Gherkin acceptance criteria, splitting this
+  responsibility out of `requirements-drafter`. `workflow-guardian` now delegates task-file
+  drafting to it and gates implementation on the task's Status not being `blocked`. (TASK-042)
+
 ### Fixed
 
 - `make validate-agents` now flags an `.agent.md` file with a missing `tools:` key as an error
