@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 import butler_core.git_ops as git_ops
 from butler_cli.__main__ import main
 from butler_core.git_ops import branch_for, commit_for, merge_pr_for, open_pr_for, stage_for
-from butler_core.tasks import create_task, read_task
+from butler_core.tasks import create_task
 
 _GIT_OPS_TARGETS = ("branch_for", "stage_for", "commit_for", "open_pr_for", "merge_pr_for")
 
@@ -59,9 +59,12 @@ class TestGitOpsNeverShellsOutToMake:
     """Scenario: `butler_core.git_ops` never constructs subprocess calls to make."""
 
     def test_source_contains_no_make_subprocess_calls(self) -> None:
-        """Static/AST inspection: no `subprocess.*([\"make\", ...])` call exists
+        """Static/AST inspection: no `subprocess.*(["make", ...])` call exists
         anywhere in `butler_core.git_ops`, and specifically not inside any of the
-        five task-workflow functions."""
+        five task-workflow functions. Catches list and tuple literals, a
+        `shell=True` string command containing "make" as a word, and flags
+        (rather than silently passing) any call whose command is built via an
+        indirection this static scan cannot resolve, e.g. a bare variable."""
         source = inspect.getsource(git_ops)
         tree = ast.parse(source)
 
@@ -78,17 +81,43 @@ class TestGitOpsNeverShellsOutToMake:
             )
             if not is_subprocess_call:
                 continue
+
+            for kw in node.keywords:
+                if (
+                    kw.arg == "shell"
+                    and isinstance(kw.value, ast.Constant)
+                    and kw.value.value is True
+                    and node.args
+                    and isinstance(node.args[0], ast.Constant)
+                    and isinstance(node.args[0].value, str)
+                    and "make" in node.args[0].value.split()
+                ):
+                    offending_calls.append(
+                        f"shell=True command containing 'make': {ast.dump(node)}"
+                    )
+
             if not node.args:
                 continue
             first_arg = node.args[0]
-            if not isinstance(first_arg, ast.List) or not first_arg.elts:
+
+            if isinstance(first_arg, (ast.List, ast.Tuple)) and first_arg.elts:
+                first_element = first_arg.elts[0]
+                if isinstance(first_element, ast.Constant) and first_element.value == "make":
+                    offending_calls.append(ast.dump(node))
                 continue
-            first_element = first_arg.elts[0]
-            if isinstance(first_element, ast.Constant) and first_element.value == "make":
-                offending_calls.append(ast.dump(node))
+
+            if isinstance(first_arg, ast.Name):
+                # The command is built via a variable this static scan cannot
+                # resolve -- flag for manual review instead of silently
+                # passing, so the check can never be defeated by indirection.
+                offending_calls.append(
+                    f"indirect subprocess call via variable '{first_arg.id}' "
+                    f'-- cannot statically verify it is not "make": {ast.dump(node)}'
+                )
 
         assert offending_calls == [], (
-            f"Found subprocess call(s) shelling out to 'make' in git_ops.py: {offending_calls}"
+            f"Found subprocess call(s) shelling out to 'make' (or unverifiable "
+            f"indirect calls) in git_ops.py: {offending_calls}"
         )
 
     def test_functions_under_test_exist_and_are_the_ones_inspected(self) -> None:
@@ -200,8 +229,8 @@ class TestUnitLevelGitOpsFunctionsNeverCallMake:
     the CLI-level end-to-end scenarios) that directly patch subprocess.run
     while calling each git_ops function in isolation."""
 
-    def test_branch_for(self) -> None:
-        task = read_task("TASK-015", tasks_dir="docs/tasks")
+    def test_branch_for(self, tmp_path: Path) -> None:
+        task = create_task("Some task", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
         recorder = _RecordingRun()
         with patch("butler_core.git_ops.subprocess.run", recorder):
             branch_for(task)
@@ -214,8 +243,8 @@ class TestUnitLevelGitOpsFunctionsNeverCallMake:
             stage_for(task, repo_root=tmp_path)
         assert "make" not in recorder.first_args
 
-    def test_commit_for(self) -> None:
-        task = read_task("TASK-015", tasks_dir="docs/tasks")
+    def test_commit_for(self, tmp_path: Path) -> None:
+        task = create_task("Some task", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
         recorder = _RecordingRun()
         with patch("butler_core.git_ops.subprocess.run", recorder):
             commit_for(task)
@@ -229,8 +258,8 @@ class TestUnitLevelGitOpsFunctionsNeverCallMake:
             open_pr_for(task, tasks_dir=str(tasks_dir))
         assert "make" not in recorder.first_args
 
-    def test_merge_pr_for(self) -> None:
-        task = read_task("TASK-015", tasks_dir="docs/tasks")
+    def test_merge_pr_for(self, tmp_path: Path) -> None:
+        task = create_task("Some task", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
         results = [
             _completed(stdout="42\n"),
             _completed(stdout="MERGEABLE\n"),
