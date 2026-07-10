@@ -2,6 +2,7 @@
 name: Workflow Guardian
 description: "Use when working on task branches with requirements-first flow, TDD, and task-file governance. Keywords: TASK-XXX, make branch-task, requirements confirmation, CLAUDE.md, branch policy."
 tools: [Read, Grep, Glob, Bash, TodoWrite, Task]
+model: sonnet
 argument-hint: "State TASK-ID, requested change, and whether requirements are already approved"
 agents: [Implementation Worker, Requirements Drafter, Task Drafter, Test Design Reviewer]
 user-invocable: true

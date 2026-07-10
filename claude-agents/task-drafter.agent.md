@@ -2,6 +2,7 @@
 name: Task Drafter
 description: Use after requirements are confirmed, before implementation starts. Turns confirmed requirements (REQ-IDs) into story-driven task files with Gherkin acceptance criteria, ready for BDD workflows. Keywords: task, story, user story, backlog item, acceptance criteria, Gherkin, scenario, break down, before implementation.
 tools: [Read, Grep, Glob, Write, TodoWrite]
+model: haiku
 argument-hint: List the REQ-IDs (or the feature) to create tasks for
 user-invocable: true
 ---
