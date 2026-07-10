@@ -51,7 +51,17 @@ def stage_for(task: Task, repo_root: Path | None = None) -> None:
     subprocess.run(["uv", "run", "ruff", "format", "."], check=True, cwd=root)  # nosec B603 B607
     md_files = _markdown_files(root)
     subprocess.run(  # nosec B603 B607
-        ["uv", "run", "pymarkdown", "--config", ".pymarkdown", "fix", *md_files],
+        [
+            "uv",
+            "run",
+            "pymarkdown",
+            "--config",
+            ".pymarkdown",
+            "--return-code-scheme",
+            "minimal",
+            "fix",
+            *md_files,
+        ],
         check=True,
         cwd=root,
     )

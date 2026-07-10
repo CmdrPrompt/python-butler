@@ -30,6 +30,11 @@
 
 ### Fixed
 
+- `pymarkdown ... fix` invocations (in `make fix`, `make stage`/`make stage-current-task`, and
+  `butler_core.git_ops.stage_for()`) now pass `--return-code-scheme minimal`, so successfully
+  fixing a markdown file (previously exit code 3 under pymarkdown's default scheme) no longer
+  aborts the recipe or raises `CalledProcessError` -- genuine pymarkdown errors (e.g. a bad
+  `--config` path) still fail loudly. (TASK-046)
 - `make validate-agents` now flags an `.agent.md` file with a missing `tools:` key as an error
   (`missing required key 'tools'`), the same as an empty `tools: []` list -- previously a fully
   absent `tools:` key silently passed validation even though it produces the identical "subagent
