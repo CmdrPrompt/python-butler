@@ -30,6 +30,14 @@
 
 ### Fixed
 
+- `check-agents-sync` (`Makefile` and the vendored `src/butler_core/data/Makefile`, wired into
+  `make lint`) now exits 0 with no output when a project has no `claude-agents/` directory,
+  instead of hitting bash's non-`nullglob` behavior and reporting a nonsensical false-positive diff
+  against a literal `*.agent.md` filename. This previously made `make lint` permanently and
+  unfixably broken for every `butler`-adopting project that keeps its agent definitions only in
+  `.claude/agents/` (reproduced in `firefly-bills-analyzer`) -- python-butler's own repo, which
+  does keep `claude-agents/` and `.claude/agents/` in sync, is unaffected: existing drift-detection
+  behavior there is unchanged. (TASK-047)
 - `pymarkdown ... fix` invocations (in `make fix`, `make stage`/`make stage-current-task`, and
   `butler_core.git_ops.stage_for()`) now pass `--return-code-scheme minimal`, so successfully
   fixing a markdown file (previously exit code 3 under pymarkdown's default scheme) no longer
