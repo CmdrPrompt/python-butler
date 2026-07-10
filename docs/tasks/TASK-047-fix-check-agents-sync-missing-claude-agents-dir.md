@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -55,28 +55,36 @@ existing drift regression test from TASK-045).
 
 ## Acceptance criteria
 
-- [ ] `check-agents-sync` exits 0 with no output when `claude-agents/` does not
+- [x] `check-agents-sync` exits 0 with no output when `claude-agents/` does not
       exist in the current working directory
-- [ ] `check-agents-sync`'s existing drift-detection behavior (missing on
+- [x] `check-agents-sync`'s existing drift-detection behavior (missing on
       either side, or differing content) is unchanged when `claude-agents/`
       does exist — verified against python-butler's own repo, which still has
       a real `claude-agents/` directory to keep in sync
-- [ ] No more literal-glob-string false positives (e.g. `'*.agent.md' exists
+- [x] No more literal-glob-string false positives (e.g. `'*.agent.md' exists
       in claude-agents/ but not in .claude/agents/`) are possible regardless
       of shell glob settings
-- [ ] `src/butler_core/data/Makefile` is kept byte-identical to `Makefile`
+- [x] `src/butler_core/data/Makefile` is kept byte-identical to `Makefile`
       (verified by the existing drift regression test)
-- [ ] `make lint && make test` pass
+- [x] `make lint && make test` pass
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-11
+**Summary:** Guarded `check-agents-sync` with `[ -d claude-agents ] || exit 0`
+so the diff loop never runs — and never hits bash's non-`nullglob` literal-glob
+false positive — in projects without a `claude-agents/` directory, while
+leaving existing drift-detection behavior untouched when the directory
+exists. Applied identically to `Makefile` and `src/butler_core/data/Makefile`.
+Added `tests/test_check_agents_sync.py` covering both the missing-directory
+no-op case and the existing drift-detection scenarios (missing file on either
+side, differing content, identical dirs), plus a check against the real repo.
 **Files changed:**
 
 - `Makefile` — modified
 - `src/butler_core/data/Makefile` — modified
 - `CHANGELOG.md` — modified
+- `tests/test_check_agents_sync.py` — added
 - `docs/tasks/TASK-047-fix-check-agents-sync-missing-claude-agents-dir.md` — modified
 
 **Branch:** `git checkout task/047-fix-check-agents-sync-missing-claude-agents-dir`
