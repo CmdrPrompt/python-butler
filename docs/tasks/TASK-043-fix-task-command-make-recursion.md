@@ -1,68 +1,38 @@
-# TASK-043 Fix infinite recursion between `butler task <cmd>` and Makefile task targets
+# TASK-043 Regression test protecting non-recursive architecture
 
 ## Status
+
 todo
+
+## Requirements
+
+**Binding:** Requirement 1 from REQUIREMENTS_TASK_WORKFLOW.md
+**BDD mode:** BDD-PLANNED
+**Depends on:** none
+**Precedence:** The requirements above are the binding definition of this task.
+The story and scenarios below are derived from them. On any discrepancy, the
+requirements document wins. Stop and report discrepancies; do not build from
+the story.
+
+## Story (context, not binding)
+
+As a maintainer, I want to protect python-butler against regressions to the
+non-recursive architecture, so that consumer projects can never again get stuck
+in a situation like firefly-python-api, where a stale vendored `.butler/Makefile`
+snapshot would cause `make branch-task` and similar task-workflow commands to
+recurse infinitely.
 
 ## Description
 
-In a consumer project (`firefly-python-api`), running `make branch-task
-f=TASK-005` after installing the current `python-butler-cli` distribution
-recurses infinitely and never terminates:
+Implement regression tests asserting that `butler_core.git_ops`'s core branch/
+stage/commit/pr/merge functions (`branch_for`, `stage_for`, `commit_for`,
+`open_pr_for`, `merge_pr_for`) MUST NOT construct a `subprocess` call whose
+first argument is `"make"`, and that end-to-end `butler task <cmd>` invocations
+complete without spawning a nested `butler` or `make` process. This test suite
+formalizes and protects behavior that already exists in this repo's source as
+of TASK-023 and must remain invariant going forward.
 
-```
-make branch-task f=TASK-005
-  -> .butler/Makefile target `branch-task` runs: butler task branch TASK-005
-     -> butler/commands/task.py `branch()` runs: subprocess.run(["make", "branch-task", "f=TASK-005"])
-        -> .butler/Makefile target `branch-task` runs: butler task branch TASK-005
-           -> ... (repeats until the process is killed / resource limits hit)
-```
-
-The same recursive shape exists for every other `butler task` subcommand that
-has a Makefile counterpart: `stage` <-> `stage-task`, `commit` <->
-`commit-current-task` (via `commit-task`), `pr` <-> `pr-task`, `merge` <->
-`merge-current-task` (via `merge-pr`). Each direction assumes the *other*
-side holds the real implementation:
-
-- `butler/commands/task.py`'s module docstring says "proxies to Makefile
-  targets" — i.e. it assumes the Makefile holds the actual git/gh logic.
-- The vendored `.butler/Makefile` shipped to consumer projects only calls
-  back into `butler task <cmd>` — i.e. it assumes the CLI holds the actual
-  logic.
-
-Neither side actually contains the real implementation. Checked against git
-history of a consumer project's `.butler/Makefile` (`firefly-python-api`,
-every squash-merged revision going back to the first `Bootstrap project with
-python-butler` commit): the `butler task branch $(f)` call-out has been
-there from the very first vendored version. This has apparently never
-worked as a `make`-first entry point — only `butler task branch` invoked
-directly could have worked in some earlier CLI version that didn't proxy to
-`make`, before `task.py` was changed to shell out to `make`.
-
-Separately (found while diagnosing this), the vendored `.butler/Makefile`
-also still passes a `--tasks-dir $(TASKS_DIR)` flag to `butler` on every
-invocation, but the installed CLI's root command no longer accepts a
-`--tasks-dir` option at all — `tasks_dir` moved to `[tool.butler]` in
-`pyproject.toml` (`butler/config.py`). Every `butler --tasks-dir ... task
-...` invocation from the vendored Makefile fails immediately with `Error: No
-such option: --tasks-dir`, which is actually what surfaces first, before the
-recursion is even reached, unless the flag is stripped locally.
-
-## Impact
-
-`make branch-task`, `make stage-task` / `make stage-current-task`, `make
-commit-task` / `make commit-current-task`, `make pr-task`, `make merge-pr` /
-`make merge-current-task` are all non-functional for any consumer project
-using the current `python-butler-cli` release together with the currently
-vendored `.butler/Makefile`. This blocks the entire task-branch workflow
-(`Workflow Guardian`'s Operating Procedure steps 3, 8, 14-16) that
-`CLAUDE.md` mandates consumer projects use exclusively (`git commit` directly
-is explicitly forbidden by the "Commit via Makefile gate").
-
-Workaround used in `firefly-python-api` for TASK-005: stripped the stale
-`--tasks-dir $(TASKS_DIR)` flags locally and ran `git checkout -b
-task/<NNN>-...` directly instead of `make branch-task` / `butler task
-branch`, bypassing the broken proxy chain. This is a stopgap in one consumer
-repo, not a fix.
+No production code changes are required; this is pure test coverage.
 
 ## Branch
 
@@ -70,61 +40,63 @@ repo, not a fix.
 **Switch/create:** `git checkout -b task/043-fix-task-command-make-recursion`
 **Make target:** `make branch-task f=TASK-043`
 
-## Requirements
+## Acceptance criteria (Gherkin)
 
-None yet — no existing `REQUIREMENTS*.md` in this repo documents the
-intended direction of the `butler task <cmd>` <-> Makefile relationship, so
-this is a design decision to make before implementing, not just a bug fix.
-Needs a Requirements Drafter round to settle: should `butler task <cmd>` own
-the real git/gh logic (with the vendored `.butler/Makefile` targets becoming
-thin wrappers that call `butler task <cmd>` and nothing calls back), or
-should the vendored Makefile own it (with `butler task <cmd>` calling `make`
-and never being invoked from within a Makefile target)? Recommend the
-former, since `python-butler-cli`'s own README already describes `butler
-task branch` etc. as commands meant to be run directly by developers/agents,
-with the `make` targets existing mainly for CLAUDE.md-mandated call sites
-and discoverability (`make help`).
+- [ ] Scenario: `butler_core.git_ops` never constructs subprocess calls to make
+      Given the module `butler_core.git_ops` with functions `branch_for`, `stage_for`, `commit_for`, `open_pr_for`, `merge_pr_for`
+      When those functions' implementations are inspected (via AST parsing or static analysis)
+      Then none of them construct a `subprocess` call whose first argument is the string `"make"`
 
-## Acceptance criteria
+- [ ] Scenario: End-to-end `butler task branch` does not spawn a nested process
+      Given a fixture project with an initialized git repository
+      When `butler task branch <task-name>` is invoked as a subprocess with process-tree monitoring
+      Then the command completes successfully and no child processes named `butler` or `make` are spawned
 
-- [ ] Exactly one side (CLI or vendored Makefile) contains the real
-      implementation for branch create/switch, stage, commit, PR open, and
-      PR merge; the other side is a thin, non-recursive wrapper (or is
-      removed).
-- [ ] `--tasks-dir` is removed from every vendored Makefile call site (or
-      the CLI regains support for it) so the two stay in sync going forward.
-- [ ] A regression test (or equivalent CLI-level test) exists that would
-      have caught the recursion, e.g. asserting `butler task branch` in a
-      fixture project completes and does not spawn a nested `butler`
-      process.
-- [ ] `butler install` or `butler sync` (or a new command) can refresh a
-      consumer project's vendored `.butler/Makefile` to the version matching
-      the installed CLI, so this class of drift doesn't require manual
-      patching in every consumer repo again.
-- [ ] `CHANGELOG.md` updated with a behavior-first entry.
-- [ ] `make lint && make test` pass.
+- [ ] Scenario: End-to-end `butler task stage` does not spawn a nested process
+      Given a fixture project with an initialized git repository and uncommitted changes staged/unstaged
+      When `butler task stage` is invoked as a subprocess with process-tree monitoring
+      Then the command completes successfully and no child processes named `butler` or `make` are spawned
+
+- [ ] Scenario: End-to-end `butler task commit` does not spawn a nested process
+      Given a fixture project with an initialized git repository and staged changes
+      When `butler task commit <message>` is invoked as a subprocess with process-tree monitoring
+      Then the command completes successfully and no child processes named `butler` or `make` are spawned
+
+- [ ] Scenario: End-to-end `butler task pr` does not spawn a nested process
+      Given a fixture project with an initialized git repository configured as a mock GitHub project
+      When `butler task pr` is invoked as a subprocess with process-tree monitoring
+      Then the command completes successfully and no child processes named `butler` or `make` are spawned
+
+- [ ] Scenario: End-to-end `butler task merge` does not spawn a nested process
+      Given a fixture project with an initialized git repository and a mock pull request
+      When `butler task merge` is invoked as a subprocess with process-tree monitoring
+      Then the command completes successfully and no child processes named `butler` or `make` are spawned
+
+- [ ] Scenario: CHANGELOG.md updated with behavior-first entry
+      Given a current CHANGELOG.md
+      When this task is completed
+      Then CHANGELOG.md contains a new entry describing the regression test coverage added
+
+- [ ] Scenario: Tests pass and coverage maintained
+      Given the existing test suite with current coverage baseline
+      When `make test` and `make lint` are run after implementation
+      Then all tests pass and code coverage does not decrease below the baseline
 
 ## Out of scope
 
-- Fixing already-vendored `.butler/Makefile` copies in existing consumer
-  repos (e.g. `firefly-python-api`) — those pick up the fix whenever they
-  next resync/re-bootstrap from an updated `python-butler-cli` release.
+- Fixing already-vendored `.butler/Makefile` copies in existing consumer repos (e.g. `firefly-python-api`). Those projects pick up the fix by running `butler sync` (Requirement 3) once it ships.
+- Changing the implementation of `butler_core.git_ops` functions themselves — they already implement the correct non-recursive architecture. This task only adds test coverage.
+- Modifying the root Makefile task targets — the Makefile already correctly calls `butler task <cmd>` exactly once with no callback.
 
-## Notes
+## Blockers
 
-- Origin: discovered 2026-07-10 while running Workflow Guardian's
-  `branch-task` step for TASK-005 in `firefly-python-api`, immediately after
-  installing `python-butler-cli` there for the first time via `uv add --dev
-  "python-butler-cli @ git+https://github.com/CmdrPrompt/python-butler-cli.git"`.
-- Reported from `firefly-python-api`, a separate consumer repo, per that
-  repo's cross-workspace boundary policy: only this task file was added
-  here, no code changes.
+None
 
 ## Completion
 
 **Date:**
 **Summary:**
 **Files changed:**
-**Branch:**
+**Branch:** `git checkout task/043-fix-task-command-make-recursion`
 **Stage:**
 **Commit:**
