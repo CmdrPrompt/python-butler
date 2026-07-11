@@ -91,7 +91,17 @@ make butler-pull   # pull latest and trim
 ```
 
 `butler-pull` trims `.butler/` back to just `Makefile` and records the new
-butler version in `.butler-version`. Commit the result afterwards:
+butler version in `.butler-version` — but only if this pull didn't touch
+`.butler/templates/` or `.butler/claude-agents/`. If it did, `butler-pull`
+prints which files changed and skips the trim, so you get a chance to
+regenerate governance files against the new content first:
+
+```bash
+make generate-governance-files FORCE=1
+make butler-trim
+```
+
+Once trimmed (automatically or manually), commit the result:
 
 ```bash
 git add -A .butler/ .butler-version
