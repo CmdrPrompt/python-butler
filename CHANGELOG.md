@@ -30,6 +30,16 @@
 
 ### Fixed
 
+- `make butler-pull` no longer deletes `.butler/templates/` or `.butler/claude-agents/` before a
+  consumer project can regenerate governance files against newly-pulled content: it now compares
+  those two paths before and after the subtree pull and, if either changed, prints the changed
+  files plus the exact follow-up commands (`make generate-governance-files FORCE=1` then
+  `make butler-trim`) and skips the automatic trim for that run instead of deleting the new content
+  immediately. When neither path changed, `butler-pull` still fetches and trims in one step as
+  before. A failed subtree pull (e.g. a merge conflict) also no longer runs `butler-trim` on top of
+  the unresolved merge. `make help` and the README's update instructions now describe this
+  conditional behavior instead of implying `butler-pull` is always a complete update path.
+  (TASK-048)
 - `check-agents-sync` (`Makefile` and the vendored `src/butler_core/data/Makefile`, wired into
   `make lint`) now exits 0 with no output when a project has no `claude-agents/` directory,
   instead of hitting bash's non-`nullglob` behavior and reporting a nonsensical false-positive diff

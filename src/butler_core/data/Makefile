@@ -26,7 +26,7 @@ help:
 	@echo ""
 	@echo "  Keeping butler up to date:"
 	@echo "    make butler-check  -- Check if butler updates are available"
-	@echo "    make butler-pull   -- Pull butler updates and trim (updates .butler/Makefile only)"
+	@echo "    make butler-pull   -- Pull butler updates; trims automatically unless templates/claude-agents changed"
 	@echo "    make butler-fetch  -- Pull butler without trimming (use before regenerating files)"
 	@echo "    make butler-trim   -- Remove all but .butler/Makefile (run after init-project)"
 	@echo ""
@@ -363,10 +363,29 @@ butler-check:
 butler-fetch:
 	git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
 
-## Pull the latest butler and trim — updates .butler/Makefile only
+## Pull the latest butler; trims automatically unless templates/claude-agents changed (then regenerate first)
 butler-pull:
-	git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
-	$(MAKE) butler-trim
+	@OLD_HEAD=$$(git rev-parse HEAD); \
+	if ! git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash; then \
+		echo ""; \
+		echo "✗ butler-pull failed (e.g. a merge conflict) — not trimming."; \
+		echo "  Resolve the conflict, then run 'make butler-trim' yourself once done."; \
+		exit 1; \
+	fi; \
+	NEW_HEAD=$$(git rev-parse HEAD); \
+	CHANGED=$$(git diff --name-only $$OLD_HEAD $$NEW_HEAD -- .butler/templates .butler/claude-agents 2>/dev/null); \
+	if [ -n "$$CHANGED" ]; then \
+		echo ""; \
+		echo "⚠ .butler/templates/ and/or .butler/claude-agents/ changed in this pull:"; \
+		echo "$$CHANGED" | sed 's/^/  /'; \
+		echo ""; \
+		echo "Governance files (CLAUDE.md, .github/agents/, .claude/agents/) may now be"; \
+		echo "out of date. Regenerate them before the next trim:"; \
+		echo "  make generate-governance-files FORCE=1"; \
+		echo "  make butler-trim"; \
+	else \
+		$(MAKE) butler-trim; \
+	fi
 
 ## Generate project governance files from .butler templates
 generate-governance-files:

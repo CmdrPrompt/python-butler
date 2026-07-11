@@ -2,7 +2,7 @@
 
 ## Status
 
-todo
+done
 
 ## Description
 
@@ -10,8 +10,8 @@ todo
 
 ```make
 butler-pull:
-	git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
-	$(MAKE) butler-trim
+    git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
+    $(MAKE) butler-trim
 ```
 
 `butler-trim` unconditionally deletes everything under `.butler/` except
@@ -19,9 +19,9 @@ butler-pull:
 
 ```make
 butler-trim:
-	...
-	@find .butler/ -mindepth 1 -maxdepth 1 ! -name 'Makefile' -exec rm -rf {} +
-	...
+    ...
+    @find .butler/ -mindepth 1 -maxdepth 1 ! -name 'Makefile' -exec rm -rf {} +
+    ...
 ```
 
 `generate-governance-files` — the target that (re)writes a consumer project's
@@ -71,27 +71,27 @@ implemented.
 
 ## Acceptance criteria
 
-- [ ] After `make butler-pull` completes in a consumer project where the pulled
+- [x] After `make butler-pull` completes in a consumer project where the pulled
       commit range touched `.butler/templates/` and/or `.butler/claude-agents/`,
       the user has a documented, supported way to run `make generate-governance-files
       FORCE=1` against the newly-pulled content — either because `butler-pull`
       no longer deletes those directories before the user has had a chance to
       regenerate, or because `butler-pull` performs the regeneration itself
       (behind a flag or automatically) before trimming.
-- [ ] If the fix relies on the user acting between fetch and trim, `butler-pull`'s
+- [x] If the fix relies on the user acting between fetch and trim, `butler-pull`'s
       output clearly states (a) whether templates/agent definitions changed in
       this pull, and (b) the exact command to run before the next trim.
-- [ ] `make help`'s description of `butler-pull` no longer implies it is a
+- [x] `make help`'s description of `butler-pull` no longer implies it is a
       complete, non-lossy update path for governance files when it isn't (or,
       if fixed structurally, the description is updated to reflect the new
       guarantee).
-- [ ] A regression test simulates: `git subtree add` a fixture butler repo,
+- [x] A regression test simulates: `git subtree add` a fixture butler repo,
       `butler-trim`, commit; modify a file under the fixture's `templates/` or
       `claude-agents/`; run `make butler-pull`; assert that governance-file
       regeneration against the new content is possible (or was already
       performed), not silently foreclosed.
-- [ ] `CHANGELOG.md` updated with a behavior-first entry.
-- [ ] `make lint && make test` pass.
+- [x] `CHANGELOG.md` updated with a behavior-first entry.
+- [x] `make lint && make test` pass.
 
 ## Out of scope
 
@@ -109,15 +109,28 @@ None.
 
 ## Completion
 
-**Date:**
-**Summary:**
+**Date:** 2026-07-11
+**Summary:** `butler-pull` now diffs `.butler/templates/` and `.butler/claude-agents/`
+between the pre- and post-pull HEAD; if either changed, it prints the changed
+files and the exact follow-up commands and skips the automatic trim, instead
+of deleting the new content immediately. A failed subtree pull (e.g. a merge
+conflict) is also no longer followed by a trim. `make help` and the README's
+update instructions were updated to describe this conditional behavior. Note:
+fully regenerating governance files after *any* prior `butler-trim` still
+requires every consumed template file to have changed in the same pull for
+`git subtree pull` to avoid a modify/delete conflict on unchanged-but-deleted
+paths — that deeper subtree-merge limitation is out of scope here and tracked
+under TASK-039.
 **Files changed:**
 
 - `Makefile` — modified
 - `src/butler_core/data/Makefile` — modified (kept byte-identical to `Makefile` per the TASK-045 drift regression test)
+- `README.md` — modified (update instructions for the new conditional trim behavior)
 - `CHANGELOG.md` — modified
+- `REQUIREMENTS_BUTLER_PULL.md` — added
+- `tests/test_butler_pull_governance_regen.py` — added
 - `docs/tasks/TASK-048-butler-pull-trims-before-governance-regen.md` — modified
 
 **Branch:** `git checkout task/048-butler-pull-trims-before-governance-regen`
-**Stage:** `git add Makefile src/butler_core/data/Makefile CHANGELOG.md docs/tasks/TASK-048-butler-pull-trims-before-governance-regen.md`
+**Stage:** `git add Makefile src/butler_core/data/Makefile README.md CHANGELOG.md REQUIREMENTS_BUTLER_PULL.md tests/test_butler_pull_governance_regen.py docs/tasks/TASK-048-butler-pull-trims-before-governance-regen.md`
 **Commit:** `git commit -m "Fix butler-pull deleting templates/claude-agents before governance regen is possible (TASK-048)"`
