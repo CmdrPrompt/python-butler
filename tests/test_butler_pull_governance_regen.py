@@ -79,7 +79,15 @@ def _adopt_and_trim(consumer: Path, upstream: Path) -> None:
         ["subtree", "add", "--prefix=.butler", str(upstream), "main", "--squash"],
         cwd=consumer,
     )
-    _run(["make", "butler-trim"], cwd=consumer, env={**os.environ, "BUTLER_REMOTE": str(upstream)})
+    # Fresh subtree content is always non-empty right after adopt, so the
+    # TASK-053 guard would otherwise fire here even though nothing has been
+    # regenerated yet to protect against -- this mirrors the README's adopt
+    # flow, which runs `make init-project` (a regen) before this trim.
+    _run(
+        ["make", "butler-trim", "FORCE=1"],
+        cwd=consumer,
+        env={**os.environ, "BUTLER_REMOTE": str(upstream)},
+    )
     _git(["add", "-A"], cwd=consumer)
     _git(["commit", "-m", "trim after adopt"], cwd=consumer)
 
@@ -129,8 +137,10 @@ class TestButlerPullSkipsTrimWhenTemplatesChanged:
             pulled_agent.read_text()
         )
 
+        # TASK-053: the guard fires on existence, not on whether regen already
+        # ran (it can't tell) -- so a manual trim after regen still needs FORCE=1.
         _run(
-            ["make", "butler-trim"],
+            ["make", "butler-trim", "FORCE=1"],
             cwd=consumer,
             env={**os.environ, "BUTLER_REMOTE": str(upstream)},
         )
@@ -184,8 +194,10 @@ class TestButlerPullSkipsTrimWhenSkillsChanged:
             pulled_skill.read_text()
         )
 
+        # TASK-053: the guard fires on existence, not on whether regen already
+        # ran (it can't tell) -- so a manual trim after regen still needs FORCE=1.
         _run(
-            ["make", "butler-trim"],
+            ["make", "butler-trim", "FORCE=1"],
             cwd=consumer,
             env={**os.environ, "BUTLER_REMOTE": str(upstream)},
         )
@@ -290,3 +302,122 @@ class TestButlerPullDoesNotTrimOnFailedPull:
         assert (consumer / ".butler-version").read_text() == version_before, (
             "butler-trim must not re-run (and re-record the version) after a failed pull"
         )
+
+
+class TestButlerTrimGuardsUnregeneratedContent:
+    """Scenario: TASK-053 — `butler-trim` refuses to delete
+    `.butler/templates/`, `.butler/claude-agents/`, or `.butler/claude-skills/`
+    while they still hold content, regardless of how it was invoked, unless
+    `FORCE=1` is passed."""
+
+    def test_refuses_when_claude_skills_is_non_empty(self, tmp_path: Path) -> None:
+        upstream = tmp_path / "upstream"
+        consumer = tmp_path / "consumer"
+        _build_upstream(upstream)
+        _init_repo(consumer)
+        (consumer / "README.md").write_text("# consumer\n")
+        (consumer / "Makefile").write_text("include .butler/Makefile\n")
+        _git(["add", "-A"], cwd=consumer)
+        _git(["commit", "-m", "initial consumer"], cwd=consumer)
+        _git(
+            ["subtree", "add", "--prefix=.butler", str(upstream), "main", "--squash"],
+            cwd=consumer,
+        )
+
+        result = subprocess.run(
+            ["make", "butler-trim"],
+            cwd=consumer,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "BUTLER_REMOTE": str(upstream)},
+        )
+
+        assert result.returncode != 0, "butler-trim must refuse when claude-skills is non-empty"
+        assert (consumer / ".butler" / "claude-skills").exists(), (
+            "the guard must abort before deleting anything"
+        )
+        assert (consumer / ".butler" / "templates").exists()
+        assert (consumer / ".butler" / "claude-agents").exists()
+        assert ".butler/claude-skills" in result.stdout
+        assert "generate-governance-files FORCE=1" in result.stdout
+        assert "make butler-trim" in result.stdout
+
+    def test_force_bypasses_the_guard(self, tmp_path: Path) -> None:
+        upstream = tmp_path / "upstream"
+        consumer = tmp_path / "consumer"
+        _build_upstream(upstream)
+        _init_repo(consumer)
+        (consumer / "README.md").write_text("# consumer\n")
+        (consumer / "Makefile").write_text("include .butler/Makefile\n")
+        _git(["add", "-A"], cwd=consumer)
+        _git(["commit", "-m", "initial consumer"], cwd=consumer)
+        _git(
+            ["subtree", "add", "--prefix=.butler", str(upstream), "main", "--squash"],
+            cwd=consumer,
+        )
+
+        _run(
+            ["make", "butler-trim", "FORCE=1"],
+            cwd=consumer,
+            env={**os.environ, "BUTLER_REMOTE": str(upstream)},
+        )
+
+        assert not (consumer / ".butler" / "claude-skills").exists()
+        assert not (consumer / ".butler" / "templates").exists()
+        assert not (consumer / ".butler" / "claude-agents").exists()
+
+    def test_noop_when_nothing_to_protect(self, tmp_path: Path) -> None:
+        upstream = tmp_path / "upstream"
+        consumer = tmp_path / "consumer"
+        _build_upstream(upstream)
+        _adopt_and_trim(consumer, upstream)
+
+        result = _run(
+            ["make", "butler-trim"],
+            cwd=consumer,
+            env={**os.environ, "BUTLER_REMOTE": str(upstream)},
+        )
+
+        assert "Refusing to trim" not in result.stdout
+        assert not (consumer / ".butler" / "templates").exists()
+
+    def test_post_conflict_recovery_path_is_protected(self, tmp_path: Path) -> None:
+        upstream = tmp_path / "upstream"
+        consumer = tmp_path / "consumer"
+        _build_upstream(upstream)
+        _adopt_and_trim(consumer, upstream)
+
+        agent_tmpl = upstream / "claude-agents" / "workflow-guardian.agent.md"
+        agent_tmpl.write_text(agent_tmpl.read_text() + "\nmodified upstream\n")
+        _git(["add", "-A"], cwd=upstream)
+        _git(["commit", "-m", "modify an already-trimmed file"], cwd=upstream)
+
+        failed = subprocess.run(
+            ["make", "butler-pull"],
+            cwd=consumer,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "BUTLER_REMOTE": str(upstream)},
+        )
+        assert failed.returncode != 0
+
+        # Resolve the modify/delete conflict by hand, exactly as butler-pull's
+        # own failure message instructs, and complete the merge.
+        _git(["add", "-A"], cwd=consumer)
+        _git(["commit", "--no-edit"], cwd=consumer)
+        assert (consumer / ".butler" / "claude-agents").exists(), (
+            "fixture assumption: resolving the conflict leaves claude-agents/ populated"
+        )
+
+        result = subprocess.run(
+            ["make", "butler-trim"],
+            cwd=consumer,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "BUTLER_REMOTE": str(upstream)},
+        )
+
+        assert result.returncode != 0, (
+            "the guard must fire on the conflict-recovery path, not just inside butler-pull"
+        )
+        assert (consumer / ".butler" / "claude-agents").exists()

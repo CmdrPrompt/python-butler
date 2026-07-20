@@ -36,6 +36,15 @@
 
 ### Fixed
 
+- `make butler-trim` now refuses to delete `.butler/templates/`, `.butler/claude-agents/`, or
+  `.butler/claude-skills/` while any of them are non-empty, unless `FORCE=1` is passed -- closing
+  a gap where `butler-pull`'s change-detection guard (TASK-048/051) only protected the automatic
+  trim inside a *successful* pull, leaving the conflict-recovery path (`git subtree pull` fails,
+  the user resolves the conflict by hand, then runs `make butler-trim` directly per
+  `butler-pull`'s own failure message) and any other direct invocation completely unguarded. The
+  README's adoption steps, its "Keeping butler up to date" and "Regenerating governance files"
+  sections now pass `FORCE=1` where a manual `butler-trim` follows a regen, and document the
+  `git subtree pull` conflict-recovery path explicitly. (TASK-053)
 - `make butler-pull`'s change-detection and `generate-governance-files` now treat
   `.butler/claude-skills/` the same as `.butler/claude-agents/`: a pull that only changes skills
   now defers the automatic trim and prints the same warning, and `generate-governance-files`

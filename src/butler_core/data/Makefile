@@ -28,7 +28,7 @@ help:
 	@echo "    make butler-check  -- Check if butler updates are available"
 	@echo "    make butler-pull   -- Pull butler updates; trims automatically unless templates/claude-agents/claude-skills changed"
 	@echo "    make butler-fetch  -- Pull butler without trimming (use before regenerating files)"
-	@echo "    make butler-trim   -- Remove all but .butler/Makefile (run after init-project)"
+	@echo "    make butler-trim   -- Remove all but .butler/Makefile (run after init-project; add FORCE=1 to bypass the un-regenerated-content guard)"
 	@echo ""
 	@echo "  Removing butler:"
 	@echo "    make butler-uninstall CATEGORIES=subtree,makefile,governance  -- Remove butler's footprint (add DRY_RUN=1 or FORCE=1)"
@@ -315,7 +315,26 @@ init-project:
 	echo "  git commit -m \"Bootstrap project with python-butler\""
 
 ## Remove all but .butler/Makefile — run after make init-project (idempotent)
+## Refuses to run if .butler/templates|claude-agents|claude-skills still hold
+## un-regenerated content, unless FORCE=1 is passed.
 butler-trim:
+	@if [ "$(FORCE)" != "1" ]; then \
+		TRIGGERED=""; \
+		for p in .butler/templates .butler/claude-agents .butler/claude-skills; do \
+			if [ -d "$$p" ] && [ -n "$$(find "$$p" -mindepth 1 -print -quit)" ]; then \
+				TRIGGERED="$$TRIGGERED $$p"; \
+			fi; \
+		done; \
+		if [ -n "$$TRIGGERED" ]; then \
+			echo "✗ Refusing to trim:$$TRIGGERED is not empty."; \
+			echo "  Governance files (CLAUDE.md, .github/agents/, .claude/agents/, .claude/skills/) may be"; \
+			echo "  out of date. Run this first:"; \
+			echo "    make generate-governance-files FORCE=1"; \
+			echo "    make butler-trim"; \
+			echo "  Or bypass this guard with: make butler-trim FORCE=1"; \
+			exit 1; \
+		fi; \
+	fi
 	@echo "Trimming .butler/ down to Makefile only ..."
 	@FILES=$$(git ls-files .butler/ | grep -v '^\.butler/Makefile$$'); \
 	[ -n "$$FILES" ] && echo "$$FILES" | xargs git rm -r --cached --ignore-unmatch || true
@@ -409,7 +428,7 @@ butler-pull:
 		echo "Governance files (CLAUDE.md, .github/agents/, .claude/agents/, .claude/skills/) may now be"; \
 		echo "out of date. Regenerate them before the next trim:"; \
 		echo "  make generate-governance-files FORCE=1"; \
-		echo "  make butler-trim"; \
+		echo "  make butler-trim FORCE=1"; \
 	else \
 		$(MAKE) butler-trim; \
 	fi

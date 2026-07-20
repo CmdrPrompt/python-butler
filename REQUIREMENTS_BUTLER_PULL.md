@@ -19,13 +19,21 @@ reproduced in `firefly-bills-analyzer`).
 trim — updates .butler/Makefile only", which reads as a complete, non-lossy
 update path even though it silently forecloses regenerating governance files.
 
-This document is scoped to TASK-048 and TASK-051. It does not attempt to
-resolve TASK-039 (Draft) — repeat-pull merge conflicts and stale-CLI drift —
-but the requirements below are written so they stay compatible with
-TASK-039 R1–R10 if that task is implemented later (in particular, TASK-039
-R2's requirement that `.butler/` end up trimmed-to-`Makefile`-only is treated
-as "eventually", not "as the unconditional last step of every `butler-pull`
-invocation").
+This document is scoped to TASK-048, TASK-051, and TASK-053. It does not
+attempt to resolve TASK-039 (Draft) — repeat-pull merge conflicts and
+stale-CLI drift — but the requirements below are written so they stay
+compatible with TASK-039 R1–R10 if that task is implemented later (in
+particular, TASK-039 R2's requirement that `.butler/` end up
+trimmed-to-`Makefile`-only is treated as "eventually", not "as the
+unconditional last step of every `butler-pull` invocation").
+
+Requirement 4 covers a gap left open by Requirement 1/3: their change-detection
+diff only runs inside a *successful* `git subtree pull`. When that step itself
+conflicts — which it structurally will, per TASK-039's Background, on any
+project that has trimmed and where the pull touches a previously-trimmed
+file — `butler-pull` exits before the diff-and-defer logic ever executes, and
+its own failure message tells the user to run `make butler-trim` directly,
+bypassing Requirement 1/3's protection entirely.
 
 ## Goals
 
@@ -37,6 +45,10 @@ invocation").
    exactly what command to run next.
 3. Correct `make help`'s description of `butler-pull` so it no longer implies
    a guarantee it doesn't provide.
+4. Make `butler-trim` itself safe to run — not just the automatic trim step
+   inside a successful `butler-pull` — and document the conflict-recovery
+   path (where a user is told to run `butler-trim` directly) in the README
+   instead of leaving it unstated.
 
 ## Non-goals
 
@@ -125,21 +137,77 @@ $ make butler-pull
     make butler-trim
 ```
 
-## Acceptance criteria (Requirement 3)
+## Requirement 4: `butler-trim` itself refuses to discard un-regenerated content
 
-- [ ] `butler-pull`'s pre/post-pull diff additionally scopes
-      `.butler/claude-skills/`; a pull that changes only that path defers
-      the automatic trim and prints the same kind of warning as Requirement 1.
-- [ ] `generate-governance-files` copies `.butler/claude-skills/*/SKILL.md`
-      into `.claude/skills/<name>/SKILL.md` in the consumer project,
-      mirroring the `claude-agents/` → `.claude/agents/` copy.
-- [ ] A regression test simulates a pull that changes only
-      `.butler/claude-skills/` and asserts the trim is deferred and the
-      warning is printed (mirrors the Requirement 1 test but for skills).
-- [ ] A regression test asserts `generate-governance-files` produces
-      `.claude/skills/<name>/SKILL.md` for every `claude-skills/*/SKILL.md`.
-- [ ] `CHANGELOG.md` updated with a behavior-first entry.
-- [ ] `make lint && make test` pass.
+**Description:** Requirement 1 and Requirement 3's protection (defer the
+automatic trim, warn, tell the user what to run) only fires on the
+*automatic* trim step inside a successful `butler-pull`. It does not apply
+when `butler-trim` is invoked any other way, in particular:
+
+- After a `git subtree pull` merge conflict, where `butler-pull`'s own
+  failure message ("Resolve the conflict, then run `make butler-trim`
+  yourself once done.") sends the user straight to the unguarded target.
+- Any direct `make butler-trim` invocation, by a human or an agent, run
+  outside of `butler-pull` (e.g. while manually resolving a merge).
+
+`butler-trim` MUST NOT rely on being called only from within `butler-pull` to
+stay safe. Before deleting anything, it MUST check the *current* working-tree
+state of `.butler/templates/`, `.butler/claude-agents/`, and
+`.butler/claude-skills/` — if any of them exist and are non-empty, that is
+itself evidence of content that has not yet been regenerated into the
+consumer project (a bare `make butler-trim` cannot tell whether
+`generate-governance-files` already ran against it, but existence of
+still-populated content is the same signal Requirement 1/3 already act on,
+just observed directly instead of via a pre/post-pull diff).
+
+- If none of those three paths exist or are all empty, `butler-trim` MUST
+  behave exactly as it does today.
+- If any of those three paths exist and are non-empty, `butler-trim` MUST
+  abort without deleting anything, print which path(s) triggered the guard,
+  and print the exact commands to run first
+  (`make generate-governance-files FORCE=1`, then `make butler-trim`).
+- The guard MUST be bypassable with an explicit `FORCE=1` (mirroring the
+  `butler-uninstall` convention elsewhere in this Makefile), for the rare
+  case where a consumer genuinely wants to discard the content unread.
+- The README's "Keeping butler up to date" section MUST document the
+  conflict-recovery path explicitly: that a `git subtree pull` conflict is
+  possible, how to resolve it, that the subsequent `make butler-trim` is now
+  guarded rather than unconditionally safe, and what `FORCE=1` does — not
+  just the happy-path `butler-check`/`butler-pull` sequence it documents
+  today.
+
+**Reproduced today** in `firefly-bills-analyzer`: a `butler-pull` failed with
+modify/delete conflicts on files that a prior trim had already deleted
+locally (`CHANGELOG.md`, `REQUIREMENTS_BUTLER_PULL.md`, and others — the
+class of conflict TASK-039 exists to eliminate structurally). Following
+`butler-pull`'s own recovery instructions, the conflict was resolved with a
+plain `git merge --continue`-equivalent and `make butler-trim` was then run
+directly, exactly as instructed. This trimmed the pull cleanly with no
+warning, even though the same pull's merge commit brought no new
+`claude-agents/`/`claude-skills/` content this time — but nothing about the
+sequence of events would have caught it if it had, because the diff-based
+guard in Requirement 1/3 never runs on this path at all.
+
+**Use case:**
+
+```bash
+$ make butler-pull
+# git subtree pull hits a modify/delete conflict and exits non-zero...
+✗ butler-pull failed (e.g. a merge conflict) — not trimming.
+  Resolve the conflict, then run 'make butler-trim' yourself once done.
+
+# ... user resolves the conflict and commits the merge ...
+
+$ make butler-trim
+✗ Refusing to trim: .butler/claude-skills/ is not empty.
+  Governance files (.claude/skills/) may be out of date. Run this first:
+    make generate-governance-files FORCE=1
+    make butler-trim
+
+$ make butler-trim FORCE=1
+Trimming .butler/ down to Makefile only ...
+✓ Trim complete.
+```
 
 ## Acceptance criteria (overall)
 
@@ -161,5 +229,26 @@ $ make butler-pull
       `generate-governance-files FORCE=1` afterwards succeeds against the
       newly-pulled content. A second fixture run with no template/agent/skill
       changes asserts the trim ran automatically as before.
+- [ ] `butler-trim`, invoked directly (not just via `butler-pull`), checks
+      the current working-tree state of `.butler/templates/`,
+      `.butler/claude-agents/`, and `.butler/claude-skills/` and aborts
+      without deleting anything when any of them exist and are non-empty,
+      printing which path(s) triggered the guard and the exact follow-up
+      commands (`make generate-governance-files FORCE=1`, then
+      `make butler-trim`).
+- [ ] `make butler-trim FORCE=1` bypasses the guard and trims exactly as it
+      does today, regardless of `.butler/` content.
+- [ ] When `.butler/templates/`, `.butler/claude-agents/`, and
+      `.butler/claude-skills/` are all absent or empty, a bare
+      `make butler-trim` behaves exactly as it does today (no guard message).
+- [ ] A regression test simulates the conflict-recovery path: a
+      `butler-pull` merge conflict resolved and committed manually, leaving
+      `.butler/claude-skills/` (or `templates/`/`claude-agents/`) non-empty,
+      followed by a direct `make butler-trim`; asserts the guard fires
+      instead of silently trimming, and that `make butler-trim FORCE=1`
+      then trims as before.
+- [ ] The README's "Keeping butler up to date" section documents the
+      conflict-recovery path: resolving a `git subtree pull` conflict, that
+      `make butler-trim` is now guarded, and what `FORCE=1` does.
 - [ ] `CHANGELOG.md` updated with a behavior-first entry.
 - [ ] `make lint && make test` pass.
