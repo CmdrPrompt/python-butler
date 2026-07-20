@@ -1,7 +1,7 @@
 # TASK-052 De-duplicate scoped-path lists in REQUIREMENTS_BUTLER_PULL.md
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 1, Requirement 3, Requirement 4 (REQUIREMENTS_BUTLER_PULL.md)
@@ -59,7 +59,7 @@ change into this task.
 **Make target:** `make branch-task f=TASK-052`
 
 ## Acceptance criteria (Gherkin)
-- [ ] Scenario: scoped paths defined once
+- [x] Scenario: scoped paths defined once
       Given `REQUIREMENTS_BUTLER_PULL.md` after this task
       When a reader searches the document for the literal path
       `.butler/claude-skills/`
@@ -69,7 +69,7 @@ change into this task.
       every other mention — including Requirement 1, Requirement 3's and
       Requirement 4's change-detection/guard descriptions, and "overall" —
       is a reference to the canonical definition rather than a restated list
-- [ ] Scenario: overall acceptance criteria stays complete without hand-sync
+- [x] Scenario: overall acceptance criteria stays complete without hand-sync
       Given the canonical scoped-paths definition lists `templates/`,
       `claude-agents/`, and `claude-skills/`
       When the "Acceptance criteria (overall)" section is read
@@ -88,4 +88,26 @@ change into this task.
 - None
 
 ## Completion
-(left blank — filled in by Workflow Guardian on completion)
+**Date:** 2026-07-20
+**Summary:** Added a single "Scoped paths" section to `REQUIREMENTS_BUTLER_PULL.md`
+(after Non-goals, before Requirement 1) naming the three consumer-facing
+content paths (`templates/`, `claude-agents/`, `claude-skills/`) once, and
+rewrote Requirement 1's description, Requirement 3's change-detection bullet,
+Requirement 4's description/guard bullets, and four bullets under "Acceptance
+criteria (overall)" to reference "the scoped paths (see 'Scoped paths'
+above)" instead of re-enumerating the list. Requirement 1's description
+previously only named 2 of the 3 paths (missing `claude-skills/`) while
+"overall" already required all 3 — referencing the canonical 3-path list from
+Requirement 1 resolves that inconsistency without changing the required
+behavior (Requirement 1 + Requirement 3 combined already required diffing all
+3 paths). Each requirement's own "Reproduced today"/"Use case" illustrative
+text, and the single `generate-governance-files` SKILL.md-copy bullet, were
+left untouched per the task's explicit scope. Docs-only change; no `Makefile`,
+`scripts/`, or test code touched.
+**Files changed:**
+- `REQUIREMENTS_BUTLER_PULL.md` - modified
+- `CHANGELOG.md` - modified
+- `docs/tasks/TASK-052-requirements-butler-pull-single-source-scoped-paths.md` - modified
+**Branch:** `git checkout task/052-requirements-butler-pull-single-source-scoped-paths`
+**Stage:** `git add REQUIREMENTS_BUTLER_PULL.md CHANGELOG.md docs/tasks/TASK-052-requirements-butler-pull-single-source-scoped-paths.md`
+**Commit:** `git commit -m "Consolidate scoped-path list in REQUIREMENTS_BUTLER_PULL.md into one canonical definition"`
