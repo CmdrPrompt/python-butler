@@ -58,19 +58,32 @@ bypassing Requirement 1/3's protection entirely.
 - Retroactively fixing consumer projects that already hit this and manually
   recovered (e.g. `firefly-bills-analyzer`).
 
+## Scoped paths
+
+The requirements below track three consumer-facing content directories under
+`.butler/` — collectively "the scoped paths" — for change-detection,
+generation, and trim-guard purposes:
+
+- `.butler/templates/`
+- `.butler/claude-agents/`
+- `.butler/claude-skills/`
+
+Any requirement below that refers to "the scoped paths" means exactly this
+list.
+
 ## Requirement 1: `butler-pull` detects template/agent changes and defers trim
 
-**Description:** `butler-pull` MUST compare the set of files under
-`.butler/templates/` and `.butler/claude-agents/` before and after the
-`git subtree pull` step (e.g. via `git diff --name-only` between the previous
-and new HEAD, scoped to those two paths).
+**Description:** `butler-pull` MUST compare the set of files under the
+scoped paths (see "Scoped paths" above) before and after the
+`git subtree pull` step (e.g. via `git diff --name-only` between the
+previous and new HEAD, scoped to those paths).
 
-- If neither path changed, `butler-pull` MUST behave exactly as it does
-  today: run the subtree pull, then immediately run `butler-trim`.
-- If either path changed, `butler-pull` MUST **skip** the automatic
-  `butler-trim` step for this invocation, and instead print a message that:
-  (a) states that `.butler/templates/` and/or `.butler/claude-agents/`
-  changed in this pull, and (b) gives the exact next commands to run
+- If none of the scoped paths changed, `butler-pull` MUST behave exactly as
+  it does today: run the subtree pull, then immediately run `butler-trim`.
+- If any of the scoped paths changed, `butler-pull` MUST **skip** the
+  automatic `butler-trim` step for this invocation, and instead print a
+  message that: (a) states which of the scoped paths changed in this pull,
+  and (b) gives the exact next commands to run
   (`make generate-governance-files FORCE=1`, then `make butler-trim`).
 
 **Use case:**
@@ -104,13 +117,12 @@ it as "Pull the latest butler and trim."
 
 **Description:** TASK-050 added a second consumer-facing content type,
 `.butler/claude-skills/` (mirrored into `.claude/skills/` in a consumer
-project), following the same shape as `.butler/claude-agents/`. Requirement 1
-and `generate-governance-files` were never updated to treat it the same way:
+project), following the same shape as `.butler/claude-agents/` — it is one
+of the scoped paths (see "Scoped paths" above). `generate-governance-files`
+was never updated to treat it the same way as `claude-agents/`:
 
-- `butler-pull`'s change-detection diff (Requirement 1) only scopes
-  `.butler/templates/` and `.butler/claude-agents/`. It MUST also scope
-  `.butler/claude-skills/`, so a pull that only changes skills still defers
-  the automatic trim and warns the user.
+- `butler-pull`'s change-detection diff (Requirement 1) already covers this
+  content type, since it diffs the full set of scoped paths.
 - `generate-governance-files` MUST copy `.butler/claude-skills/*/SKILL.md`
   into a consumer project's `.claude/skills/`, mirroring the existing
   `cp .butler/claude-agents/*.agent.md .claude/agents/` step. Without this,
@@ -151,18 +163,18 @@ when `butler-trim` is invoked any other way, in particular:
   outside of `butler-pull` (e.g. while manually resolving a merge).
 
 `butler-trim` MUST NOT rely on being called only from within `butler-pull` to
-stay safe. Before deleting anything, it MUST check the *current* working-tree
-state of `.butler/templates/`, `.butler/claude-agents/`, and
-`.butler/claude-skills/` — if any of them exist and are non-empty, that is
-itself evidence of content that has not yet been regenerated into the
-consumer project (a bare `make butler-trim` cannot tell whether
-`generate-governance-files` already ran against it, but existence of
-still-populated content is the same signal Requirement 1/3 already act on,
-just observed directly instead of via a pre/post-pull diff).
+stay safe. Before deleting anything, it MUST check the *current*
+working-tree state of the scoped paths (see "Scoped paths" above) — if any
+of them exist and are non-empty, that is itself evidence of content that has
+not yet been regenerated into the consumer project (a bare `make
+butler-trim` cannot tell whether `generate-governance-files` already ran
+against it, but existence of still-populated content is the same signal
+Requirement 1/3 already act on, just observed directly instead of via a
+pre/post-pull diff).
 
-- If none of those three paths exist or are all empty, `butler-trim` MUST
+- If none of the scoped paths exist or are all empty, `butler-trim` MUST
   behave exactly as it does today.
-- If any of those three paths exist and are non-empty, `butler-trim` MUST
+- If any of the scoped paths exist and are non-empty, `butler-trim` MUST
   abort without deleting anything, print which path(s) triggered the guard,
   and print the exact commands to run first
   (`make generate-governance-files FORCE=1`, then `make butler-trim`).
@@ -211,10 +223,9 @@ Trimming .butler/ down to Makefile only ...
 
 ## Acceptance criteria (overall)
 
-- [ ] `butler-pull` diffs `.butler/templates/`, `.butler/claude-agents/`, and
-      `.butler/claude-skills/` between pre- and post-pull HEAD and skips the
-      automatic `butler-trim` step when any of them changed, printing the
-      exact follow-up commands.
+- [ ] `butler-pull` diffs the scoped paths (see "Scoped paths" above)
+      between pre- and post-pull HEAD and skips the automatic `butler-trim`
+      step when any of them changed, printing the exact follow-up commands.
 - [ ] When none of those paths changed, `butler-pull`'s behavior is
       unchanged (fetch + trim in one step).
 - [ ] `make help`'s `butler-pull` description matches the new conditional
@@ -223,30 +234,27 @@ Trimming .butler/ down to Makefile only ...
       into `.claude/skills/<name>/SKILL.md`, mirroring the
       `claude-agents/` → `.claude/agents/` copy.
 - [ ] A regression test simulates: `git subtree add` a fixture butler repo,
-      trim, commit; modify a file under the fixture's `templates/`,
-      `claude-agents/`, or `claude-skills/`; run `make butler-pull`; assert
-      the trim was skipped, the warning was printed, and
-      `generate-governance-files FORCE=1` afterwards succeeds against the
-      newly-pulled content. A second fixture run with no template/agent/skill
-      changes asserts the trim ran automatically as before.
+      trim, commit; modify a file under one of the scoped paths; run
+      `make butler-pull`; assert the trim was skipped, the warning was
+      printed, and `generate-governance-files FORCE=1` afterwards succeeds
+      against the newly-pulled content. A second fixture run with no scoped
+      path changes asserts the trim ran automatically as before.
 - [ ] `butler-trim`, invoked directly (not just via `butler-pull`), checks
-      the current working-tree state of `.butler/templates/`,
-      `.butler/claude-agents/`, and `.butler/claude-skills/` and aborts
-      without deleting anything when any of them exist and are non-empty,
-      printing which path(s) triggered the guard and the exact follow-up
-      commands (`make generate-governance-files FORCE=1`, then
-      `make butler-trim`).
+      the current working-tree state of the scoped paths (see "Scoped
+      paths" above) and aborts without deleting anything when any of them
+      exist and are non-empty, printing which path(s) triggered the guard
+      and the exact follow-up commands (`make generate-governance-files
+      FORCE=1`, then `make butler-trim`).
 - [ ] `make butler-trim FORCE=1` bypasses the guard and trims exactly as it
       does today, regardless of `.butler/` content.
-- [ ] When `.butler/templates/`, `.butler/claude-agents/`, and
-      `.butler/claude-skills/` are all absent or empty, a bare
-      `make butler-trim` behaves exactly as it does today (no guard message).
+- [ ] When the scoped paths (see "Scoped paths" above) are all absent or
+      empty, a bare `make butler-trim` behaves exactly as it does today (no
+      guard message).
 - [ ] A regression test simulates the conflict-recovery path: a
       `butler-pull` merge conflict resolved and committed manually, leaving
-      `.butler/claude-skills/` (or `templates/`/`claude-agents/`) non-empty,
-      followed by a direct `make butler-trim`; asserts the guard fires
-      instead of silently trimming, and that `make butler-trim FORCE=1`
-      then trims as before.
+      one of the scoped paths non-empty, followed by a direct `make
+      butler-trim`; asserts the guard fires instead of silently trimming,
+      and that `make butler-trim FORCE=1` then trims as before.
 - [ ] The README's "Keeping butler up to date" section documents the
       conflict-recovery path: resolving a `git subtree pull` conflict, that
       `make butler-trim` is now guarded, and what `FORCE=1` does.

@@ -34,6 +34,15 @@
   if the Makefile ever passes a flag the installed CLI no longer accepts. No production code
   changed; this guards against silent drift going forward. (TASK-044)
 
+### Changed
+
+- `REQUIREMENTS_BUTLER_PULL.md` now defines the set of consumer-facing content
+  paths (`templates/`, `claude-agents/`, `claude-skills/`) once, under a
+  "Scoped paths" section, instead of re-enumerating them in Requirement 1,
+  Requirement 3, Requirement 4, and the overall acceptance criteria — closing
+  the drift risk where adding a new content type or requirement could leave
+  one of those spots out of sync with the others. No behavior change. (TASK-052)
+
 ### Fixed
 
 - `make butler-trim` now refuses to delete `.butler/templates/`, `.butler/claude-agents/`, or
