@@ -4,6 +4,18 @@
 
 Draft
 
+> **Note (not a Status change — only the Workflow Guardian edits Status):**
+> TASK-054 proposes switching `.butler` distribution from git subtree to a
+> git submodule (see `REQUIREMENTS_SUBMODULE.md`, draft, pending
+> confirmation). A submodule has no modify/delete merge-conflict class
+> against the consumer's own history, which is the entire problem this task
+> exists to work around — if TASK-054 ships, this task's restore-before-pull
+> approach (R1-R6) becomes unnecessary. R7-R10 (CLI/MCP reinstall from
+> freshly pulled sources) are not subtree-specific and are carried forward as
+> an open question in `REQUIREMENTS_SUBMODULE.md` Requirement 4. Recommend
+> the Workflow Guardian re-file this task's Status once TASK-054 is
+> resolved, rather than implementing it as currently scoped.
+
 ## Background
 
 Two related problems in `make butler-pull`:
@@ -125,5 +137,3 @@ step into a shared internal target (e.g. `_butler-restore`) used by both
   them; verify any MCP client configuration examples in docs do not reference
   paths under `.butler/`.
 - Add a CHANGELOG.md entry.
-<<<<<<< HEAD
-=======

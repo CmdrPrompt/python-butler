@@ -24,9 +24,8 @@ Run all commands from **your project's root**.
 # 1. If you created the repo locally with git init (skip if you cloned from GitHub):
 git commit --allow-empty -m "Initial commit"
 
-# 2. Add butler as a subtree
-git subtree add --prefix=.butler \
-  https://github.com/CmdrPrompt/python-butler.git main --squash
+# 2. Add butler as a submodule
+git submodule add https://github.com/CmdrPrompt/python-butler.git .butler
 
 # 3. Create a minimal Makefile that includes butler's targets
 echo 'include .butler/Makefile' > Makefile
@@ -35,29 +34,22 @@ echo 'include .butler/Makefile' > Makefile
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 5. Trim .butler/ down to just the Makefile — everything else has been applied.
-#    FORCE=1 is required here: butler-trim refuses to delete templates/claude-agents/
-#    claude-skills while they're non-empty, since it can't tell on its own that
-#    step 4 already regenerated from them.
-make butler-trim FORCE=1
-
-# 6. Commit everything
-git add -A .butler/ Makefile CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
+# 5. Commit everything
+git add -A .butler/ .gitmodules Makefile CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
 git commit -m "Bootstrap project with python-butler"
 
-# 7. Install dependencies and activate pre-commit hooks
+# 6. Install dependencies and activate pre-commit hooks
 make install
 
-# 8. Push
+# 7. Push
 git push -u origin main
 ```
 
 ## Adopting in an existing project
 
 ```bash
-# 1. Add butler as a subtree
-git subtree add --prefix=.butler \
-  https://github.com/CmdrPrompt/python-butler.git main --squash
+# 1. Add butler as a submodule
+git submodule add https://github.com/CmdrPrompt/python-butler.git .butler
 
 # 2. Add the include at the TOP of your existing Makefile
 #    (butler defines default variable values — placing it first lets
@@ -68,22 +60,21 @@ printf 'include .butler/Makefile\n\n' | cat - Makefile > Makefile.tmp && mv Make
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 4. Trim .butler/ down to just the Makefile — everything else has been applied.
-#    FORCE=1 is required here: butler-trim refuses to delete templates/claude-agents/
-#    claude-skills while they're non-empty, since it can't tell on its own that
-#    step 3 already regenerated from them.
-make butler-trim FORCE=1
-
-# 5. Commit
-git add -A .butler/ CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
+# 4. Commit
+git add -A .butler/ .gitmodules CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
 git commit -m "Add python-butler"
 
-# 6. Install dependencies and activate pre-commit hooks
+# 5. Install dependencies and activate pre-commit hooks
 make install
 
-# 7. Push
+# 6. Push
 git push -u origin main
 ```
+
+`.butler` is a full, untrimmed git submodule checkout — `Makefile`,
+`templates/`, `claude-agents/`, `claude-skills/`, and everything else remain
+in the working tree at all times. There is no trim step to run after
+adoption.
 
 > **Note:** If your Makefile already defines targets with the same names as butler's
 > (e.g. `lint`, `test`), place the `include` *after* your own targets to let yours take
@@ -93,59 +84,56 @@ git push -u origin main
 
 ```bash
 make butler-check  # check if updates are available
-make butler-pull   # pull latest and trim
+make butler-pull   # move .butler's submodule pointer to the latest commit
 ```
 
-`butler-pull` trims `.butler/` back to just `Makefile` and records the new
-butler version in `.butler-version` — but only if this pull didn't touch
-`.butler/templates/`, `.butler/claude-agents/`, or `.butler/claude-skills/`.
-If it did, `butler-pull` prints which files changed and skips the trim, so
-you get a chance to regenerate governance files against the new content
-first:
+`butler-pull` (and its alias `butler-fetch`) move `.butler`'s submodule
+pointer to the latest commit on the remote's tracked branch. This is a
+pointer move only — there is no tree merge into your project's own history,
+so it cannot produce a merge conflict. Nothing commits automatically;
+`butler-pull` prints the exact follow-up:
+
+```bash
+git add .butler
+git commit -m "chore: update butler submodule"
+```
+
+`.butler` stays a full, untrimmed submodule checkout at all times — there is
+no trim step, and `templates/`, `claude-agents/`, and `claude-skills/` remain
+in the working tree after every pull. If a pull changed any of them, just
+regenerate governance files on your own schedule, whenever convenient:
 
 ```bash
 make generate-governance-files FORCE=1
-make butler-trim FORCE=1
 ```
 
-`butler-trim` itself refuses to delete `.butler/templates/`,
-`.butler/claude-agents/`, or `.butler/claude-skills/` while any of them are
-non-empty — it can't tell whether you've already regenerated from them, only
-that they still hold content — so `FORCE=1` is required there too. Once
-trimmed (automatically or manually), commit the result:
+## Migrating an existing subtree-based project to a submodule
+
+If your project adopted `.butler` as a `git subtree` before this switch (see
+`REQUIREMENTS_SUBMODULE.md`), convert it to a submodule with these manual
+steps. This does not rewrite your project's existing git history — the prior
+subtree merge commits stay exactly as they are; only the current `.butler`
+working-tree state changes to a submodule pointer going forward.
 
 ```bash
-git add -A .butler/ .butler-version
-git commit -m "chore: update butler"
-```
+# 1. Remove the old subtree-merged .butler/ directory from the index and working tree
+git rm -r --cached .butler
+rm -rf .butler
 
-### If `git subtree pull` conflicts
+# 2. Add .butler back as a submodule
+git submodule add https://github.com/CmdrPrompt/python-butler.git .butler
 
-`git subtree pull` can fail with a merge conflict — expected whenever the
-pull touches a file a prior `butler-trim` already deleted locally. When that
-happens, `butler-pull` exits without trimming and prints:
+# 3. If your root Makefile's `include .butler/Makefile` line changed path or
+#    no longer matches (it normally does not, since the submodule is still
+#    checked out at .butler/), update it accordingly.
 
-```text
-✗ butler-pull failed (e.g. a merge conflict) — not trimming.
-  Resolve the conflict, then run 'make butler-trim' yourself once done.
-```
-
-Resolve the conflict as you would any other merge conflict, then commit it:
-
-```bash
-git add -A
-git commit
-```
-
-The subsequent `make butler-trim` is guarded, not unconditionally safe: if
-resolving the conflict left `.butler/templates/`, `.butler/claude-agents/`,
-or `.butler/claude-skills/` non-empty, it refuses to delete them and prints
-which path triggered the guard plus the exact follow-up commands. Regenerate
-governance files first, then bypass the guard:
-
-```bash
+# 4. Re-run generate-governance-files if CLAUDE.md, agent, or skill files
+#    need to pick up any changes from the newly added submodule checkout
 make generate-governance-files FORCE=1
-make butler-trim FORCE=1
+
+# 5. Commit the conversion
+git add -A .butler/ .gitmodules Makefile
+git commit -m "chore: switch .butler from git subtree to git submodule"
 ```
 
 ## Removing butler
@@ -157,7 +145,7 @@ per category — nothing under `docs/tasks/` is ever touched:
 # Preview what would be removed, without changing anything
 make butler-uninstall CATEGORIES=subtree,makefile,governance DRY_RUN=1
 
-# Remove only the .butler/ subtree and the Makefile include line,
+# Remove only the .butler/ submodule and the Makefile include line,
 # keeping CLAUDE.md and the generated agent files as regular project files
 make butler-uninstall CATEGORIES=subtree,makefile
 
@@ -167,11 +155,11 @@ make butler-uninstall CATEGORIES=subtree,makefile,governance
 
 Categories:
 
-| Category | Removes |
-|---|---|
-| `subtree` | `.butler/` |
-| `makefile` | The `include .butler/Makefile` line in `Makefile` |
-| `governance` | `CLAUDE.md`, `.github/copilot-instructions.md`, `.github/agents/`, `.claude/agents/` |
+| Category      | Removes                                                                                |
+|---------------|-----------------------------------------------------------------------------------------|
+| `subtree`     | `.butler/` (`git submodule deinit -f` + `git rm -f`, including the `.gitmodules` entry) |
+| `makefile`    | The `include .butler/Makefile` line in `Makefile`                                       |
+| `governance`  | `CLAUDE.md`, `.github/copilot-instructions.md`, `.github/agents/`, `.claude/agents/`     |
 
 The command refuses to run on a dirty working tree — commit or stash first,
 or pass `FORCE=1`. It is implemented in plain shell, so it works even in a
@@ -184,20 +172,23 @@ subtree,makefile,governance [--dry-run] [--force]` command is available.
 ## Regenerating governance files
 
 If you need to update `CLAUDE.md`, agent files, or other generated files from
-the latest templates, restore the butler sources first:
+the latest templates:
 
 ```bash
-make butler-fetch                # pull latest butler without trimming
+make butler-fetch                # move .butler's submodule pointer to the latest commit
 make generate-governance-files   # or make init-project, or individual generate-* targets
-make butler-trim FORCE=1         # trim back to Makefile only
+git add .butler && git commit -m "chore: update butler submodule"
 git add -A && git commit -m "chore: regenerate governance files"
 ```
 
 ## Contributing changes back
 
 ```bash
-git subtree push --prefix=.butler \
-  https://github.com/CmdrPrompt/python-butler.git main
+cd .butler
+git checkout -b my-change
+# make your change, commit it
+git push origin my-change
+# open a PR against https://github.com/CmdrPrompt/python-butler.git main
 # No push access? Push to a fork and open a PR against main instead.
 ```
 

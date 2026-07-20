@@ -51,12 +51,64 @@ def _is_working_tree_dirty(project_root: Path) -> bool:
     return bool(result.stdout.strip())
 
 
+def _is_butler_a_submodule(project_root: Path) -> bool:
+    """Whether `.butler` is registered as a git submodule (has a `.gitmodules`
+    entry), as opposed to a plain directory (e.g. a legacy subtree checkout or
+    a bare fixture directory in a unit test)."""
+    gitmodules = project_root / ".gitmodules"
+    return gitmodules.exists() and ".butler" in gitmodules.read_text()
+
+
+def _remove_butler_submodule(project_root: Path) -> None:
+    """Remove the `.butler` git submodule cleanly: `git submodule deinit -f`,
+    `git rm -f`, the leftover `.git/modules/.butler` metadata, and the
+    `.gitmodules` entry (dropping the file itself if it becomes empty).
+
+    Falls back to a plain directory removal when `.butler` is not tracked as
+    a submodule (a legacy subtree checkout, or a bare directory in a unit
+    test fixture with no git repository at all).
+    """
+    butler_dir = project_root / ".butler"
+    if not butler_dir.exists():
+        return
+
+    if not _is_butler_a_submodule(project_root):
+        shutil.rmtree(butler_dir)
+        return
+
+    subprocess.run(  # nosec B603 B607 -- fixed git CLI invocation, no shell/user input
+        ["git", "submodule", "deinit", "-f", ".butler"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    rm_result = subprocess.run(  # nosec B603 B607 -- fixed git CLI invocation, no shell/user input
+        ["git", "rm", "-rf", ".butler"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    if rm_result.returncode != 0 and butler_dir.exists():
+        shutil.rmtree(butler_dir)
+
+    modules_dir = project_root / ".git" / "modules" / ".butler"
+    if modules_dir.exists():
+        shutil.rmtree(modules_dir)
+
+    gitmodules = project_root / ".gitmodules"
+    if gitmodules.exists() and not gitmodules.read_text().strip():
+        gitmodules.unlink()
+
+
 def plan_uninstall(project_root: Path, categories: list[str]) -> list[str]:
     """Return the human-readable actions that would be taken, without touching the filesystem."""
     _validate_categories(categories)
     actions = []
     if "subtree" in categories and (project_root / ".butler").exists():
-        actions.append("remove .butler/")
+        if _is_butler_a_submodule(project_root):
+            actions.append("remove .butler/ (git submodule deinit + git rm)")
+        else:
+            actions.append("remove .butler/")
     if "makefile" in categories:
         makefile_path = project_root / "Makefile"
         if makefile_path.exists() and _INCLUDE_LINE in makefile_path.read_text():
@@ -84,9 +136,7 @@ def apply_uninstall(
     actions = plan_uninstall(project_root, categories)
 
     if "subtree" in categories:
-        butler_dir = project_root / ".butler"
-        if butler_dir.exists():
-            shutil.rmtree(butler_dir)
+        _remove_butler_submodule(project_root)
 
     if "makefile" in categories:
         makefile_path = project_root / "Makefile"

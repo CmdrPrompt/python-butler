@@ -2,7 +2,7 @@
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
 	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
-	butler-trim butler-fetch butler-pull butler-check butler-uninstall
+	butler-fetch butler-pull butler-check butler-uninstall
 
 BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
 TASKS_DIR ?= docs/tasks
@@ -26,9 +26,8 @@ help:
 	@echo ""
 	@echo "  Keeping butler up to date:"
 	@echo "    make butler-check  -- Check if butler updates are available"
-	@echo "    make butler-pull   -- Pull butler updates; trims automatically unless templates/claude-agents/claude-skills changed"
-	@echo "    make butler-fetch  -- Pull butler without trimming (use before regenerating files)"
-	@echo "    make butler-trim   -- Remove all but .butler/Makefile (run after init-project; add FORCE=1 to bypass the un-regenerated-content guard)"
+	@echo "    make butler-pull   -- Move .butler's submodule pointer to the latest commit (prints the git add/commit follow-up)"
+	@echo "    make butler-fetch  -- Same as butler-pull"
 	@echo ""
 	@echo "  Removing butler:"
 	@echo "    make butler-uninstall CATEGORIES=subtree,makefile,governance  -- Remove butler's footprint (add DRY_RUN=1 or FORCE=1)"
@@ -314,43 +313,6 @@ init-project:
 	echo "  git add CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/"; \
 	echo "  git commit -m \"Bootstrap project with python-butler\""
 
-## Remove all but .butler/Makefile — run after make init-project (idempotent)
-## Refuses to run if .butler/templates|claude-agents|claude-skills still hold
-## un-regenerated content, unless FORCE=1 is passed.
-butler-trim:
-	@if [ "$(FORCE)" != "1" ]; then \
-		TRIGGERED=""; \
-		for p in .butler/templates .butler/claude-agents .butler/claude-skills; do \
-			if [ -d "$$p" ] && [ -n "$$(find "$$p" -mindepth 1 -print -quit)" ]; then \
-				TRIGGERED="$$TRIGGERED $$p"; \
-			fi; \
-		done; \
-		if [ -n "$$TRIGGERED" ]; then \
-			echo "✗ Refusing to trim:$$TRIGGERED is not empty."; \
-			echo "  Governance files (CLAUDE.md, .github/agents/, .claude/agents/, .claude/skills/) may be"; \
-			echo "  out of date. Run this first:"; \
-			echo "    make generate-governance-files FORCE=1"; \
-			echo "    make butler-trim"; \
-			echo "  Or bypass this guard with: make butler-trim FORCE=1"; \
-			exit 1; \
-		fi; \
-	fi
-	@echo "Trimming .butler/ down to Makefile only ..."
-	@FILES=$$(git ls-files .butler/ | grep -v '^\.butler/Makefile$$'); \
-	[ -n "$$FILES" ] && echo "$$FILES" | xargs git rm -r --cached --ignore-unmatch || true
-	@find .butler/ -mindepth 1 -maxdepth 1 ! -name 'Makefile' -exec rm -rf {} +
-	@BUTLER_SHA=$$(git ls-remote $(BUTLER_REMOTE) refs/heads/main | cut -f1); \
-	if [ -n "$$BUTLER_SHA" ]; then \
-		echo "$$BUTLER_SHA" > .butler-version; \
-		echo "✓ Recorded butler version: $$BUTLER_SHA"; \
-	else \
-		echo "Warning: could not reach $(BUTLER_REMOTE) — .butler-version not written"; \
-	fi
-	@echo "✓ Trim complete. Stage and commit with:"
-	@echo ""
-	@echo "  git add -A .butler/ .butler-version"
-	@echo "  git commit -m \"chore: trim .butler/ down to Makefile\""
-
 ## Remove butler's footprint from this project. Never touches docs/tasks/.
 ## Usage: make butler-uninstall CATEGORIES=subtree,makefile,governance [DRY_RUN=1] [FORCE=1]
 ## Pure shell (grep/sed/rm) so it works even without butler_core/butler-cli installed
@@ -365,8 +327,19 @@ butler-uninstall:
 	WANT_MAKEFILE=$$(echo "$(CATEGORIES)" | tr ',' '\n' | grep -qx makefile && echo 1 || echo ""); \
 	WANT_GOVERNANCE=$$(echo "$(CATEGORIES)" | tr ',' '\n' | grep -qx governance && echo 1 || echo ""); \
 	if [ -n "$$WANT_SUBTREE" ] && [ -d .butler ]; then \
-		if [ -n "$(DRY_RUN)" ]; then echo "Would remove .butler/"; \
-		else rm -rf .butler; echo "Removed .butler/"; fi; \
+		if [ -n "$(DRY_RUN)" ]; then \
+			echo "Would run: git submodule deinit -f .butler"; \
+			echo "Would run: git rm -f .butler"; \
+			echo "Would remove the .gitmodules entry for .butler (and .gitmodules itself if empty)"; \
+		else \
+			git submodule deinit -f .butler > /dev/null 2>&1 || true; \
+			git rm -rf .butler > /dev/null 2>&1 || rm -rf .butler; \
+			rm -rf .git/modules/.butler; \
+			if [ -f .gitmodules ] && [ ! -s .gitmodules ]; then \
+				git rm -f .gitmodules > /dev/null 2>&1 || rm -f .gitmodules; \
+			fi; \
+			echo "Removed .butler/ (git submodule deinit + git rm)"; \
+		fi; \
 	fi; \
 	if [ -n "$$WANT_MAKEFILE" ] && [ -f Makefile ] && grep -q '^include \.butler/Makefile$$' Makefile; then \
 		if [ -n "$(DRY_RUN)" ]; then echo "Would remove 'include .butler/Makefile' line from Makefile"; \
@@ -386,16 +359,15 @@ butler-uninstall:
 	@echo ""
 	@echo "docs/tasks/ was not touched."
 
-## Check if butler updates are available
+## Check if butler updates are available (compares .butler's submodule pointer against the remote)
 butler-check:
-	@CURRENT=$$(cat .butler-version 2>/dev/null); \
+	@CURRENT=$$(git -C .butler rev-parse HEAD 2>/dev/null); \
 	echo "Checking for butler updates..."; \
 	LATEST=$$(git ls-remote $(BUTLER_REMOTE) refs/heads/main | cut -f1); \
 	[ -n "$$LATEST" ] || (echo "Could not reach $(BUTLER_REMOTE)"; exit 1); \
 	if [ -z "$$CURRENT" ]; then \
-		echo "No .butler-version found — assuming updates are available."; \
-		echo "  Latest: $$LATEST"; \
-		echo "  Run: make butler-pull"; \
+		echo "Could not determine .butler's current submodule commit — is .butler a submodule?"; \
+		exit 1; \
 	elif [ "$$CURRENT" = "$$LATEST" ]; then \
 		echo "✓ butler is up to date ($$CURRENT)"; \
 	else \
@@ -405,33 +377,16 @@ butler-check:
 		echo "  Run: make butler-pull"; \
 	fi
 
-## Pull the latest butler without trimming — use before regenerating governance files
+## Move .butler's submodule pointer to the latest commit on the tracked branch; prints the git add/commit follow-up
 butler-fetch:
-	git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash
+	@echo "Updating .butler submodule pointer ..."
+	@git submodule update --init --remote .butler
+	@echo "✓ .butler now at $$(git -C .butler rev-parse HEAD). Commit this pointer change:"
+	@echo "  git add .butler"
+	@echo "  git commit -m \"chore: update butler submodule\""
 
-## Pull the latest butler; trims automatically unless templates/claude-agents/claude-skills changed (then regenerate first)
-butler-pull:
-	@OLD_HEAD=$$(git rev-parse HEAD); \
-	if ! git subtree pull --prefix=.butler $(BUTLER_REMOTE) main --squash; then \
-		echo ""; \
-		echo "✗ butler-pull failed (e.g. a merge conflict) — not trimming."; \
-		echo "  Resolve the conflict, then run 'make butler-trim' yourself once done."; \
-		exit 1; \
-	fi; \
-	NEW_HEAD=$$(git rev-parse HEAD); \
-	CHANGED=$$(git diff --name-only $$OLD_HEAD $$NEW_HEAD -- .butler/templates .butler/claude-agents .butler/claude-skills 2>/dev/null); \
-	if [ -n "$$CHANGED" ]; then \
-		echo ""; \
-		echo "⚠ .butler/templates/, .butler/claude-agents/, and/or .butler/claude-skills/ changed in this pull:"; \
-		echo "$$CHANGED" | sed 's/^/  /'; \
-		echo ""; \
-		echo "Governance files (CLAUDE.md, .github/agents/, .claude/agents/, .claude/skills/) may now be"; \
-		echo "out of date. Regenerate them before the next trim:"; \
-		echo "  make generate-governance-files FORCE=1"; \
-		echo "  make butler-trim FORCE=1"; \
-	else \
-		$(MAKE) butler-trim; \
-	fi
+## Same as butler-fetch — move .butler's submodule pointer to the latest commit (no automatic commit)
+butler-pull: butler-fetch
 
 ## Generate project governance files from .butler templates
 generate-governance-files:

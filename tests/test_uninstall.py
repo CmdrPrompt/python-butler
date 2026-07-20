@@ -311,3 +311,27 @@ class TestSubtreeCategoryRemovesGitSubmoduleCleanly:
         assert any("submodule deinit" in action for action in actions), (
             f"expected a planned action describing a submodule deinit, got {actions}"
         )
+
+    def test_apply_uninstall_is_a_noop_when_butler_dir_absent(self, tmp_path: Path) -> None:
+        actions = apply_uninstall(tmp_path, ["subtree"], dirty_check=self._clean)
+
+        assert actions == []
+        assert not (tmp_path / ".butler").exists()
+
+    def test_apply_uninstall_falls_back_to_rmtree_when_git_rm_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / ".butler").mkdir()
+        (tmp_path / ".gitmodules").write_text('[submodule ".butler"]\n\tpath = .butler\n')
+
+        def _fake_run(cmd: list[str], **_kwargs: object) -> MagicMock:
+            returncode = 1 if cmd[:2] == ["git", "rm"] else 0
+            return MagicMock(returncode=returncode, stdout="", stderr="")
+
+        monkeypatch.setattr("butler_core.uninstall.subprocess.run", _fake_run)
+
+        apply_uninstall(tmp_path, ["subtree"], dirty_check=self._clean)
+
+        assert not (tmp_path / ".butler").exists(), (
+            "when 'git rm' fails, apply_uninstall must fall back to a plain rmtree"
+        )
