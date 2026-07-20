@@ -1,7 +1,7 @@
 # TASK-051 `butler-pull` and `generate-governance-files` don't cover `claude-skills/`
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 3 (REQUIREMENTS_BUTLER_PULL.md)

@@ -35,8 +35,11 @@ echo 'include .butler/Makefile' > Makefile
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 5. Trim .butler/ down to just the Makefile — everything else has been applied
-make butler-trim
+# 5. Trim .butler/ down to just the Makefile — everything else has been applied.
+#    FORCE=1 is required here: butler-trim refuses to delete templates/claude-agents/
+#    claude-skills while they're non-empty, since it can't tell on its own that
+#    step 4 already regenerated from them.
+make butler-trim FORCE=1
 
 # 6. Commit everything
 git add -A .butler/ Makefile CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
@@ -65,8 +68,11 @@ printf 'include .butler/Makefile\n\n' | cat - Makefile > Makefile.tmp && mv Make
 #    init-project prints the exact git add and commit commands to run afterwards
 make init-project
 
-# 4. Trim .butler/ down to just the Makefile — everything else has been applied
-make butler-trim
+# 4. Trim .butler/ down to just the Makefile — everything else has been applied.
+#    FORCE=1 is required here: butler-trim refuses to delete templates/claude-agents/
+#    claude-skills while they're non-empty, since it can't tell on its own that
+#    step 3 already regenerated from them.
+make butler-trim FORCE=1
 
 # 5. Commit
 git add -A .butler/ CLAUDE.md pyproject.toml .gitignore .pre-commit-config.yaml .github/ .claude/
@@ -92,20 +98,54 @@ make butler-pull   # pull latest and trim
 
 `butler-pull` trims `.butler/` back to just `Makefile` and records the new
 butler version in `.butler-version` — but only if this pull didn't touch
-`.butler/templates/` or `.butler/claude-agents/`. If it did, `butler-pull`
-prints which files changed and skips the trim, so you get a chance to
-regenerate governance files against the new content first:
+`.butler/templates/`, `.butler/claude-agents/`, or `.butler/claude-skills/`.
+If it did, `butler-pull` prints which files changed and skips the trim, so
+you get a chance to regenerate governance files against the new content
+first:
 
 ```bash
 make generate-governance-files FORCE=1
-make butler-trim
+make butler-trim FORCE=1
 ```
 
-Once trimmed (automatically or manually), commit the result:
+`butler-trim` itself refuses to delete `.butler/templates/`,
+`.butler/claude-agents/`, or `.butler/claude-skills/` while any of them are
+non-empty — it can't tell whether you've already regenerated from them, only
+that they still hold content — so `FORCE=1` is required there too. Once
+trimmed (automatically or manually), commit the result:
 
 ```bash
 git add -A .butler/ .butler-version
 git commit -m "chore: update butler"
+```
+
+### If `git subtree pull` conflicts
+
+`git subtree pull` can fail with a merge conflict — expected whenever the
+pull touches a file a prior `butler-trim` already deleted locally. When that
+happens, `butler-pull` exits without trimming and prints:
+
+```text
+✗ butler-pull failed (e.g. a merge conflict) — not trimming.
+  Resolve the conflict, then run 'make butler-trim' yourself once done.
+```
+
+Resolve the conflict as you would any other merge conflict, then commit it:
+
+```bash
+git add -A
+git commit
+```
+
+The subsequent `make butler-trim` is guarded, not unconditionally safe: if
+resolving the conflict left `.butler/templates/`, `.butler/claude-agents/`,
+or `.butler/claude-skills/` non-empty, it refuses to delete them and prints
+which path triggered the guard plus the exact follow-up commands. Regenerate
+governance files first, then bypass the guard:
+
+```bash
+make generate-governance-files FORCE=1
+make butler-trim FORCE=1
 ```
 
 ## Removing butler
@@ -149,7 +189,7 @@ the latest templates, restore the butler sources first:
 ```bash
 make butler-fetch                # pull latest butler without trimming
 make generate-governance-files   # or make init-project, or individual generate-* targets
-make butler-trim                 # trim back to Makefile only
+make butler-trim FORCE=1         # trim back to Makefile only
 git add -A && git commit -m "chore: regenerate governance files"
 ```
 
