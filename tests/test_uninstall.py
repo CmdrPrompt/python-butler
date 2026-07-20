@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -17,6 +19,52 @@ from butler_core.uninstall import (
     plan_uninstall,
     remove_makefile_include,
 )
+
+# Local git submodule fetches over a plain filesystem path are blocked by
+# default (CVE-2022-39253 hardening) unless explicitly allowed. This is a
+# test-fixture concern only; every git invocation below that adds/updates a
+# submodule from a local path passes this in its environment.
+_ALLOW_FILE_PROTOCOL_ENV = {**os.environ, "GIT_ALLOW_PROTOCOL": "file"}
+
+
+def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        env=_ALLOW_FILE_PROTOCOL_ENV,
+    )
+    assert result.returncode == 0, (
+        f"git {args} in {cwd} failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    return result
+
+
+def _init_repo(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    _git(["init", "-b", "main"], cwd=path)
+    _git(["config", "user.email", "test@example.com"], cwd=path)
+    _git(["config", "user.name", "Test"], cwd=path)
+
+
+def _add_butler_submodule(project_root: Path, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Adopt `.butler` in `project_root` as a real git submodule pointing at a
+    throwaway local upstream repo -- TASK-054 / REQUIREMENTS_SUBMODULE.md
+    Requirement 6's target layout, replacing the plain `.butler/` directory
+    that today's `apply_uninstall`'s `subtree` category (`shutil.rmtree`)
+    assumes."""
+    upstream = tmp_path_factory.mktemp("upstream")
+    _init_repo(upstream)
+    (upstream / "Makefile").write_text("# fixture butler Makefile\n")
+    _git(["add", "-A"], cwd=upstream)
+    _git(["commit", "-m", "initial butler"], cwd=upstream)
+
+    _init_repo(project_root)
+    _git(["commit", "--allow-empty", "-m", "initial consumer"], cwd=project_root)
+    _git(["submodule", "add", str(upstream), ".butler"], cwd=project_root)
+    _git(["commit", "-m", "add .butler submodule"], cwd=project_root)
+
 
 _INCLUDE_LINE = "include .butler/Makefile"
 
@@ -206,3 +254,60 @@ class TestApplyUninstall:
             apply_uninstall(tmp_path, ["subtree"])
 
         assert mock_run.called, "expected the default dirty-check to shell out to git status"
+
+
+class TestSubtreeCategoryRemovesGitSubmoduleCleanly:
+    """Failing (red-phase) characterization tests for TASK-054 /
+    REQUIREMENTS_SUBMODULE.md Requirement 6: the `subtree` category must
+    remove a `.butler` *git submodule* correctly (`git submodule deinit -f`
+    + `git rm -f`, plus the `.gitmodules` entry and `.git/modules/.butler`
+    metadata) instead of a plain `shutil.rmtree(.butler)`, which leaves both
+    behind. None of this is implemented yet, so these are expected to fail
+    against the current `apply_uninstall`/`plan_uninstall`.
+    """
+
+    @staticmethod
+    def _clean(_root: Path) -> bool:
+        return False
+
+    def test_apply_uninstall_removes_the_gitmodules_entry(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        _add_butler_submodule(tmp_path, tmp_path_factory)
+
+        apply_uninstall(tmp_path, ["subtree"], dirty_check=self._clean)
+
+        assert not (tmp_path / ".butler").exists()
+        gitmodules = tmp_path / ".gitmodules"
+        if gitmodules.exists():
+            assert ".butler" not in gitmodules.read_text(), (
+                "the .gitmodules entry for .butler must be removed (or the file "
+                "removed entirely if it becomes empty)"
+            )
+
+    def test_apply_uninstall_removes_git_modules_metadata(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        _add_butler_submodule(tmp_path, tmp_path_factory)
+        assert (tmp_path / ".git" / "modules" / ".butler").exists(), (
+            "fixture assumption: adding a real git submodule populates .git/modules/.butler"
+        )
+
+        apply_uninstall(tmp_path, ["subtree"], dirty_check=self._clean)
+
+        assert not (tmp_path / ".git" / "modules" / ".butler").exists(), (
+            "apply_uninstall's subtree category must run 'git submodule deinit -f "
+            ".butler' (not a plain shutil.rmtree), or .git/modules/.butler metadata "
+            "is left behind"
+        )
+
+    def test_plan_uninstall_describes_a_submodule_deinit(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        _add_butler_submodule(tmp_path, tmp_path_factory)
+
+        actions = plan_uninstall(tmp_path, ["subtree"])
+
+        assert any("submodule deinit" in action for action in actions), (
+            f"expected a planned action describing a submodule deinit, got {actions}"
+        )
