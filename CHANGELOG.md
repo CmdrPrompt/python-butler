@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `.butler` is now distributed as a git submodule instead of a git subtree. Adoption uses
+  `git submodule add <remote> .butler` in place of `git subtree add --prefix=.butler ... --squash`;
+  `make butler-fetch`/`make butler-pull` now move `.butler`'s submodule pointer to the latest
+  remote commit and print the `git add .butler` / `git commit` follow-up instead of merging
+  butler's tree into the consumer project's own history and auto-committing, so a pull can no
+  longer produce the modify/delete merge conflicts that repeatedly hit subtree consumers (e.g.
+  `firefly-bills-analyzer`); `make butler-check` compares the submodule's recorded commit against
+  the remote's tracked branch instead of a `.butler-version` file. `make butler-trim` and its
+  un-regenerated-content guard (TASK-048, TASK-051, TASK-053) are removed outright -- `.butler`
+  stays a full, untrimmed submodule checkout at all times, since a submodule pointer move has no
+  tree-merge step to guard. `make butler-uninstall CATEGORIES=subtree,...` now removes the
+  submodule cleanly (`git submodule deinit -f .butler` + `git rm -f .butler`, plus the
+  `.gitmodules` entry and any leftover `.git/modules/.butler` metadata) instead of a plain
+  `rm -rf .butler`. `README.md` documents a manual migration path for existing subtree-based
+  consumer projects to convert to the submodule layout without rewriting their git history.
+  `REQUIREMENTS_BUTLER_PULL.md` is superseded in full by `REQUIREMENTS_SUBMODULE.md`; its
+  `claude-skills`/`claude-agents` copy-symmetry requirement carries forward unchanged, and
+  `generate-governance-files`'s copy behavior is otherwise untouched. (TASK-054)
+
 ### Added
 
 - Added five shared skills (`commit-workflow`, `task-file-format`, `tdd-cycle`, `changelog`,

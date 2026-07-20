@@ -1,5 +1,14 @@
 # Requirements: `butler-pull` must not foreclose governance-file regeneration
 
+> **Superseded in full by `REQUIREMENTS_SUBMODULE.md` (TASK-054).** This
+> document's Requirements 1, 2, and 4 existed to manage the
+> subtree-pull → trim → next-subtree-pull conflict cycle; `.butler` is now
+> distributed as a git submodule, which has no such conflict class, and
+> `butler-trim` has been removed. Requirement 3 (`claude-skills`/
+> `claude-agents` generation symmetry) was mechanism-independent and is
+> carried forward unchanged as `REQUIREMENTS_SUBMODULE.md` Requirement 5. Do
+> not implement further changes against this document.
+
 ## Context
 
 `make butler-pull` runs `git subtree pull --prefix=.butler ... --squash`
