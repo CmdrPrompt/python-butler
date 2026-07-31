@@ -341,6 +341,55 @@ butler task sync-project TASK-012 --stage draft
 # Workflow Guardian's merge of Task Drafter's branch succeeds either way.
 ```
 
+## Requirement 7: Stay on the task branch after opening a PR
+
+**Description:** `open_pr_for` (backing `butler task pr` / `make
+pr-task`/`pr-current-task`) currently ends with `git checkout main`,
+switching the working tree off the task branch immediately after the PR is
+created. This was observed, three times in one session while completing
+TASK-058/059/060, to cause two concrete problems: (1) the very next
+Makefile line in `pr-task` (`butler task sync-project $(f) --stage open`)
+runs against `main`, where the just-created task file does not yet exist
+(it is only on the task branch, pending merge), so the draft/open-stage
+Projects sync spuriously fails with "No task file found"; and (2) merging
+the task immediately after opening its PR — the common case — requires a
+manual `git checkout task/<NNN>-...` first, since `merge-pr`/
+`merge-current-task` (and the `sync-project --stage merge` step that
+follows a successful merge) both depend on being run from the task branch.
+
+`open_pr_for` MUST NOT switch the working tree away from the task branch
+after creating the PR; it leaves the caller on the task branch it was
+invoked from. `merge_pr_for` is unaffected by this change — it already
+determines the target branch from the task object (via `gh pr list --head
+<branch>`), not from the currently checked-out branch, and already ends by
+checking out and pulling `main` once the merge succeeds.
+
+To avoid a new branch inadvertently forking off a leftover task branch
+instead of `main` (now that `open_pr_for` no longer returns the caller to
+`main`), `branch_for` MUST, when creating a **new** task branch (one that
+does not already exist locally), first fetch and base the new branch on
+`origin/main` rather than on whatever branch happens to be currently
+checked out. `branch_for` switching to an **existing** task branch is
+unaffected — that path already does not depend on the starting branch.
+
+**Use case:**
+
+```bash
+make branch-task f=TASK-061
+# ... implement, test, stage, commit ...
+make pr-current-task
+# opens the PR; the shell remains on task/061-... (no more manual
+# `git checkout task/061-...` needed before merging)
+make merge-current-task
+# squash-merges immediately, no branch switch required first
+
+# Starting a fresh task right after, without manually returning to main:
+make branch-task f=TASK-062
+# branch_for fetches and bases task/062-... on origin/main, not on
+# whatever branch (e.g. an already-merged task/061-...) was left checked
+# out -- so the new branch never accidentally carries task/061's commits
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -395,3 +444,8 @@ butler task sync-project TASK-012 --stage draft
 - [ ] The "no Project configured" warning additionally offers creating
       `.butler-project` as a setup option alongside `export
       BUTLER_GITHUB_PROJECT=...`.
+- [ ] `open_pr_for` no longer switches to `main` after creating the PR; the
+      working tree stays on the task branch.
+- [ ] `branch_for`, when creating a new task branch, fetches and bases it on
+      `origin/main` rather than on the currently checked-out branch.
+      Switching to an existing task branch is unaffected.

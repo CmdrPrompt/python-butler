@@ -4,6 +4,17 @@
 
 ### Changed
 
+- `butler task pr` (`make pr-task`/`pr-current-task`) no longer switches the working tree to
+  `main` after opening the PR — it now leaves you on the task branch, so `make
+  merge-current-task` can run immediately afterward without a manual `git checkout
+  task/<NNN>-...` first, and the Projects `--stage open`/`--stage draft` sync step that
+  immediately follows no longer spuriously fails with "No task file found" (the task file only
+  exists on the task branch, not yet on `main`, until the PR is merged). To keep starting a new
+  task safe now that a leftover task branch can be left checked out, `butler task branch` (`make
+  branch-task`), when creating a brand-new branch, now fetches and bases it on `origin/main`
+  instead of on whatever branch is currently checked out; switching to an already-existing task
+  branch is unchanged. (TASK-061)
+
 - `.butler` is now distributed as a git submodule instead of a git subtree. Adoption uses
   `git submodule add <remote> .butler` in place of `git subtree add --prefix=.butler ... --squash`;
   `make butler-fetch`/`make butler-pull` now move `.butler`'s submodule pointer to the latest

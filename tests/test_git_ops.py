@@ -43,7 +43,30 @@ class TestBranchFor:
             "--quiet",
             f"refs/heads/{task.branch_name}",
         ]
-        assert calls[1].args[0] == ["git", "checkout", "-b", task.branch_name]
+        assert calls[1].args[0] == ["git", "fetch", "origin", "main"]
+        assert calls[2].args[0] == ["git", "checkout", "-b", task.branch_name, "origin/main"]
+
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_new_branch_is_based_on_origin_main_not_the_currently_checked_out_branch(
+        self, mock_run: MagicMock
+    ) -> None:
+        """Regression test: previously `git checkout -b <branch>` (with no
+        explicit start point) based the new branch on whatever branch
+        happened to be checked out. Since `open_pr_for` no longer returns to
+        `main` automatically (TASK-061), a new task branch must be pinned to
+        `origin/main` explicitly, not to the current HEAD, to avoid
+        accidentally forking off a leftover, already-merged task branch."""
+        mock_run.return_value = _completed(returncode=1)
+        task = read_task("TASK-015", tasks_dir="docs/tasks")
+
+        branch_for(task)
+
+        checkout_call = next(
+            call
+            for call in mock_run.call_args_list
+            if call.args[0][:3] == ["git", "checkout", "-b"]
+        )
+        assert checkout_call.args[0][-1] == "origin/main"
 
     @patch("butler_core.git_ops.subprocess.run")
     def test_switches_to_branch_when_it_already_exists(self, mock_run: MagicMock) -> None:
@@ -54,6 +77,19 @@ class TestBranchFor:
 
         calls = mock_run.call_args_list
         assert calls[1].args[0] == ["git", "checkout", task.branch_name]
+
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_switching_to_existing_branch_does_not_fetch_or_reference_origin_main(
+        self, mock_run: MagicMock
+    ) -> None:
+        mock_run.return_value = _completed(returncode=0)
+        task = read_task("TASK-015", tasks_dir="docs/tasks")
+
+        branch_for(task)
+
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        assert not any("fetch" in cmd for cmd in commands)
+        assert not any("origin/main" in cmd for cmd in commands)
 
 
 class TestStageFor:
@@ -130,9 +166,7 @@ class TestCommitFor:
 
 class TestOpenPrFor:
     @patch("butler_core.git_ops.subprocess.run")
-    def test_pushes_creates_pr_and_returns_to_main(
-        self, mock_run: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_pushes_and_creates_pr(self, mock_run: MagicMock, tmp_path: Path) -> None:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("My feature", "Some description body", tasks_dir=str(tasks_dir))
         mock_run.return_value = _completed()
@@ -147,7 +181,25 @@ class TestOpenPrFor:
         assert commands[1][title_index] == f"{task.id} {task.title}"
         body_index = commands[1].index("--body") + 1
         assert "Some description body" in commands[1][body_index]
-        assert commands[2] == ["git", "checkout", "main"]
+
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_stays_on_the_task_branch_after_creating_the_pr(
+        self, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
+        """Regression test for TASK-061: previously `open_pr_for` ended with
+        `git checkout main`, which (a) made the immediately-following
+        `sync-project --stage open`/`--stage draft` step spuriously fail
+        (the task file only exists on the task branch, not yet on `main`),
+        and (b) forced a manual `git checkout task/<NNN>-...` before merging
+        the same task. `open_pr_for` must not switch branches at all."""
+        tasks_dir = tmp_path / "docs" / "tasks"
+        task = create_task("My feature", "Some description body", tasks_dir=str(tasks_dir))
+        mock_run.return_value = _completed()
+
+        open_pr_for(task, tasks_dir=str(tasks_dir))
+
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        assert not any(cmd[:2] == ["git", "checkout"] for cmd in commands)
 
     def test_raises_task_not_found_error_for_missing_task_file(self, tmp_path: Path) -> None:
         task = create_task("Temp task", "desc", tasks_dir=str(tmp_path))
