@@ -538,6 +538,68 @@ separately asked to invoke the agent by name — using make targets, the
 configured in that environment, instead of raw `git`/`gh` commands.
 ```
 
+## Requirement 11: Project item body sourced from the task file's Story and Acceptance criteria (extends Requirement 4)
+
+**Description:** Requirement 4 scopes the synced Project item metadata to
+"TASK-ID, title, status." This requirement extends that scope to include a
+body. `_create_item()` in `src/butler_core/projects.py` currently calls `gh
+project item-create` with `--title` only; no `--body` is ever passed, so
+every Project item it creates (via `sync_on_pr_draft`, `sync_on_pr_open`,
+`sync_on_pr_backfill`, and `_start`/`sync_on_pr_start`) has an empty body —
+confirmed live against the `CmdrPrompt/python-butler` Project on
+2026-07-31, where issues #65-#72 (converted from Project items) all carry
+empty bodies.
+
+When creating a new Project item, `_create_item()` MUST pass a `--body`
+argument built from the task file located via `tasks_dir` (already
+available to its caller, `_sync()`, and used elsewhere in the module by
+`_task_file_path()`/`_git_log_dates()`). The body MUST consist of exactly:
+
+1. The task file's `## Story` section, verbatim.
+2. The task file's `## Acceptance criteria` section, verbatim.
+3. A link back to the task file itself (its `docs/tasks/TASK-XXX-*.md` path
+   or a GitHub blob URL), and, once a PR exists for the task, a link to
+   that PR.
+
+The body MUST NOT include the task file's `## Description` section. This is
+a deliberate exclusion: the Project item's body MUST remain distinct from
+`_pr_body()` in `src/butler_core/git_ops.py`, which extracts `##
+Description` (implementation-heavy detail intended for PR reviewers) for PR
+bodies. `_pr_body()`'s extraction logic MUST NOT be reused or duplicated
+for the Project item body; a separate, dedicated extraction (e.g. a
+`_project_item_body()` helper) MUST be used instead.
+
+If `tasks_dir` cannot be resolved, or no task file can be located for the
+task, `_create_item()` MUST fall back to today's `--title`-only item
+creation. This is a best-effort fallback consistent with Requirement 4's
+warning contract: a missing task file MUST NOT block item creation.
+
+This requirement applies only to item *creation*. It does not require
+updating the body of a Project item that already exists.
+
+**Use case:**
+
+```bash
+butler task sync-project TASK-012 --stage draft
+# TASK-012's task file has:
+#   ## Story
+#   As a maintainer, I want to see the task's context on the Project board
+#   so that ...
+#   ## Acceptance criteria (Gherkin)
+#   - [ ] Scenario: ...
+# Creates a new Project item with:
+#   --title "TASK-012 Add dark mode toggle"
+#   --body "<## Story content>\n\n<## Acceptance criteria content>\n\nTask file: docs/tasks/TASK-012-add-dark-mode-toggle.md"
+# (a PR link is appended once one exists, e.g. by --stage open once the PR
+# has been created)
+# The body does NOT contain TASK-012's ## Description section.
+
+butler task sync-project TASK-099 --stage draft
+# tasks_dir is unset, or no task file can be found for TASK-099:
+# Falls back to title-only item creation (today's behavior); item creation
+# still succeeds, consistent with Requirement 4's best-effort contract.
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -626,3 +688,10 @@ configured in that environment, instead of raw `git`/`gh` commands.
       `butler-mcp` MCP server interchangeably, and that a raw `git`/`gh`
       command bypassing all three is what is disallowed — not `make`
       specifically.
+- [ ] A newly created Project item's `--body` is built from the task file's
+      `## Story` and `## Acceptance criteria` sections plus a link to the
+      task file (and the PR, once one exists) — never the `##
+      Description` section, and never `_pr_body()`'s extraction logic.
+- [ ] A missing/unresolvable task file falls back to today's `--title`-only
+      item creation without blocking or raising.
+</content>

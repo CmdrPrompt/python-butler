@@ -1,20 +1,16 @@
 # TASK-066 GitHub Projects item body is empty instead of coming from the task file
 
 ## Status
-blocked
+in-progress
 
 ## Requirements
-**Binding:** Requirement 4 (REQUIREMENTS_TASK_WORKFLOW.md)
+**Binding:** Requirements 4 and 11 (REQUIREMENTS_TASK_WORKFLOW.md)
 **BDD mode:** BDD-ABSENT
 **Depends on:** None (references the finding from TASK-064's Completion; not blocked by it)
 **Precedence:** The requirements document is the binding definition of this task.
 The story and scenarios below are derived from it. On any discrepancy, the
 requirements document wins. Stop and report discrepancies; do not build from
-the story. Requirement 4 currently scopes the synced metadata to "TASK-ID,
-title, status" only; adding body content is a requirement-text change that
-MUST go through a Requirements Drafter round and explicit user confirmation
-before implementation, per CLAUDE.md's spec-driven development rule — do not
-build production code from this task file alone.
+the story. Requirements 4 and 11 are confirmed and binding; implementation may proceed.
 
 ## Story (context, not binding)
 As a maintainer who opens a GitHub Projects item (draft or, after
@@ -81,13 +77,12 @@ extraction helper (e.g. `_project_item_body()`), not a reuse of
 for the backfill stage) but does not thread it through to
 `_create_item()`.
 
-**Open question for the Requirements Drafter round:** Requirement 4
-currently states the sync mirrors "TASK-ID, title, status" — it does not
-mention body/description. The requirement text needs to be extended to
-include body content (Story + Acceptance criteria + task-file link, per
-the scoping above — explicitly NOT the full Description section) before
-this can be implemented, matching how TASK-063 handled a similar
-requirement-text clarification as part of its own implementation.
+**Requirement 11 (confirmed 2026-07-31):** Requirement 4's scope is now
+formally extended to include body content. The requirement text defines
+exactly what MUST go into the Project item body (Story + Acceptance
+criteria + task-file link, plus PR link when one exists), and what MUST
+NOT (the Description section), and specifies the need for a separate
+extraction helper to keep Project item logic distinct from PR-body logic.
 
 ## Branch
 **Branch name:** `task/066-project-item-body-from-task-file`
@@ -96,13 +91,23 @@ requirement-text clarification as part of its own implementation.
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: A newly created Project item's body summarizes the task file, not its full Description
-      Given a task file with `## Story` and `## Acceptance criteria` sections
-      When `_create_item()` creates a new Project item for that task (via any
-      of `sync_on_pr_draft`/`sync_on_pr_open`/`sync_on_pr_backfill`/`_start`)
+- [ ] Scenario: Project item body includes Story, Acceptance criteria, and task file link (no PR yet)
+      Given a task file with `## Story` and `## Acceptance criteria` sections,
+      and no PR exists yet for the task
+      When `_create_item()` creates a new Project item for that task (e.g. via
+      `sync_on_pr_draft`)
       Then the created item's body contains the task file's `## Story` section,
       its `## Acceptance criteria` section, and a link back to the task file,
-      and does NOT contain the `## Description` section's content
+      and does NOT contain the `## Description` section's content or a PR link
+
+- [ ] Scenario: Project item body includes PR link when a PR exists
+      Given a task file with `## Story` and `## Acceptance criteria` sections,
+      and a PR exists for the task
+      When `_create_item()` creates a new Project item for that task (e.g. via
+      `sync_on_pr_open`, `sync_on_pr_backfill`, or `_start`)
+      Then the created item's body contains the task file's `## Story` section,
+      its `## Acceptance criteria` section, a link back to the task file, and
+      a link to the PR, and does NOT contain the `## Description` section's content
 
 - [ ] Scenario: Missing task file falls back to the existing title-only behavior
       Given `tasks_dir` is unset, or no task file can be located for the task
@@ -121,20 +126,18 @@ requirement-text clarification as part of its own implementation.
   already-converted real Issues #65–#72, or any other existing item, is not
   part of this task).
 - Any change to how `open_pr_for()`/`_pr_body()` build PR bodies — this task
-  only extends the Project-item path to reuse the same extraction logic/
-  section boundaries.
+  only extends the Project-item path to use a separate extraction logic
+  (Story + Acceptance criteria, never Description).
 - Any change to the "Convert to issue" board behavior itself (that's a
   GitHub Projects UI action, not something `butler` controls).
 
 ## Blockers
-- [ ] Requirement 4's synced-metadata scope ("TASK-ID, title, status") needs
-  a Requirements Drafter round and explicit user confirmation to add body
-  content before implementation may begin.
+None
 
 ## Completion
 **Date:**
 **Summary:**
 **Files changed:**
 **Branch:** `git checkout task/066-project-item-body-from-task-file`
-**Stage:** `git add docs/tasks/TASK-066-project-item-body-from-task-file.md`
+**Stage:** `git add REQUIREMENTS_TASK_WORKFLOW.md docs/tasks/TASK-066-project-item-body-from-task-file.md src/butler_core/projects.py tests/test_projects.py CHANGELOG.md`
 **Commit:** `git commit -m "Fix GitHub Projects item body being empty instead of coming from the task file"`
