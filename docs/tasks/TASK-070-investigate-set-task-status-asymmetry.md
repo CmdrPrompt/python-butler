@@ -1,7 +1,7 @@
 # TASK-070 Investigate the `set_task_status` MCP/CLI asymmetry
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 10 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -78,6 +78,66 @@ task):** `mcp/server.py` and/or `src/butler_cli/__main__.py`,
 documentation, `REQUIREMENTS_TASK_WORKFLOW.md` (new/amended requirement,
 pending Requirements Drafter + user confirmation).
 
+**Investigation findings (2026-08-01):**
+
+- **Origin:** `set_task_status` was not added separately or later — it
+  shipped with the very first MCP server implementation (TASK-025,
+  commit `d682e2b`, 2026-07-08), as one of the 10 tools REQUIREMENTS_MCP.md
+  Requirement 7 explicitly lists (`set_task_status(task_id, status)`).
+  TASK-025's own Completion notes give no rationale beyond "implement all
+  10 required tools" — no gating or governance discussion.
+- **The asymmetry is baked into the requirements document itself, not code
+  drift:** REQUIREMENTS_MCP.md's Requirement 4 defines `check_criterion`
+  and `set_status` together as one pair of `butler_core` functions.
+  Requirement 6 (CLI)'s example command list includes `task check` (the
+  first of the pair) but omits a `task set-status` equivalent; Requirement
+  7 (MCP)'s tool list includes both `check_acceptance_criterion` and
+  `set_task_status`. This looks like an oversight in Requirement 6's
+  example rather than an intentional decision — nothing in the spec
+  explains why the CLI would deliberately exclude just one half of
+  Requirement 4's pair.
+- **Workflow Guardian's own docs never reference the tool:** neither
+  `.claude/agents/workflow-guardian.agent.md` nor
+  `templates/workflow-guardian.agent.md.tmpl` mentions `set_task_status`
+  (or `set-status`) anywhere. Guardian's documented procedure — "At task
+  start, set task Status to `in-progress`... At completion, set Status to
+  `done`" — predates the MCP server (present in the template since the
+  initial commit, 2026-04-16) and was written assuming direct file edits,
+  not a dedicated command on any interface.
+- **The `make`/CLI path has no Status-transition command either — it's a
+  hand-edit today:** confirmed against this repo's own recent history
+  (TASK-069's Status flip to `done` was a hand-edit to the task file,
+  included in the same commit as the implementation, committed via `make
+  commit-current-task` like any other file change — not a dedicated
+  command). So the real comparison isn't "MCP has an ungated shortcut the
+  CLI lacks" — it's "MCP has a *structured tool* for an edit that, on
+  every interface including MCP, has always been technically ungated
+  (nothing anywhere verifies acceptance criteria or tests before a Status
+  edit is written and committed)." The gate has always been procedural
+  (Workflow Guardian's own diligence before it writes/commits that line),
+  not technical, on any of the three interfaces.
+- **Requirement 10 (TASK-067)'s interchangeability claim doesn't strictly
+  cover this:** its text lists "branch/stage/commit/pr/merge, task-file
+  sync" as the operations guaranteed across all three interfaces — a
+  Status transition isn't literally named. So this asymmetry isn't a
+  violation of Requirement 10's letter, even though it is in tension with
+  its spirit (the three interfaces being otherwise-equivalent).
+
+**Recommendation: Option 1 (add CLI parity), not Option 2 or 3.** Reasoning:
+removing/gating the MCP tool (Option 2) wouldn't add any real safety, since
+the same ungated edit is already possible today via a plain file edit on
+the make/CLI path — there is nothing to "close" there that isn't already
+open elsewhere. Leaving it as-is (Option 3) would let a known spec
+inconsistency (Requirement 6 vs. Requirement 4/7) stand unremarked. Adding
+a `butler task set-status <ID> <status>` CLI subcommand — a thin wrapper
+over the already-existing, already-tested `butler_core.tasks.set_status`,
+mirroring `task check`'s existing pattern — closes the parity gap the same
+way TASK-068 closed the GitHub-Projects-sync one, and incidentally also
+gives `make` a symmetric target opportunity. This needs a small
+Requirements Drafter round to add `task set-status` to REQUIREMENTS_MCP.md
+Requirement 6's example list before implementation, per CLAUDE.md's
+spec-driven rule — not done in this investigation task.
+
 ## Branch
 **Branch name:** `task/070-investigate-set-task-status-asymmetry`
 **Switch/create:** `git checkout -b task/070-investigate-set-task-status-asymmetry`
@@ -85,14 +145,14 @@ pending Requirements Drafter + user confirmation).
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: The origin and intended use of `set_task_status` is established
+- [x] Scenario: The origin and intended use of `set_task_status` is established
       Given `mcp/server.py`'s `set_task_status` tool
       When this task is worked
       Then its git history/commit message and any related task file's
       Completion notes are checked, and the intended use (if any) is
       recorded, rather than assumed
 
-- [ ] Scenario: A recommendation is presented for user confirmation before any requirement text is written
+- [x] Scenario: A recommendation is presented for user confirmation before any requirement text is written
       Given the three candidate directions described above
       When the findings are ready
       Then the user is presented with a clear recommendation and tradeoffs,
@@ -111,9 +171,25 @@ pending Requirements Drafter + user confirmation).
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-01
+**Summary:** Investigated `set_task_status`'s origin (shipped with the
+original MCP server, TASK-025, per REQUIREMENTS_MCP.md Requirement 7's
+tool list) and found the CLI-side gap traces back to Requirement 6's
+example command list omitting `task set-status` while Requirement 4 defines
+`check_criterion`/`set_status` as a pair and Requirement 7 (MCP) includes
+both — a spec inconsistency, not a deliberate governance decision.
+Confirmed Workflow Guardian's own docs never reference the tool, and that
+the `make`/CLI path has no Status-transition command either (it's always
+been a hand-edit to the task file, committed normally) — so the technical
+gate on Status transitions is equally absent on every interface today;
+only Guardian's own procedural diligence gates it anywhere. Presented three
+options to the user; **confirmed: add CLI parity** (`butler task set-status
+<ID> <status>`, thin wrapper over the existing `butler_core.tasks.set_status`).
+Per CLAUDE.md's spec-driven rule, implementation is a separate follow-up
+task, gated on a Requirements Drafter round adding `task set-status` to
+REQUIREMENTS_MCP.md Requirement 6's example list first.
 **Files changed:**
+- `docs/tasks/TASK-070-investigate-set-task-status-asymmetry.md` - findings, recommendation, completion
 **Branch:** `git checkout task/070-investigate-set-task-status-asymmetry`
 **Stage:** `git add docs/tasks/TASK-070-investigate-set-task-status-asymmetry.md`
 **Commit:** `git commit -m "Investigate the set_task_status MCP/CLI asymmetry"`
