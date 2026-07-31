@@ -21,6 +21,15 @@ Tasks live in `docs/tasks/TASK-XXX-short-description.md`. See the {{WORKFLOW_GUA
 agent (`.github/agents/workflow-guardian.agent.md`) for the task file format and full
 workflow enforcement.
 
+{{WORKFLOW_GUARDIAN_NAME}}'s rules apply automatically to any task-branch/
+requirements/TDD work in this repository — they are a standing constraint,
+not optional guidance to consult only when the agent is explicitly
+`@`-mentioned. The underlying operations (branch/stage/commit/pr/merge,
+task-file sync) may be performed via the `make` targets below, the
+installed `butler` CLI directly, or the `butler-mcp` MCP server —
+whichever is available/configured — interchangeably; what is never
+allowed is bypassing all three with a raw `git`/`gh` command.
+
 **Branch policy:** Every task runs on its own `task/<NNN>-short-description` branch.
 Never commit implementation work on `main`.
 

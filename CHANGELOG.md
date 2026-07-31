@@ -4,6 +4,13 @@
 
 ### Added
 
+- The generated `CLAUDE.md`'s "Task Management" section now states that
+  Workflow Guardian's rules apply automatically to task-branch/requirements/
+  TDD work, independent of explicit `@`-mention invocation, and that the
+  underlying operations may be performed via `make` targets, the `butler`
+  CLI, or the `butler-mcp` MCP server interchangeably — the constraint is on
+  never bypassing all three with a raw `git`/`gh` command, not on which one
+  is used. (TASK-067)
 - `make branch-task` now syncs the task's GitHub Projects item to Status
   "In Progress" as soon as the task branch is created or switched to, via a
   new `--stage start` on `butler task sync-project` (alongside the existing
