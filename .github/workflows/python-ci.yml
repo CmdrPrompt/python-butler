@@ -1,0 +1,49 @@
+name: Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version to set up"
+        type: string
+        required: true
+      install-command:
+        description: "Command to install dependencies"
+        type: string
+        required: true
+      lint-command:
+        description: "Command to run linting"
+        type: string
+        required: true
+      test-command:
+        description: "Command to run tests"
+        type: string
+        required: true
+      audit-command:
+        description: "Command to run a dependency audit (optional; skipped if omitted)"
+        type: string
+        required: false
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install
+        run: ${{ inputs.install-command }}
+
+      - name: Lint
+        run: ${{ inputs.lint-command }}
+
+      - name: Test
+        run: ${{ inputs.test-command }}
+
+      - name: Audit
+        if: ${{ inputs.audit-command != '' }}
+        run: ${{ inputs.audit-command }}

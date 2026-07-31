@@ -32,6 +32,13 @@
 
 ### Added
 
+- A reusable `.github/workflows/python-ci.yml` (`workflow_call`) now exists in this repo, accepting
+  the `python-version`, `install-command`, `lint-command`, `test-command`, and optional
+  `audit-command` inputs that consumer repos (e.g. `firefly-bank-importer`) already pass. Consumer
+  workflows can repoint their `uses:` from the renamed `python-commons` repo to
+  `CmdrPrompt/python-butler/.github/workflows/python-ci.yml@main` with no changes to their `with:`
+  block, restoring real lint/test/audit enforcement on their pull requests, which had been failing
+  instantly since the file never existed in either repo. (TASK-058)
 - Added a best-effort, one-way sync of task metadata to a linked GitHub Projects (v2) item: a new
   `butler task sync-project <task_id> --stage open|merge` command (backed by `butler_core.projects`,
   kept separate from `git_ops.py`) creates or links a Project item populated with the TASK-ID and
