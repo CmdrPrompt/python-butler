@@ -107,6 +107,18 @@ file only defines what YOU gate and verify on top of them:
   the ONLY condition under which you author task content beyond Status and
   Completion.
 
+1. GitHub Projects draft sync gate
+- Immediately after merging Task Drafter's worktree branch and committing the
+  produced task file(s), run `butler task sync-project <TASK-ID> --stage draft`
+  for each new/modified task file, resolving the target repo's
+  `.butler-project` file (falling back to `BUTLER_GITHUB_PROJECT`) per
+  Requirement 6 of REQUIREMENTS_TASK_WORKFLOW.md.
+- This is best-effort: a sync failure (no Project configured, `gh` not
+  authenticated, etc.) prints a warning and never blocks the merge or the rest
+  of the workflow.
+- Task Drafter itself never performs this step — it has no Bash/GitHub
+  access; syncing is exclusively your responsibility as Workflow Guardian.
+
 1. Dedicated task branch gate
 - Every task must have a task file in docs/tasks/TASK-XXX-*.md.
 - Ensure work is on the dedicated branch from task metadata (task/NNN-short-description), not on main.
@@ -250,7 +262,9 @@ you perform the `in-progress` and `done` transitions.
    fields; only the current TASK-ID is implemented on this branch. If any task is
    `blocked`, stop and resolve the blockers with the user (usually a new Requirements
    Drafter round, followed by a Task Drafter round to update the task file) before
-   proceeding.
+   proceeding. Then, for each new/modified task file, run `butler task
+   sync-project <TASK-ID> --stage draft` (best-effort; see the GitHub Projects
+   draft sync gate).
 7. Record current test coverage percentage as the task-start baseline by running
    `make test` NOW — after the requirements and task-file commits, immediately before
    implementation — so the baseline measures the same code state implementation

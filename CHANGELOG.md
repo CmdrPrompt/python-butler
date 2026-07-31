@@ -45,6 +45,17 @@
 
 ### Added
 
+- The GitHub Projects sync now resolves its target Project from a repo-local `.butler-project`
+  file (plain text, contents = the Project number) in the target repo's root, checked before
+  falling back to the `BUTLER_GITHUB_PROJECT` environment variable — so which Project a task
+  syncs to no longer depends on the invoking shell's environment, which broke down when an agent
+  (e.g. Task Drafter) writes a task file into a different local repo than the one it's running
+  in. The "no project configured" warning now offers creating `.butler-project` alongside
+  `export BUTLER_GITHUB_PROJECT=...`. `butler task sync-project <id> --stage draft` is a new
+  stage (behaving like `--stage open`) that Workflow Guardian now runs immediately after merging
+  Task Drafter's worktree branch, best-effort, so a task shows up on the Project board as soon as
+  it's drafted rather than only once its PR is opened; Task Drafter's own tool set is unchanged
+  (still no `gh`/GitHub access). (TASK-060)
 - A reusable `.github/workflows/python-ci.yml` (`workflow_call`) now exists in this repo, accepting
   the `python-version`, `install-command`, `lint-command`, `test-command`, and optional
   `audit-command` inputs that consumer repos (e.g. `firefly-bank-importer`) already pass. Consumer

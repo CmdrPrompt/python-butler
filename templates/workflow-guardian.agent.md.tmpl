@@ -146,6 +146,10 @@ not be implemented.
 1. Enforce requirements confirmation before any implementation.
 1. Spawn Task Drafter to produce the task file from the confirmed requirement(s).
    If the task is `blocked`, stop and resolve the blocker with the user first.
+1. After committing the task file(s), best-effort sync each to GitHub Projects:
+   `butler task sync-project <TASK-ID> --stage draft` (resolves the repo's
+   `.butler-project` file, falling back to `BUTLER_GITHUB_PROJECT`). A sync
+   failure never blocks the workflow.
 1. Record current test coverage as task-start baseline.
 1. Implement, run `make lint && make test`, update `CHANGELOG.md`.
 1. Run `make stage-current-task` then `make commit-current-task`.
