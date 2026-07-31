@@ -26,6 +26,13 @@
   GitHub Projects sync stages, which previously had no `make` entry point
   and were only reachable via the raw `butler task sync-project` CLI call —
   `make` is now a complete interface to all five sync stages. (TASK-069)
+- The `butler-mcp` MCP server now exposes a `sync_project_task(task_id,
+  stage)` tool covering all five GitHub Projects sync stages
+  (`open`/`merge`/`draft`/`backfill`/`start`), matching what `butler task
+  sync-project --stage <x>` already does via the CLI — an MCP-only agent
+  with no shell access can now reach Workflow Guardian's GitHub Projects
+  sync gate. Like the CLI, it's best-effort and returns the sync's
+  success/message instead of raising. (TASK-068)
 
 ### Fixed
 
