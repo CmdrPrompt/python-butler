@@ -390,6 +390,63 @@ make branch-task f=TASK-062
 # out -- so the new branch never accidentally carries task/061's commits
 ```
 
+## Requirement 8: Backfill sync for historical tasks (`--stage backfill`)
+
+**Description:** Tasks completed before Requirement 6's draft-stage sync
+existed (e.g. TASK-001 through TASK-059) have no corresponding GitHub
+Projects item, or one whose Status/date fields don't reflect the task's
+actual history — `sync-project` has only ever run at present-day
+open/draft/merge time, so a backfilled item would otherwise carry today's
+date and whatever Status the default `gh project item-create` leaves it at,
+not the task's real completion history.
+
+A new sync stage, `--stage backfill`, MUST exist alongside `open`/`draft`/
+`merge`. Given a single task ID, it MUST:
+
+1. Create/link a Project item for the task (same as `--stage open`/`draft`).
+2. Set the item's "Status" field to match the task file's own `## Status`
+   value (e.g. `todo`, `in-progress`, `done`), generalizing the existing
+   Done-only resolution (`_resolve_status_done_field_ids`) to resolve any
+   status option by name (case-insensitively, `-` treated as a space, e.g.
+   `in-progress` matches an option named "In Progress") instead of
+   hardcoding "Done".
+3. If the configured Project has a "Created" date field, set it to the git
+   commit date the task file was first added (earliest commit touching the
+   file, `git log --diff-filter=A --follow`).
+4. If the configured Project has a "Closed" date field and the task's
+   status is `done`, set it to the task file's own Completion date (`##
+   Completion` / `**Date:**`) when present and parseable as a date;
+   otherwise fall back to the git commit date of the task file's most
+   recent commit. If the status is not `done`, the "Closed" field MUST be
+   left unset.
+
+A missing "Created" or "Closed" field on the configured Project MUST NOT
+fail the sync — each is set independently and silently skipped if the
+field doesn't exist, since backfill date-enrichment is opportunistic, not
+required. A missing "Status" field/option, and complete Project-resolution
+failure, continue to follow Requirement 4's best-effort warning contract
+(warn, never raise, never block).
+
+Backfill is invoked per task ID, the same way `open`/`draft`/`merge` are —
+looping over every file in `docs/tasks/` to backfill a whole repo's history
+in one command is out of scope for this requirement; a maintainer (or an
+external one-off script) calls it once per historical task ID.
+
+**Use case:**
+
+```bash
+butler task sync-project TASK-012 --stage backfill
+# Resolves the Project (.butler-project / BUTLER_GITHUB_PROJECT), creates/
+# links a Project item, sets Status to whatever TASK-012's ## Status
+# section says, sets "Created" to the date TASK-012's task file was first
+# committed, and -- since TASK-012's status is done -- sets "Closed" to its
+# Completion date:
+#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: Done, created: 2026-03-02, closed: 2026-03-05)
+# If the Project has no "Created"/"Closed" date fields, those are silently
+# skipped and only Status is set:
+#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: Done)
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -448,4 +505,14 @@ make branch-task f=TASK-062
       working tree stays on the task branch.
 - [ ] `branch_for`, when creating a new task branch, fetches and bases it on
       `origin/main` rather than on the currently checked-out branch.
+- [ ] A `--stage backfill` option exists on the sync entry point: it
+      creates/links a Project item, sets Status to the task file's own `##
+      Status` value (any status option, not just Done), sets a "Created"
+      date field (if present on the Project) to the task file's first-commit
+      date, and sets a "Closed" date field (if present and the task is done)
+      to the task's Completion date, falling back to the file's most recent
+      commit date when the Completion date is absent/unparseable.
+- [ ] Missing "Created"/"Closed" date fields on the Project are silently
+      skipped by `--stage backfill` without producing a warning; a missing
+      "Status" field/option still follows Requirement 4's warning contract.
       Switching to an existing task branch is unaffected.
