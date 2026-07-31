@@ -12,7 +12,16 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from butler_core import git_ops
+from butler_core import projects as core_projects
 from butler_core import tasks as core_tasks
+
+_SYNC_STAGE_FUNCTION_NAMES = {
+    "open": "sync_on_pr_open",
+    "merge": "sync_on_pr_merge",
+    "draft": "sync_on_pr_draft",
+    "backfill": "sync_on_pr_backfill",
+    "start": "sync_on_pr_start",
+}
 
 app = FastMCP("butler")
 
@@ -96,6 +105,17 @@ def merge_task_pr(task_id: str) -> dict[str, str]:
     """Squash-merge the task's open PR and pull main."""
     git_ops.merge_pr_for(core_tasks.read_task(task_id))
     return {"task_id": task_id, "result": "merged"}
+
+
+@app.tool()
+def sync_project_task(task_id: str, stage: str) -> dict[str, Any]:
+    """Sync a task's metadata to its linked GitHub Projects item for the
+    given stage (open/merge/draft/backfill/start). Best-effort: never
+    raises, returns the sync's success flag and message instead.
+    """
+    sync_function = getattr(core_projects, _SYNC_STAGE_FUNCTION_NAMES[stage])
+    result = sync_function(core_tasks.read_task(task_id))
+    return {"task_id": task_id, "success": result.success, "message": result.message}
 
 
 if __name__ == "__main__":

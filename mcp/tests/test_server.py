@@ -21,6 +21,7 @@ EXPECTED_TOOL_NAMES = {
     "commit_task",
     "open_pr_for_task",
     "merge_task_pr",
+    "sync_project_task",
 }
 
 
@@ -56,7 +57,7 @@ def tasks_dir(tmp_path, monkeypatch):
     return directory
 
 
-def test_registers_exactly_the_ten_required_tools():
+def test_registers_exactly_the_required_tools():
     tool_names = {tool.name for tool in asyncio.run(server.app.list_tools())}
 
     assert tool_names == EXPECTED_TOOL_NAMES
@@ -151,3 +152,76 @@ def test_action_tool_invokes_only_its_own_git_ops_function_once(
     assert not other_calls, (
         f"{tool.__name__} unexpectedly triggered other git_ops functions: {other_calls}"
     )
+
+
+_SYNC_STAGE_CASES = [
+    ("open", "sync_on_pr_open"),
+    ("merge", "sync_on_pr_merge"),
+    ("draft", "sync_on_pr_draft"),
+    ("backfill", "sync_on_pr_backfill"),
+    ("start", "sync_on_pr_start"),
+]
+
+_SYNC_FUNCTION_NAMES = tuple(name for _, name in _SYNC_STAGE_CASES)
+
+
+@pytest.mark.parametrize("stage, target_function_name", _SYNC_STAGE_CASES)
+def test_sync_project_task_dispatches_only_the_stage_s_sync_function(
+    tasks_dir, monkeypatch, stage, target_function_name
+):
+    from butler_core.projects import SyncResult
+
+    _write_task(tasks_dir, "TASK-001")
+    calls: dict[str, list[str]] = {name: [] for name in _SYNC_FUNCTION_NAMES}
+    for name in _SYNC_FUNCTION_NAMES:
+        monkeypatch.setattr(
+            server.core_projects,
+            name,
+            lambda task, _name=name, **_kwargs: (
+                calls[_name].append(task.id),
+                SyncResult(success=True, message=f"synced via {_name}"),
+            )[1],
+        )
+
+    result = server.sync_project_task("TASK-001", stage)
+
+    assert calls[target_function_name] == ["TASK-001"], (
+        f"expected {target_function_name} to be called exactly once with TASK-001"
+    )
+    other_calls = {
+        name: invocations
+        for name, invocations in calls.items()
+        if name != target_function_name and invocations
+    }
+    assert not other_calls, (
+        f"sync_project_task(stage={stage!r}) unexpectedly triggered other sync functions: "
+        f"{other_calls}"
+    )
+    assert result == {
+        "task_id": "TASK-001",
+        "success": True,
+        "message": f"synced via {target_function_name}",
+    }
+
+
+def test_sync_project_task_returns_warning_instead_of_raising_on_sync_failure(
+    tasks_dir, monkeypatch
+):
+    from butler_core.projects import SyncResult
+
+    _write_task(tasks_dir, "TASK-001")
+    monkeypatch.setattr(
+        server.core_projects,
+        "sync_on_pr_open",
+        lambda task, **_kwargs: SyncResult(
+            success=False, message="Warning: could not sync TASK-001 to GitHub Projects"
+        ),
+    )
+
+    result = server.sync_project_task("TASK-001", "open")
+
+    assert result == {
+        "task_id": "TASK-001",
+        "success": False,
+        "message": "Warning: could not sync TASK-001 to GitHub Projects",
+    }

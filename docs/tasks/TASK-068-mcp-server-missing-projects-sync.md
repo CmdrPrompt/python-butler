@@ -62,27 +62,27 @@ tool invocation).
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: MCP exposes a way to run every sync-project stage
+- [x] Scenario: MCP exposes a way to run every sync-project stage
       Given the MCP server (`mcp/server.py`)
       When its tool list is inspected
       Then a tool (or tools) exist covering all five stages
       (`open`/`merge`/`draft`/`backfill`/`start`) that
       `butler task sync-project --stage <x>` already covers via the CLI
 
-- [ ] Scenario: The new tool(s) return the sync's best-effort result, never raise
+- [x] Scenario: The new tool(s) return the sync's best-effort result, never raise
       Given a task with no configured GitHub Project (or any other
       best-effort sync failure condition per Requirement 4)
       When the MCP tool is invoked for that task
       Then it returns the sync's warning/result message rather than raising
       an unhandled exception, matching the CLI's `SyncResult` handling
 
-- [ ] `mcp/tests/test_server.py`'s `EXPECTED_TOOL_NAMES` is updated and new
+- [x] `mcp/tests/test_server.py`'s `EXPECTED_TOOL_NAMES` is updated and new
       test coverage exists for the added tool(s)
 
-- [ ] make lint && make test pass (both this repo's own suite and, if the
+- [x] make lint && make test pass (both this repo's own suite and, if the
       MCP package has its own `pytest` run, that one too)
 
-- [ ] CHANGELOG.md updated
+- [x] CHANGELOG.md updated
 
 ## Out of scope
 - Changing the CLI's or Makefile's existing sync-project behavior — this
@@ -97,9 +97,25 @@ tool invocation).
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-01
+**Summary:** Added a single `sync_project_task(task_id, stage)` MCP tool
+wrapping `butler_core.projects.sync_on_pr_open/_merge/_draft/_backfill/
+_start`, mirroring the CLI's `sync-project --stage <x>` shape rather than
+five separate tools, since MCP already has a `--stage`-style dispatch
+precedent to follow and it keeps the tool count matched 1:1 with the CLI
+subcommand. Best-effort: never raises, returns `{task_id, success,
+message}`. While completing this task's workflow steps, found and filed a
+separate bug (TASK-072): `butler_core.tasks._section()`'s heading regex
+doesn't match the `## Acceptance criteria (Gherkin)` heading used by every
+task file since TASK-043, so `read_task`/`list_tasks`/MCP's `get_task`
+always report empty `acceptance_criteria` for those files even though
+`check_criterion`/the GitHub Projects item body are unaffected and worked
+correctly here.
 **Files changed:**
+- `mcp/server.py` - added `sync_project_task` tool and `_SYNC_STAGE_FUNCTION_NAMES` dispatch table
+- `mcp/tests/test_server.py` - added `EXPECTED_TOOL_NAMES` entry and dispatch/best-effort coverage
+- `CHANGELOG.md` - documented the new tool
+- `docs/tasks/TASK-068-mcp-server-missing-projects-sync.md` - checked off acceptance criteria, completion
 **Branch:** `git checkout task/068-mcp-server-missing-projects-sync`
 **Stage:** `git add mcp/server.py mcp/tests/test_server.py CHANGELOG.md docs/tasks/TASK-068-mcp-server-missing-projects-sync.md`
 **Commit:** `git commit -m "Add GitHub Projects sync tools to the MCP server"`
