@@ -1,7 +1,7 @@
 # TASK-065 Start-of-implementation sync sets Status to "In Progress" (`--stage start`)
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 9 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -71,34 +71,34 @@ $(TASKS_DIR) task sync-project $(f) --stage start` line after the existing
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: `--stage start` creates and links a Project item
+- [x] Scenario: `--stage start` creates and links a Project item
       Given a task file has no linked Project item yet, and a GitHub Project is resolvable (via `.butler-project` or `BUTLER_GITHUB_PROJECT`)
       When `butler task sync-project <id> --stage start` runs
       Then a Project item is created and linked for the task
 
-- [ ] Scenario: `--stage start` reuses an existing linked item instead of creating a duplicate
+- [x] Scenario: `--stage start` reuses an existing linked item instead of creating a duplicate
       Given a task already has a linked Project item (matched by TASK-ID title prefix)
       When `butler task sync-project <id> --stage start` runs
       Then no new item is created — the existing item is reused
 
-- [ ] Scenario: `--stage start` sets Status to "In Progress"
+- [x] Scenario: `--stage start` sets Status to "In Progress"
       Given a Project with a "Status" field containing an option named "In Progress" is resolvable
       When `butler task sync-project <id> --stage start` runs
       Then the Project item's Status is set to "In Progress"
 
-- [ ] Scenario: Missing "Status" field or "In Progress" option warns without blocking
+- [x] Scenario: Missing "Status" field or "In Progress" option warns without blocking
       Given a Project is resolvable but has no "Status" field, or no option matching "In Progress"
       When `butler task sync-project <id> --stage start` runs
       Then the sync returns a best-effort warning and does not raise
 
-- [ ] Scenario: `make branch-task` invokes the start-stage sync after creating/switching the branch
+- [x] Scenario: `make branch-task` invokes the start-stage sync after creating/switching the branch
       Given a task ID and a configured GitHub Project
       When `make branch-task f=<id>` runs
       Then `butler task branch <id>` runs first, followed by `butler task sync-project <id> --stage start`, and the sync step's own failure does not fail the `make` target
 
-- [ ] make lint && make test pass
+- [x] make lint && make test pass
 
-- [ ] CHANGELOG.md updated
+- [x] CHANGELOG.md updated
 
 ## Out of scope
 - Changing `--stage draft`/`--stage open`/`--stage merge`/`--stage backfill`
@@ -116,9 +116,31 @@ $(TASKS_DIR) task sync-project $(f) --stage start` line after the existing
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-07-31
+**Summary:** Added `sync_on_pr_start`/`_start` in `src/butler_core/projects.py`:
+creates/links a Project item by reusing `_create_item`'s existing
+lookup-then-reuse behavior (TASK-063), then sets its Status to "In
+Progress" via a new shared `_set_status` helper (also refactored
+`_update_status_done` onto it, removing the now-redundant
+`_resolve_status_done_field_ids` wrapper in favor of calling
+`_resolve_status_option_field_ids` directly with the target status name).
+Wired `"start"` into the CLI's `--stage` argparse choices and
+`_cmd_sync_project`. `make branch-task` now runs `-butler ... task
+sync-project $(f) --stage start` as a non-blocking added step right after
+`butler task branch`, mirroring how `--stage open`/`--stage merge` are
+already added steps in `pr-task`/`merge-pr`. Re-synced
+`src/butler_core/data/Makefile` (the bundled copy) from the root Makefile
+to keep `test_bundled_makefile_matches_repo_root_makefile` passing.
 **Files changed:**
+- `REQUIREMENTS_TASK_WORKFLOW.md` - modified (Requirement 9, from prior turn)
+- `src/butler_core/projects.py` - modified
+- `src/butler_cli/__main__.py` - modified
+- `Makefile` - modified
+- `src/butler_core/data/Makefile` - modified
+- `tests/test_projects_start_stage.py` - created
+- `tests/test_projects_makefile_integration.py` - modified
+- `CHANGELOG.md` - modified
+- `docs/tasks/TASK-065-start-of-implementation-sync.md` - modified
 **Branch:** `git checkout task/065-start-of-implementation-sync`
-**Stage:** `git add src/butler_core/projects.py src/butler_cli/__main__.py Makefile tests/test_projects*.py CHANGELOG.md docs/tasks/TASK-065-start-of-implementation-sync.md`
+**Stage:** `git add src/butler_core/projects.py src/butler_cli/__main__.py Makefile src/butler_core/data/Makefile tests/test_projects*.py CHANGELOG.md docs/tasks/TASK-065-start-of-implementation-sync.md`
 **Commit:** `git commit -m "Add --stage start for syncing GitHub Project item status to In Progress when implementation begins"`

@@ -211,6 +211,7 @@ check-butler:
 branch-task: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make branch-task f=<task-id>"; exit 1)
 	butler --tasks-dir $(TASKS_DIR) task branch $(f)
+	-butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage start
 
 ## Merge main into the current task branch (sync before coding)
 sync-main:
