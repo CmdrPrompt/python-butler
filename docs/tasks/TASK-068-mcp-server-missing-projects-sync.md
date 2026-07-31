@@ -1,7 +1,7 @@
 # TASK-068 MCP server has no tools for the GitHub Projects sync
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 4, Requirement 10 (REQUIREMENTS_TASK_WORKFLOW.md)
