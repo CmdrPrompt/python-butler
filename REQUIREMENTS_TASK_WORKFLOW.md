@@ -322,6 +322,19 @@ best-effort contract as Requirement 4: a failure MUST produce a warning and
 MUST NOT block the merge of Task Drafter's branch or fail Workflow
 Guardian's run.
 
+A standalone `make sync-project-draft f=<TASK-ID>` target MUST also exist as
+a thin wrapper around `butler --tasks-dir $(TASKS_DIR) task sync-project
+$(f) --stage draft` (same `f=`-argument and `check-butler` convention as
+`stage-task`/`commit-task`), so that Workflow Guardian's draft-stage step
+above, and any maintainer running the workflow entirely through `make`, has
+a `make` entry point for this stage — mirroring the wiring Requirement 9
+already mandates for `--stage start`, except invoked standalone (via `f=`)
+rather than as an automatic added step of an existing target, since
+`--stage draft` runs before a task branch exists and has no existing `make`
+target to attach to. Like every other sync invocation, this stays a direct,
+single `butler` call in the target's recipe — it MUST NOT call back into
+`make` itself, preserving Requirement 1's non-recursive architecture.
+
 **Use case:**
 
 ```bash
@@ -437,6 +450,16 @@ Backfill is invoked per task ID, the same way `open`/`draft`/`merge` are —
 looping over every file in `docs/tasks/` to backfill a whole repo's history
 in one command is out of scope for this requirement; a maintainer (or an
 external one-off script) calls it once per historical task ID.
+
+A standalone `make sync-project-backfill f=<TASK-ID>` target MUST also
+exist, as a thin wrapper around `butler --tasks-dir $(TASKS_DIR) task
+sync-project $(f) --stage backfill` (same `f=`-argument and `check-butler`
+convention as `stage-task`/`commit-task`), so a maintainer backfilling
+historical tasks (or scripting a one-off loop over several) can do so
+through `make` alone rather than only the raw CLI. As with every other
+sync-stage target, this is a single, direct `butler` call in the target's
+recipe with no call back into `make`, preserving Requirement 1's
+non-recursive architecture.
 
 **Use case:**
 

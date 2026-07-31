@@ -1,5 +1,6 @@
 .PHONY: all help setup install lint check-agents-sync validate-agents check-butler fix stage branch-task sync-main stage-task commit-task \
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
+        sync-project-draft sync-project-backfill \
 	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
 	butler-fetch butler-pull butler-check butler-uninstall
@@ -228,6 +229,16 @@ stage-task: check-butler
 commit-task: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make commit-task f=<task-id>"; exit 1)
 	butler --tasks-dir $(TASKS_DIR) task commit $(f)
+
+## Sync a task to its GitHub Projects item at the draft stage: make sync-project-draft f=TASK-001
+sync-project-draft: check-butler
+	@[ -n "$(f)" ] || (echo "Usage: make sync-project-draft f=<task-id>"; exit 1)
+	-butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage draft
+
+## Sync a historical task to its GitHub Projects item, backfilling status/dates: make sync-project-backfill f=TASK-001
+sync-project-backfill: check-butler
+	@[ -n "$(f)" ] || (echo "Usage: make sync-project-backfill f=<task-id>"; exit 1)
+	-butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage backfill
 
 ## Auto-fix and stage files for the current task branch
 stage-current-task:

@@ -143,3 +143,88 @@ class TestSyncInvokedAfterPrMerged:
         sync_line = sync_lines[0].strip().lstrip("@")
         detail = f"expected a non-blocking sync step ('-' or '|| true'), got: {sync_line!r}"
         assert sync_line.startswith("-") or "|| true" in sync_line, detail
+
+
+class TestStandaloneDraftSyncTarget:
+    """Scenario: A standalone `make` target reaches `--stage draft`
+    (TASK-069, extending Requirement 6)."""
+
+    def test_target_depends_on_check_butler(self) -> None:
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        target_line = next(
+            line
+            for line in makefile_text.splitlines()
+            if re.match(r"^sync-project-draft\s*:", line)
+        )
+        assert "check-butler" in target_line, (
+            f"expected sync-project-draft to depend on check-butler, got: {target_line!r}"
+        )
+
+    def test_target_invokes_the_draft_stage_via_the_f_argument(self) -> None:
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        recipe = _target_recipe(makefile_text, "sync-project-draft")
+        sync_lines = [line for line in recipe if "task sync-project" in line]
+
+        assert sync_lines, (
+            f"expected sync-project-draft recipe to invoke sync-project, got: {recipe}"
+        )
+        assert "--stage draft" in sync_lines[0], (
+            f"expected the sync-project-draft recipe to use --stage draft, got: {sync_lines[0]!r}"
+        )
+        assert "$(f)" in sync_lines[0], (
+            f"expected the sync-project-draft recipe to use the f= argument, got: {sync_lines[0]!r}"
+        )
+
+    def test_target_does_not_call_back_into_make(self) -> None:
+        """Non-recursion guard (TASK-043's invariant): the recipe must be a
+        single direct `butler` call, never `$(MAKE)`/`make` calling back
+        into the CLI target that could re-trigger this same step."""
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        recipe = _target_recipe(makefile_text, "sync-project-draft")
+        for line in recipe:
+            stripped = line.strip().lstrip("@").lstrip("-")
+            assert "$(MAKE)" not in stripped and not stripped.startswith("make "), (
+                f"sync-project-draft must not call back into make, got: {line!r}"
+            )
+
+
+class TestStandaloneBackfillSyncTarget:
+    """Scenario: A standalone `make` target reaches `--stage backfill`
+    (TASK-069, extending Requirement 8)."""
+
+    def test_target_depends_on_check_butler(self) -> None:
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        target_line = next(
+            line
+            for line in makefile_text.splitlines()
+            if re.match(r"^sync-project-backfill\s*:", line)
+        )
+        assert "check-butler" in target_line, (
+            f"expected sync-project-backfill to depend on check-butler, got: {target_line!r}"
+        )
+
+    def test_target_invokes_the_backfill_stage_via_the_f_argument(self) -> None:
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        recipe = _target_recipe(makefile_text, "sync-project-backfill")
+        sync_lines = [line for line in recipe if "task sync-project" in line]
+
+        assert sync_lines, (
+            f"expected sync-project-backfill recipe to invoke sync-project, got: {recipe}"
+        )
+        detail = (
+            f"expected --stage backfill in the sync-project-backfill recipe, got: {sync_lines[0]!r}"
+        )
+        assert "--stage backfill" in sync_lines[0], detail
+        detail = (
+            f"expected the f= argument in the sync-project-backfill recipe, got: {sync_lines[0]!r}"
+        )
+        assert "$(f)" in sync_lines[0], detail
+
+    def test_target_does_not_call_back_into_make(self) -> None:
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        recipe = _target_recipe(makefile_text, "sync-project-backfill")
+        for line in recipe:
+            stripped = line.strip().lstrip("@").lstrip("-")
+            assert "$(MAKE)" not in stripped and not stripped.startswith("make "), (
+                f"sync-project-backfill must not call back into make, got: {line!r}"
+            )

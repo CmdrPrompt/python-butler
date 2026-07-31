@@ -21,6 +21,11 @@
   failure (no Project configured, missing "Status"/"In Progress" field, `gh`
   not authenticated, etc.) is a best-effort warning that never blocks branch
   creation. (TASK-065)
+- New standalone `make sync-project-draft f=TASK-XXX` and `make
+  sync-project-backfill f=TASK-XXX` targets reach the `draft` and `backfill`
+  GitHub Projects sync stages, which previously had no `make` entry point
+  and were only reachable via the raw `butler task sync-project` CLI call —
+  `make` is now a complete interface to all five sync stages. (TASK-069)
 
 ### Fixed
 
