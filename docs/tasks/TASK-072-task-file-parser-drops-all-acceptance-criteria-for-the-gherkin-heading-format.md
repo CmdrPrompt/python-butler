@@ -1,7 +1,7 @@
 # TASK-072 Task-file parser drops all acceptance criteria for the Gherkin heading format
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 1 (REQUIREMENTS_MCP.md); BDD-025 (REQUIREMENTS_BDD.md)
