@@ -30,6 +30,19 @@
   cannot be determined (e.g. `gh` is not installed/authenticated, or there is no `origin` remote),
   the sync falls back to the previous generic warning with no example. (TASK-057)
 
+### Fixed
+
+- The GitHub Projects sync's merge-stage status update (`sync_on_pr_merge` /
+  `butler task sync-project <id> --stage merge`) now resolves the actual GraphQL node
+  IDs for the Project, its "Status" field, and the "Done" option (via `gh project
+  view`/`gh project field-list`) before calling `gh project item-edit`, instead of
+  passing the plain `BUTLER_GITHUB_PROJECT` number and the literal strings
+  "Status"/"Done" directly — which GitHub's API always rejected with a "could not
+  resolve to a node" error, so the merge-stage status update had never actually
+  succeeded against a real Projects v2 board. A Project missing a "Status" field or a
+  "Done" option now produces the existing best-effort warning instead of failing the
+  same way. (TASK-059)
+
 ### Added
 
 - A reusable `.github/workflows/python-ci.yml` (`workflow_call`) now exists in this repo, accepting
