@@ -453,6 +453,51 @@ butler task sync-project TASK-012 --stage backfill
 #   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: Done)
 ```
 
+## Requirement 9: Start-of-implementation sync sets Status to "In Progress" (`--stage start`)
+
+**Description:** A task's linked GitHub Projects item currently only moves
+past the Project's default column at `--stage merge` (Status -> Done) or via
+a one-off `--stage backfill` run. Between `--stage draft`/`--stage open` and
+the merge, the item sits at whatever the Project's default Status option is
+(e.g. "Todo"), even while a maintainer has already started implementing the
+task on its branch — the Project board does not reflect that work is
+actually in progress until it is finished.
+
+A new sync stage, `--stage start`, MUST exist alongside `draft`/`open`/
+`merge`/`backfill`. It MUST create/link a Project item for the task (same
+lookup-then-reuse behavior as the other stages, per Requirement 4's "link"
+clarification) and set the item's "Status" field to the option matching
+"In Progress", using the same generalized status-option resolution
+`--stage backfill` already uses (`_resolve_status_option_field_ids`) rather
+than a new hardcoded lookup. A missing "Status" field or "In Progress"
+option on the configured Project MUST follow Requirement 4's best-effort
+warning contract (warn, never raise, never block).
+
+`make branch-task` MUST invoke `--stage start` as an added step immediately
+after `butler task branch` creates or switches to the task branch,
+mirroring how `--stage open`/`--stage merge` are already invoked as added
+`make` steps from `pr-task`/`merge-pr` rather than being inlined into
+`git_ops.py`'s `branch_for`/`open_pr_for`/`merge_pr_for` functions
+themselves (per Requirement 4's encapsulation constraint). As with every
+other sync stage, a sync failure MUST NOT block the branch creation/switch
+itself (`-butler ...` in the Makefile, matching the existing `-`-prefixed
+sync lines for `pr-task`/`merge-pr`). There is no `branch-current-task`
+target to also update — unlike `pr`/`merge`, branch creation has no
+"current task" to resolve from, since the branch does not exist yet.
+
+**Use case:**
+
+```bash
+make branch-task f=TASK-012
+# ... existing behavior: branch task/012-add-dark-mode-toggle created/
+# switched to, based on origin/main ...
+# additionally attempts to sync the task to GitHub Projects:
+#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: In Progress)
+# if the Project has no "Status" field or "In Progress" option:
+#   Warning: could not sync TASK-012 to GitHub Projects (no "Status"/"In Progress" field on this Project) - continuing
+# branch creation succeeds either way; make branch-task exits 0
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -522,3 +567,13 @@ butler task sync-project TASK-012 --stage backfill
       skipped by `--stage backfill` without producing a warning; a missing
       "Status" field/option still follows Requirement 4's warning contract.
       Switching to an existing task branch is unaffected.
+- [ ] A `--stage start` option exists on the sync entry point: it
+      creates/links a Project item (reusing an existing one per Requirement
+      4) and sets its "Status" field to the option matching "In Progress",
+      via the same generalized status-option resolution `--stage backfill`
+      uses.
+- [ ] `make branch-task` invokes `--stage start` as an added Makefile step
+      immediately after `butler task branch`, the same way `--stage open`/
+      `--stage merge` are added steps in `pr-task`/`merge-pr` (not inlined
+      into `branch_for` in `git_ops.py`); a sync failure is a best-effort
+      warning and never blocks the branch creation/switch.
