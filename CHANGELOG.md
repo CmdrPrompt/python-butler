@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- `make branch-task` now syncs the task's GitHub Projects item to Status
+  "In Progress" as soon as the task branch is created or switched to, via a
+  new `--stage start` on `butler task sync-project` (alongside the existing
+  `draft`/`open`/`merge`/`backfill` stages) — the Project board now reflects
+  that implementation has begun instead of staying at its default column
+  until the PR is opened or merged. Like the other stages, `--stage start`
+  reuses an existing linked item instead of creating a duplicate, and any
+  failure (no Project configured, missing "Status"/"In Progress" field, `gh`
+  not authenticated, etc.) is a best-effort warning that never blocks branch
+  creation. (TASK-065)
+
 ### Fixed
 
 - The GitHub Projects sync (`butler task sync-project`, all stages —

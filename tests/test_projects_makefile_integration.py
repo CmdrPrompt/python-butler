@@ -73,6 +73,45 @@ class TestSyncInvokedAfterPrOpened:
         assert sync_line.startswith("-") or "|| true" in sync_line, detail
 
 
+class TestSyncInvokedAfterBranchCreated:
+    """Scenario: Sync is invoked as an added step in branch-task, right
+    after the task branch is created/switched to (TASK-065)."""
+
+    def test_branch_task_target_invokes_sync_project_after_creating_the_branch(self) -> None:
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        recipe = _target_recipe(makefile_text, "branch-task")
+
+        branch_line_index = next(
+            i
+            for i, line in enumerate(recipe)
+            if "task branch $(f)" in line or "task branch " in line
+        )
+        sync_lines = [line for line in recipe if "sync-project" in line or "sync_project" in line]
+
+        assert sync_lines, (
+            f"expected branch-task recipe to include a GitHub Projects sync step, got: {recipe}"
+        )
+        sync_line_index = recipe.index(sync_lines[0])
+        assert sync_line_index > branch_line_index, (
+            f"the sync step must run after the branch is created, got recipe order: {recipe}"
+        )
+        assert "--stage start" in sync_lines[0], (
+            f"expected the branch-task sync step to use --stage start, got: {sync_lines[0]!r}"
+        )
+
+    def test_branch_task_sync_step_does_not_gate_target_success_on_sync_failure(self) -> None:
+        makefile_text = (_REPO_ROOT / "Makefile").read_text()
+        recipe = _target_recipe(makefile_text, "branch-task")
+        sync_lines = [line for line in recipe if "sync-project" in line or "sync_project" in line]
+
+        assert sync_lines, (
+            f"expected branch-task recipe to include a GitHub Projects sync step, got: {recipe}"
+        )
+        sync_line = sync_lines[0].strip().lstrip("@")
+        detail = f"expected a non-blocking sync step ('-' or '|| true'), got: {sync_line!r}"
+        assert sync_line.startswith("-") or "|| true" in sync_line, detail
+
+
 class TestSyncInvokedAfterPrMerged:
     """Scenario: Sync is invoked as an added step in merge-pr / merge-current-task."""
 

@@ -19,6 +19,7 @@ from butler_core.projects import (
     sync_on_pr_draft,
     sync_on_pr_merge,
     sync_on_pr_open,
+    sync_on_pr_start,
 )
 from butler_core.sync import sync_makefile
 from butler_core.tasks import (
@@ -66,7 +67,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sync_project_parser = task_subparsers.add_parser("sync-project")
     sync_project_parser.add_argument("task_id")
     sync_project_parser.add_argument(
-        "--stage", choices=("open", "merge", "draft", "backfill"), required=True
+        "--stage", choices=("open", "merge", "draft", "backfill", "start"), required=True
     )
 
     uninstall_parser = subparsers.add_parser("uninstall")
@@ -143,6 +144,8 @@ def _cmd_sync_project(args: argparse.Namespace) -> None:
         result = sync_on_pr_draft(task, tasks_dir=args.tasks_dir)
     elif args.stage == "backfill":
         result = sync_on_pr_backfill(task, tasks_dir=args.tasks_dir)
+    elif args.stage == "start":
+        result = sync_on_pr_start(task, tasks_dir=args.tasks_dir)
     else:
         result = sync_on_pr_merge(task, tasks_dir=args.tasks_dir)
     print(result.message)

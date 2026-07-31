@@ -204,15 +204,6 @@ def _resolve_status_option_field_ids(
     return _match_status_option(fields, status_name)
 
 
-def _resolve_status_done_field_ids(
-    project: str, owner: str, env: dict[str, str] | None
-) -> tuple[str, str] | None:
-    """Resolve the "Status" field's node ID and its "Done" option's node ID
-    that `gh project item-edit --field-id`/`--single-select-option-id`
-    require, instead of the literal strings "Status"/"Done"."""
-    return _resolve_status_option_field_ids(project, owner, env, "Done")
-
-
 def _run_gh(args: list[str], env: dict[str, str] | None) -> subprocess.CompletedProcess[str]:
     subprocess_env = dict(os.environ)
     if env is not None:
@@ -327,9 +318,20 @@ def _create_item(task: Task, project: str, owner: str, env: dict[str, str] | Non
     return SyncResult(success=True, message=message)
 
 
-def _update_status_done(
-    task: Task, project: str, owner: str, env: dict[str, str] | None
+def _set_status(
+    task: Task,
+    project: str,
+    owner: str,
+    env: dict[str, str] | None,
+    status_name: str,
+    success_message: str,
 ) -> SyncResult:
+    """Look up the Project item linked to `task` and set its "Status" field
+    to the option matching `status_name`, via the same title-prefix lookup
+    and generalized status-option resolution every status-setting stage
+    shares. A missing "Status" field/option is a Requirement 4 best-effort
+    warning; used by `_update_status_done` (status_name="Done") and `_start`
+    (status_name="In Progress")."""
     try:
         item_result = _item_list_lookup(task, project, owner, env)
         if item_result.returncode != 0:
@@ -338,10 +340,10 @@ def _update_status_done(
         item_id = item_id or task.id
 
         project_node_id = _resolve_project_node_id(project, owner, env)
-        status_done_ids = _resolve_status_done_field_ids(project, owner, env)
-        if project_node_id is None or status_done_ids is None:
-            return _warning(task.id, 'no "Status"/"Done" field on this Project')
-        field_id, option_id = status_done_ids
+        status_ids = _resolve_status_option_field_ids(project, owner, env, status_name)
+        if project_node_id is None or status_ids is None:
+            return _warning(task.id, f'no "Status"/"{status_name}" field on this Project')
+        field_id, option_id = status_ids
 
         result = _run_gh(
             [
@@ -368,10 +370,39 @@ def _update_status_done(
     if result.returncode != 0:
         return _warning(task.id, _classify_gh_failure(result.stderr))
 
-    message = f"Updated GitHub Project item for {task.id} to status: Done"
+    message = success_message
     if duplicate_warning:
         message = f"{message}\n{duplicate_warning}"
     return SyncResult(success=True, message=message)
+
+
+def _update_status_done(
+    task: Task, project: str, owner: str, env: dict[str, str] | None
+) -> SyncResult:
+    return _set_status(
+        task,
+        project,
+        owner,
+        env,
+        "Done",
+        f"Updated GitHub Project item for {task.id} to status: Done",
+    )
+
+
+def _start(task: Task, project: str, owner: str, env: dict[str, str] | None) -> SyncResult:
+    """Create/link a Project item for `task` (reusing `_create_item`'s
+    lookup-then-reuse behavior) and set its Status to "In Progress"."""
+    create_result = _create_item(task, project, owner, env)
+    if not create_result.success:
+        return create_result
+    return _set_status(
+        task,
+        project,
+        owner,
+        env,
+        "In Progress",
+        f"Synced {task.id} {task.title} to GitHub Project item (status: In Progress)",
+    )
 
 
 def _sync(
@@ -402,6 +433,28 @@ def sync_on_pr_open(
     `BUTLER_GITHUB_PROJECT` environment variable if the file is absent.
     """
     return _sync(task, env, status=None, tasks_dir=tasks_dir)
+
+
+def sync_on_pr_start(
+    task: Task, *, env: dict[str, str] | None = None, tasks_dir: str | None = None
+) -> SyncResult:
+    """Create/link a GitHub Projects item for `task` and set its Status to
+    "In Progress" as soon as implementation begins (`butler task branch` /
+    `make branch-task`).
+
+    Best-effort like the other sync stages: any failure (no project
+    configured, `gh` not authenticated/installed, missing "Status"/"In
+    Progress" field/option, or any other error) is a `SyncResult(success=
+    False, ...)` warning per Requirement 4. Project resolution follows the
+    same `.butler-project` / `BUTLER_GITHUB_PROJECT` precedence as
+    `sync_on_pr_open`.
+    """
+    project = _project_number(env, tasks_dir)
+    if not project:
+        return _no_project_warning(task, env)
+
+    owner = _owner(env)
+    return _start(task, project, owner, env)
 
 
 def sync_on_pr_draft(
