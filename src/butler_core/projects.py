@@ -20,7 +20,9 @@ import os
 import re
 import subprocess  # nosec B404 -- used only to invoke the fixed `gh` CLI
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
+from typing import Any
 
 from butler_core.tasks import Task
 
@@ -148,27 +150,67 @@ def _resolve_project_node_id(project: str, owner: str, env: dict[str, str] | Non
         return None
 
 
+def _fetch_project_fields(
+    project: str, owner: str, env: dict[str, str] | None
+) -> list[dict[str, Any]] | None:
+    """Resolve the raw `fields` array from `gh project field-list`, so
+    callers needing more than one field (e.g. backfill's Status/Created/
+    Closed) can share a single `gh` invocation."""
+    result = _run_gh(["project", "field-list", project, "--owner", owner, "--format", "json"], env)
+    if result.returncode != 0:
+        return None
+    try:
+        fields: list[dict[str, Any]] = json.loads(result.stdout)["fields"]
+        return fields
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def _find_field_by_name(fields: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
+    for field in fields:
+        if field.get("name") == name:
+            return field
+    return None
+
+
+def _normalize_status_name(status_name: str) -> str:
+    return status_name.replace("-", " ").strip().lower()
+
+
+def _match_status_option(fields: list[dict[str, Any]], status_name: str) -> tuple[str, str] | None:
+    """Match a single-select "Status" option by name, case-insensitively,
+    treating `-` in `status_name` as a space (so a task file's `in-progress`
+    matches a Project option literally named "In Progress")."""
+    normalized = _normalize_status_name(status_name)
+    for field in fields:
+        if field.get("name") != "Status":
+            continue
+        for option in field.get("options", []):
+            if _normalize_status_name(str(option.get("name", ""))) == normalized:
+                return field["id"], option["id"]
+        return None
+    return None
+
+
+def _resolve_status_option_field_ids(
+    project: str, owner: str, env: dict[str, str] | None, status_name: str
+) -> tuple[str, str] | None:
+    """Resolve the "Status" field's node ID and the node ID of the option
+    matching `status_name` that `gh project item-edit
+    --field-id`/`--single-select-option-id` require."""
+    fields = _fetch_project_fields(project, owner, env)
+    if fields is None:
+        return None
+    return _match_status_option(fields, status_name)
+
+
 def _resolve_status_done_field_ids(
     project: str, owner: str, env: dict[str, str] | None
 ) -> tuple[str, str] | None:
     """Resolve the "Status" field's node ID and its "Done" option's node ID
     that `gh project item-edit --field-id`/`--single-select-option-id`
     require, instead of the literal strings "Status"/"Done"."""
-    result = _run_gh(["project", "field-list", project, "--owner", owner, "--format", "json"], env)
-    if result.returncode != 0:
-        return None
-    try:
-        fields = json.loads(result.stdout)["fields"]
-    except (ValueError, KeyError, TypeError):
-        return None
-    for field in fields:
-        if field.get("name") != "Status":
-            continue
-        for option in field.get("options", []):
-            if option.get("name") == "Done":
-                return field["id"], option["id"]
-        return None
-    return None
+    return _resolve_status_option_field_ids(project, owner, env, "Done")
 
 
 def _run_gh(args: list[str], env: dict[str, str] | None) -> subprocess.CompletedProcess[str]:
@@ -226,24 +268,33 @@ def _create_item(task: Task, project: str, owner: str, env: dict[str, str] | Non
     return SyncResult(success=True, message=message)
 
 
+def _item_list_lookup(
+    task: Task, project: str, owner: str, env: dict[str, str] | None
+) -> subprocess.CompletedProcess[str]:
+    """The `gh project item-list --jq` lookup for the Project item linked to
+    `task`, shared by `_update_status_done` and `_backfill` so the `--jq`
+    filter string is defined exactly once."""
+    return _run_gh(
+        [
+            "project",
+            "item-list",
+            project,
+            "--owner",
+            owner,
+            "--format",
+            "json",
+            "--jq",
+            f'.items[] | select(.content.title | startswith("{task.id}")) | .id',
+        ],
+        env,
+    )
+
+
 def _update_status_done(
     task: Task, project: str, owner: str, env: dict[str, str] | None
 ) -> SyncResult:
     try:
-        item_result = _run_gh(
-            [
-                "project",
-                "item-list",
-                project,
-                "--owner",
-                owner,
-                "--format",
-                "json",
-                "--jq",
-                f'.items[] | select(.content.title | startswith("{task.id}")) | .id',
-            ],
-            env,
-        )
+        item_result = _item_list_lookup(task, project, owner, env)
         if item_result.returncode != 0:
             return _warning(task.id, _classify_gh_failure(item_result.stderr))
         item_id = item_result.stdout.strip() or task.id
@@ -337,3 +388,224 @@ def sync_on_pr_merge(
     `sync_on_pr_open`.
     """
     return _sync(task, env, status="Done", tasks_dir=tasks_dir)
+
+
+def _task_file_path(task: Task, tasks_dir: str | None) -> Path | None:
+    """Locate `task`'s file on disk within `tasks_dir`, so backfill can read
+    its git history. Mirrors `tasks.py`'s `_find_task_file` lookup but kept
+    local to this module, which owns all of its own GitHub-Projects-adjacent
+    logic. Returns None (rather than raising) if `tasks_dir` is unset or no
+    file matches, since backfill's item-create/Status steps can still
+    succeed without a Created/Closed date."""
+    if not tasks_dir:
+        return None
+    matches = sorted(Path(tasks_dir).glob(f"{task.id}*.md"))
+    return matches[0] if matches else None
+
+
+def _git_log_dates(repo_root: Path, path: Path, log_args: list[str]) -> list[str]:
+    """Run `git log <log_args> --format=%aI -- <path>` in `repo_root` and
+    return its stdout lines. Never raises: any failure (non-zero exit,
+    missing git, etc.) is treated as "no date available" by returning []."""
+    try:
+        result = subprocess.run(  # nosec B603 B607 -- fixed git CLI invocation, no shell/user input
+            ["git", "log", *log_args, "--format=%aI", "--", str(path)],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return []
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def _first_commit_date(repo_root: Path, path: Path) -> str | None:
+    """The date-only (`YYYY-MM-DD`) prefix of the earliest commit that added
+    `path`, per `git log --diff-filter=A --follow` (oldest commit last)."""
+    lines = _git_log_dates(repo_root, path, ["--diff-filter=A", "--follow"])
+    return lines[-1][:10] if lines else None
+
+
+def _most_recent_commit_date(repo_root: Path, path: Path) -> str | None:
+    """The date-only (`YYYY-MM-DD`) prefix of `path`'s most recent commit."""
+    lines = _git_log_dates(repo_root, path, ["-1"])
+    return lines[0][:10] if lines else None
+
+
+def _closed_date(task: Task, repo_root: Path | None, file_path: Path | None) -> str | None:
+    """The task's own Completion date when present and parseable as a date,
+    otherwise the task file's most recent git commit date."""
+    if task.completion is not None and task.completion.date.strip():
+        try:
+            date.fromisoformat(task.completion.date.strip())
+            return task.completion.date.strip()
+        except ValueError:
+            pass
+    if repo_root is None or file_path is None:
+        return None
+    return _most_recent_commit_date(repo_root, file_path)
+
+
+def _display_status(status: str) -> str:
+    """Human-readable form of a task's `## Status` value for the success
+    message, matching the Project's own option-naming convention (e.g.
+    "in-progress" -> "In Progress")."""
+    return status.replace("-", " ").strip().title()
+
+
+def _item_edit_date(
+    item_id: str, project_node_id: str, field_id: str, value: str, env: dict[str, str] | None
+) -> subprocess.CompletedProcess[str]:
+    return _run_gh(
+        [
+            "project",
+            "item-edit",
+            "--id",
+            item_id,
+            "--project-id",
+            project_node_id,
+            "--field-id",
+            field_id,
+            "--date",
+            value,
+        ],
+        env,
+    )
+
+
+def _backfill(
+    task: Task,
+    project: str,
+    owner: str,
+    env: dict[str, str] | None,
+    tasks_dir: str | None,
+) -> SyncResult:
+    create_result = _create_item(task, project, owner, env)
+    if not create_result.success:
+        return create_result
+
+    try:
+        resolved = _backfill_resolve_and_set_status(task, project, owner, env)
+        if isinstance(resolved, SyncResult):
+            return resolved
+        item_id, project_node_id, fields = resolved
+        created_date, closed_date = _backfill_dates(
+            task, item_id, project_node_id, fields, tasks_dir, env
+        )
+    except FileNotFoundError:
+        return _warning(task.id, "gh: not found")
+    except subprocess.CalledProcessError as exc:
+        return _warning(task.id, (exc.stderr or "").strip() or "gh command failed")
+    except OSError as exc:
+        return _warning(task.id, str(exc))
+
+    parts = [f"status: {_display_status(task.status)}"]
+    if created_date:
+        parts.append(f"created: {created_date}")
+    if closed_date:
+        parts.append(f"closed: {closed_date}")
+    message = f"Synced {task.id} {task.title} to GitHub Project item ({', '.join(parts)})"
+    return SyncResult(success=True, message=message)
+
+
+def _backfill_resolve_and_set_status(
+    task: Task, project: str, owner: str, env: dict[str, str] | None
+) -> tuple[str, str, list[dict[str, Any]]] | SyncResult:
+    """Look up the Project item linked to `task`, resolve the "Status" field/
+    option matching the task's own status, and set it. Returns
+    `(item_id, project_node_id, fields)` on success (so `_backfill_dates` can
+    reuse the already-fetched `fields` for Created/Closed), or a failure
+    `SyncResult` warning per Requirement 4's best-effort contract."""
+    item_result = _item_list_lookup(task, project, owner, env)
+    if item_result.returncode != 0:
+        return _warning(task.id, _classify_gh_failure(item_result.stderr))
+    item_id = item_result.stdout.strip() or task.id
+
+    project_node_id = _resolve_project_node_id(project, owner, env)
+    fields = _fetch_project_fields(project, owner, env)
+    status_ids = _match_status_option(fields, task.status) if fields is not None else None
+    if project_node_id is None or fields is None or status_ids is None:
+        return _warning(
+            task.id, f'no "Status" field/option matching "{task.status}" on this Project'
+        )
+    status_field_id, status_option_id = status_ids
+
+    status_edit_result = _run_gh(
+        [
+            "project",
+            "item-edit",
+            "--id",
+            item_id,
+            "--project-id",
+            project_node_id,
+            "--field-id",
+            status_field_id,
+            "--single-select-option-id",
+            status_option_id,
+        ],
+        env,
+    )
+    if status_edit_result.returncode != 0:
+        return _warning(task.id, _classify_gh_failure(status_edit_result.stderr))
+
+    return item_id, project_node_id, fields
+
+
+def _backfill_dates(
+    task: Task,
+    item_id: str,
+    project_node_id: str,
+    fields: list[dict[str, Any]],
+    tasks_dir: str | None,
+    env: dict[str, str] | None,
+) -> tuple[str | None, str | None]:
+    """Opportunistically set the Project's "Created"/"Closed" date fields (if
+    present) from the task file's git history / its own Completion date.
+    Returns `(created_date, closed_date)` -- whichever was actually set, or
+    None for each that was skipped (missing field, missing task file, or no
+    date available)."""
+    file_path = _task_file_path(task, tasks_dir)
+    repo_root = _repo_root(file_path.parent) if file_path is not None else None
+
+    created_field = _find_field_by_name(fields, "Created")
+    created_date = None
+    if created_field is not None and file_path is not None and repo_root is not None:
+        created_date = _first_commit_date(repo_root, file_path)
+        if created_date is not None:
+            _item_edit_date(item_id, project_node_id, created_field["id"], created_date, env)
+
+    closed_field = _find_field_by_name(fields, "Closed")
+    closed_date = None
+    if closed_field is not None and task.status == "done":
+        closed_date = _closed_date(task, repo_root, file_path)
+        if closed_date is not None:
+            _item_edit_date(item_id, project_node_id, closed_field["id"], closed_date, env)
+
+    return created_date, closed_date
+
+
+def sync_on_pr_backfill(
+    task: Task, *, env: dict[str, str] | None = None, tasks_dir: str | None = None
+) -> SyncResult:
+    """Backfill a historical task's Project item: create/link the item, set
+    Status to match the task file's own `## Status`, and opportunistically
+    set the Project's "Created"/"Closed" date fields from the task file's
+    git history and its own `## Completion` date.
+
+    Best-effort like the other sync stages: a missing Project or a "Status"
+    field/option that can't be resolved is a `SyncResult(success=False,
+    ...)` warning per Requirement 4. A missing "Created" or "Closed" date
+    field on the Project is *not* a warning -- each is opportunistic and is
+    silently skipped, per Requirement 8. Project resolution follows the
+    same `.butler-project` / `BUTLER_GITHUB_PROJECT` precedence as
+    `sync_on_pr_open`.
+    """
+    project = _project_number(env, tasks_dir)
+    if not project:
+        return _no_project_warning(task, env)
+
+    owner = _owner(env)
+    return _backfill(task, project, owner, env, tasks_dir)

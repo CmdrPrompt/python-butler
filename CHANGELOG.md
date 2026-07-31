@@ -56,6 +56,17 @@
 
 ### Added
 
+- `butler task sync-project <task_id> --stage backfill` is a new sync stage for historical tasks
+  (e.g. TASK-001 through TASK-059) completed before the Projects sync existed: it creates/links a
+  Project item and sets its Status to match the task file's own `## Status` (generalizing the
+  previous "Done"-only resolution to match any status option by name, case-insensitively, treating
+  `-` as a space, e.g. `in-progress` matches an option named "In Progress"), sets a "Created" date
+  field (if the Project has one) to the git commit date the task file was first added, and -- when
+  the task's status is `done` -- sets a "Closed" date field (if present) to the task's own
+  `## Completion` date, falling back to the file's most recent commit date when the Completion date
+  is missing or unparseable. A Project missing the "Created" or "Closed" field is silently skipped
+  (each is opportunistic, not required); a missing "Status" field/option still produces the existing
+  best-effort warning. (TASK-062)
 - The GitHub Projects sync now resolves its target Project from a repo-local `.butler-project`
   file (plain text, contents = the Project number) in the target repo's root, checked before
   falling back to the `BUTLER_GITHUB_PROJECT` environment variable — so which Project a task

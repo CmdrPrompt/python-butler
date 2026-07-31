@@ -1,7 +1,7 @@
 # TASK-062 Backfill sync for historical tasks (`--stage backfill`)
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 8 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -71,42 +71,42 @@ or similar per existing test naming conventions.
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: Create and link a Project item with backfill
+- [x] Scenario: Create and link a Project item with backfill
       Given a task file with ID TASK-001 has no linked Project item yet, and a GitHub Project is resolvable (via `.butler-project` or `BUTLER_GITHUB_PROJECT`)
       When `butler task sync-project TASK-001 --stage backfill` runs
       Then a Project item is created and linked for the task
 
-- [ ] Scenario: Set Status to match the task file's Status value (case-insensitive, hyphen to space)
+- [x] Scenario: Set Status to match the task file's Status value (case-insensitive, hyphen to space)
       Given a task file with `## Status` = `in-progress` exists, and a Project with a "Status" field containing an option named "In Progress" is resolvable
       When `butler task sync-project <id> --stage backfill` runs
       Then the Project item's Status is set to "In Progress" (matched case-insensitively from `in-progress`, with `-` converted to space)
 
-- [ ] Scenario: Set Created date to the task file's first commit date
+- [x] Scenario: Set Created date to the task file's first commit date
       Given a task file exists whose first commit (via `git log --diff-filter=A --follow`) is 2026-03-02, and a Project with a "Created" date field is resolvable
       When `butler task sync-project <id> --stage backfill` runs
       Then the Project item's Created date field is set to 2026-03-02
 
-- [ ] Scenario: Set Closed date to Completion date when Status is done and Completion date is present/parseable
+- [x] Scenario: Set Closed date to Completion date when Status is done and Completion date is present/parseable
       Given a task file with `## Status` = `done` and `## Completion` section containing `**Date:** 2026-03-05` exists, and a Project with a "Closed" date field is resolvable
       When `butler task sync-project <id> --stage backfill` runs
       Then the Project item's Closed date field is set to 2026-03-05
 
-- [ ] Scenario: Fall back to most recent commit date for Closed when Completion date is absent/unparseable and Status is done
+- [x] Scenario: Fall back to most recent commit date for Closed when Completion date is absent/unparseable and Status is done
       Given a task file with `## Status` = `done` exists with no parseable Completion date (missing or malformed `## Completion` section), and a Project with a "Closed" date field is resolvable
       When `butler task sync-project <id> --stage backfill` runs
       Then the Project item's Closed date field is set to the task file's most recent git commit date
 
-- [ ] Scenario: Leave Closed field unset when task Status is not done
+- [x] Scenario: Leave Closed field unset when task Status is not done
       Given a task file with `## Status` = `todo` (not `done`) exists, and a Project with a "Closed" date field is resolvable
       When `butler task sync-project <id> --stage backfill` runs
       Then the Project item's Closed date field is not set and remains empty
 
-- [ ] Scenario: Silently skip missing Created date field without warning
+- [x] Scenario: Silently skip missing Created date field without warning
       Given a task file exists, a Project is resolvable but has no "Created" date field, and the sync would succeed otherwise
       When `butler task sync-project <id> --stage backfill` runs
       Then the sync succeeds without producing a warning, and the Project item is created without a Created field set
 
-- [ ] Scenario: Silently skip missing Closed date field without warning
+- [x] Scenario: Silently skip missing Closed date field without warning
       Given a task file with `## Status` = `done` exists, a Project is resolvable but has no "Closed" date field, and the sync would succeed otherwise
       When `butler task sync-project <id> --stage backfill` runs
       Then the sync succeeds without producing a warning, and the Project item is created without a Closed field set
@@ -125,9 +125,31 @@ or similar per existing test naming conventions.
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-07-31
+**Summary:** Added `--stage backfill` to `butler task sync-project`. Generalized
+`_resolve_status_done_field_ids` into `_resolve_status_option_field_ids`
+(case-insensitive, hyphen-to-space status matching against any Project
+Status option, not just "Done"); `_resolve_status_done_field_ids` is now a
+thin wrapper over it so `--stage merge`'s existing Done-only behavior is
+unchanged. Added `_backfill`/`_backfill_resolve_and_set_status`/
+`_backfill_dates` in `src/butler_core/projects.py`: creates/links the
+Project item, sets Status from the task file's own `## Status`, and — via a
+single shared `gh project field-list` fetch — opportunistically sets
+"Created" (task file's earliest git commit date, `git log --diff-filter=A
+--follow`) and, only when status is `done`, "Closed" (the task's own
+Completion date if present/parseable, else the file's most recent commit
+date). Missing Created/Closed fields are skipped silently (no warning);
+missing Status field/option and full project-resolution failure still
+follow Requirement 4's best-effort warning contract. Wired `"backfill"` into
+the CLI's `--stage` choices and `_cmd_sync_project`. Verified live against
+this repo's own configured GitHub Project (`.butler-project`): `butler task
+sync-project TASK-062 --stage draft` created the TASK-062 item.
 **Files changed:**
+- `src/butler_core/projects.py` - modified
+- `src/butler_cli/__main__.py` - modified
+- `tests/test_projects_backfill.py` - created
+- `CHANGELOG.md` - modified
+- `docs/tasks/TASK-062-backfill-sync-for-historical-tasks.md` - modified
 **Branch:** `git checkout task/062-backfill-sync-for-historical-tasks`
 **Stage:** `git add src/butler_core/projects.py src/butler_cli/__main__.py tests/test_projects*.py CHANGELOG.md docs/tasks/TASK-062-backfill-sync-for-historical-tasks.md`
 **Commit:** `git commit -m "Add --stage backfill for syncing historical task completion dates to GitHub Projects"`
