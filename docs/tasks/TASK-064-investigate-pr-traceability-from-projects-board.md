@@ -1,7 +1,7 @@
 # TASK-064 Investigate PR traceability from the GitHub Projects board (Linked pull requests / real Created-Closed dates)
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 4 (REQUIREMENTS_TASK_WORKFLOW.md); related to Requirement 8
@@ -93,22 +93,22 @@ pending Requirements Drafter + user confirmation).
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: Both approaches are investigated against a real Project, not just reasoned about
+- [x] Scenario: Both approaches are investigated against a real Project, not just reasoned about
       Given the two candidate approaches (custom text field vs. real Issue/PR items) described above
       When this task is worked
       Then both are tried live against this repo's own configured GitHub Project (`.butler-project`) — a custom Text field write via `item-edit --text`, and an `item-add --url` call against a real PR — with the actual `gh` output/errors recorded, not assumed
 
-- [ ] Scenario: A migration path for already-existing draft items is assessed
+- [x] Scenario: A migration path for already-existing draft items is assessed
       Given draft-issue items already exist on the board (e.g. from TASK-060 through TASK-064's own testing)
       When approach 2 (real Issue/PR items) is evaluated
       Then the investigation records whether/how those existing draft items could be replaced with real PR-backed items without losing board history, or explicitly recommends leaving them as legacy items
 
-- [ ] Scenario: A recommendation is presented for user confirmation before any requirement text is written
+- [x] Scenario: A recommendation is presented for user confirmation before any requirement text is written
       Given both approaches have been investigated
       When the findings are ready
       Then the user is presented with a clear recommendation and tradeoffs, and asked to confirm before a Requirements Drafter round drafts any new/changed requirement text (per CLAUDE.md's spec-driven development rule — this task does not draft requirement text itself)
 
-- [ ] Scenario: TASK-062's silent date-write failure is documented as a follow-up, not fixed here
+- [x] Scenario: TASK-062's silent date-write failure is documented as a follow-up, not fixed here
       Given `_backfill_dates()` in `src/butler_core/projects.py` does not check `_item_edit_date()`'s return code
       When this investigation concludes
       Then a note is added to this task's Completion summary confirming a separate bug task must be filed for it once the chosen approach is confirmed (do not fix it as part of this task)
@@ -127,9 +127,41 @@ pending Requirements Drafter + user confirmation).
 None
 
 ## Completion
-**Date:**
-**Summary:**
-**Files changed:**
+**Date:** 2026-07-31
+**Summary:** Both candidate approaches were tried live against this repo's
+own Project #2. Approach 1 (custom Text field): a "PR Test" field was
+created via `gh project field-create` and written via
+`gh project item-edit --text`, which succeeded (exit 0) and the value
+round-tripped correctly through `item-list`. Approach 2 (real PR items):
+`gh project item-add --url <merged-PR>` succeeded and created a genuine
+`PullRequest`-typed item whose derived `createdAt`/`closedAt` (queried via
+GraphQL) exactly matched the real PR's timestamps — confirming "Linked pull
+requests"/"Created"/"Closed" are populated for free once an item is
+PR-backed. A new constraint not previously documented was found:
+`item-add --url` requires the target PR to already exist (a URL to a
+not-yet-created PR returns "resource not found"), so approach 2 cannot
+place an item on the board before a PR is opened — directly conflicting
+with `--stage start` (TASK-065)'s early, pre-PR board visibility. All 8
+existing board items are `DraftIssue`; migrating them to real PR-backed
+items is mechanically simple (item-add the merged PR, item-delete the old
+draft item) but loses board position/history, and since all 8 are already
+"Done" with low historical value, the recommendation is to leave them as
+legacy items rather than migrate. Test artifacts (the "PR Test" field and
+the test PR item) were removed from the live board after the investigation.
+**Recommendation presented and confirmed by user:** Approach 1 (custom
+Text field) — it preserves `--stage start`'s early board visibility and
+needs no migration, at the cost of not using GitHub's native
+"Linked pull requests" field. A Requirements Drafter round is the next
+step to turn this into confirmed requirement text; this task does not
+draft that text itself, per CLAUDE.md's spec-driven development rule.
+**Follow-up filed as a separate concern (not fixed here):** `_backfill_dates()`
+in `src/butler_core/projects.py` (TASK-062) does not check
+`_item_edit_date()`'s return code, so a silent field-write failure against
+"Created"/"Closed" system fields is reported as success. A bug task for
+this must be filed once the Approach 1 requirement text above is
+implemented, since it will change which fields `_backfill_dates()` (or its
+Approach-1 replacement) actually writes to.
+**Files changed:** `docs/tasks/TASK-064-investigate-pr-traceability-from-projects-board.md`
 **Branch:** `git checkout task/064-investigate-pr-traceability-from-projects-board`
 **Stage:** `git add docs/tasks/TASK-064-investigate-pr-traceability-from-projects-board.md`
 **Commit:** `git commit -m "Investigate PR traceability options from the GitHub Projects board"`
