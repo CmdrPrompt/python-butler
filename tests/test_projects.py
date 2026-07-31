@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from butler_core.tasks import create_task
+from butler_core.tasks import Task, create_task
 
 
 def _completed(returncode: int = 0, stdout: str = "", stderr: str = "") -> MagicMock:
@@ -504,3 +505,294 @@ class TestSyncIsOneWay:
 
         assert "outdated title" not in result.message
         assert set(vars(result).keys()) <= {"success", "message"}
+
+
+def _add_story_and_acceptance(
+    tasks_dir: Path, task_id: str, story: str, acceptance_scenario: str
+) -> None:
+    """Insert `## Story` (with `story`) before `## Description`, and append
+    `acceptance_scenario` inside the (otherwise empty) `## Acceptance
+    criteria` section that `create_task`'s default template renders."""
+    path = next(Path(tasks_dir).glob(f"{task_id}*.md"))
+    text = path.read_text()
+    text = text.replace("## Description", f"## Story\n\n{story}\n\n## Description", 1)
+    text = text.replace(
+        "## Acceptance criteria\n\n", f"## Acceptance criteria\n\n{acceptance_scenario}\n\n", 1
+    )
+    path.write_text(text)
+
+
+def _owner_repo_lookup_ok(owner: str = "acme", repo: str = "widgets") -> MagicMock:
+    return _completed(returncode=0, stdout=json.dumps({"owner": {"login": owner}, "name": repo}))
+
+
+class TestProjectItemBodyFromTaskFile:
+    """Covers TASK-066 / Requirement 11 acceptance criteria (Gherkin
+    scenarios):
+    - Project item body includes Story, Acceptance criteria, and task file
+      link (no PR yet)
+    - Project item body includes PR link when a PR exists
+    - Missing task file falls back to the existing title-only behavior
+    """
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_body_includes_story_and_acceptance_and_task_file_link_no_pr(
+        self, mock_run: MagicMock, tmp_path
+    ) -> None:
+        from butler_core.projects import sync_on_pr_draft
+
+        tasks_dir = tmp_path / "docs" / "tasks"
+        task = create_task(
+            "My feature",
+            "Long implementation-heavy detail that must not leak into the board.",
+            tasks_dir=str(tasks_dir),
+        )
+        _add_story_and_acceptance(
+            tasks_dir,
+            task.id,
+            "As a maintainer, I want to see the task's context on the board.",
+            "- [ ] Scenario: the board shows something useful",
+        )
+        mock_run.return_value = _completed(returncode=0, stdout="")
+
+        result = sync_on_pr_draft(
+            task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=str(tasks_dir)
+        )
+
+        assert result.success is True
+        item_create_call = next(
+            call for call in mock_run.call_args_list if "item-create" in call.args[0]
+        )
+        argv = item_create_call.args[0]
+        assert "--body" in argv
+        body = argv[argv.index("--body") + 1]
+        assert "As a maintainer, I want to see the task's context on the board." in body
+        assert "Scenario: the board shows something useful" in body
+        assert "Task file:" in body
+        assert task.id in body
+        assert "Long implementation-heavy detail that must not leak" not in body
+        assert "PR:" not in body
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_body_includes_pr_link_when_a_pr_exists(self, mock_run: MagicMock, tmp_path) -> None:
+        from butler_core.projects import sync_on_pr_open
+
+        tasks_dir = tmp_path / "docs" / "tasks"
+        task = create_task(
+            "My feature",
+            "Long implementation-heavy detail that must not leak into the board.",
+            tasks_dir=str(tasks_dir),
+        )
+        _add_story_and_acceptance(
+            tasks_dir,
+            task.id,
+            "As a maintainer, I want to see the task's context on the board.",
+            "- [ ] Scenario: the board shows something useful",
+        )
+
+        def _side_effect(argv, *args, **kwargs):
+            if argv[0] == "gh" and "item-list" in argv:
+                return _completed(returncode=0, stdout="")
+            if argv[0] == "gh" and argv[1:3] == ["repo", "view"]:
+                return _owner_repo_lookup_ok()
+            if argv[0] == "gh" and "item-create" in argv:
+                return _completed(returncode=0, stdout="")
+            return _completed(returncode=1, stderr="unexpected call")
+
+        mock_run.side_effect = _side_effect
+
+        result = sync_on_pr_open(task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=str(tasks_dir))
+
+        assert result.success is True
+        item_create_call = next(
+            call for call in mock_run.call_args_list if "item-create" in call.args[0]
+        )
+        argv = item_create_call.args[0]
+        body = argv[argv.index("--body") + 1]
+        assert "As a maintainer, I want to see the task's context on the board." in body
+        assert "Scenario: the board shows something useful" in body
+        assert "Task file:" in body
+        assert "PR: https://github.com/acme/widgets/pulls?q=is%3Apr+head%3A" in body
+        assert task.branch_name in body
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_start_stage_body_never_includes_a_pr_link(self, mock_run: MagicMock, tmp_path) -> None:
+        """`sync_on_pr_start` runs before a PR exists (`make branch-task`),
+        so unlike `sync_on_pr_open`/`sync_on_pr_backfill`, its created
+        item's body must never carry a PR link."""
+        from butler_core.projects import sync_on_pr_start
+
+        tasks_dir = tmp_path / "docs" / "tasks"
+        task = create_task("My feature", "desc", tasks_dir=str(tasks_dir))
+        _add_story_and_acceptance(
+            tasks_dir, task.id, "As a maintainer, I want context.", "- [ ] Scenario: works"
+        )
+
+        def _side_effect(argv, *args, **kwargs):
+            if argv[0] == "gh" and "item-list" in argv:
+                return _completed(returncode=0, stdout="")
+            if argv[0] == "gh" and "item-create" in argv:
+                return _completed(returncode=0, stdout="")
+            if argv[0] == "gh" and "view" in argv and "project" in argv:
+                return _completed(returncode=0, stdout=json.dumps({"id": "PVT_node"}))
+            if argv[0] == "gh" and "field-list" in argv:
+                return _completed(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "fields": [
+                                {
+                                    "id": "PVTSSF_status",
+                                    "name": "Status",
+                                    "options": [{"id": "opt_in_progress", "name": "In Progress"}],
+                                }
+                            ]
+                        }
+                    ),
+                )
+            if argv[0] == "gh" and "item-edit" in argv:
+                return _completed(returncode=0, stdout="")
+            return _completed(returncode=1, stderr="unexpected call")
+
+        mock_run.side_effect = _side_effect
+
+        result = sync_on_pr_start(
+            task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=str(tasks_dir)
+        )
+
+        assert result.success is True
+        item_create_call = next(
+            call for call in mock_run.call_args_list if "item-create" in call.args[0]
+        )
+        argv = item_create_call.args[0]
+        body = argv[argv.index("--body") + 1]
+        assert "PR:" not in body
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_missing_task_file_falls_back_to_title_only_creation(
+        self, mock_run: MagicMock, tmp_path
+    ) -> None:
+        from butler_core.projects import sync_on_pr_draft
+
+        task = Task(
+            id="TASK-999",
+            title="Untracked",
+            status="todo",
+            description="desc",
+            branch_name="task/999-untracked",
+            switch_create_cmd="",
+            stage_cmd="",
+            commit_message="",
+            acceptance_criteria=[],
+        )
+        mock_run.return_value = _completed(returncode=0, stdout="")
+
+        result = sync_on_pr_draft(task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=None)
+
+        assert result.success is True
+        item_create_call = next(
+            call for call in mock_run.call_args_list if "item-create" in call.args[0]
+        )
+        argv = item_create_call.args[0]
+        assert "--body" not in argv
+        assert "--title" in argv
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_no_task_file_matching_task_id_falls_back_to_title_only_creation(
+        self, mock_run: MagicMock, tmp_path
+    ) -> None:
+        from butler_core.projects import sync_on_pr_draft
+
+        tasks_dir = tmp_path / "docs" / "tasks"
+        tasks_dir.mkdir(parents=True)
+        task = Task(
+            id="TASK-999",
+            title="Untracked",
+            status="todo",
+            description="desc",
+            branch_name="task/999-untracked",
+            switch_create_cmd="",
+            stage_cmd="",
+            commit_message="",
+            acceptance_criteria=[],
+        )
+        mock_run.return_value = _completed(returncode=0, stdout="")
+
+        result = sync_on_pr_draft(
+            task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=str(tasks_dir)
+        )
+
+        assert result.success is True
+        item_create_call = next(
+            call for call in mock_run.call_args_list if "item-create" in call.args[0]
+        )
+        argv = item_create_call.args[0]
+        assert "--body" not in argv
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_pr_link_omitted_when_owner_repo_cannot_be_resolved(
+        self, mock_run: MagicMock, tmp_path
+    ) -> None:
+        """Best-effort: an unresolvable owner/repo must not block item
+        creation or the rest of the body, only the PR link line itself."""
+        from butler_core.projects import sync_on_pr_open
+
+        tasks_dir = tmp_path / "docs" / "tasks"
+        task = create_task("My feature", "desc", tasks_dir=str(tasks_dir))
+        _add_story_and_acceptance(
+            tasks_dir, task.id, "As a maintainer, I want context.", "- [ ] Scenario: works"
+        )
+
+        def _side_effect(argv, *args, **kwargs):
+            if argv[0] == "gh" and "item-list" in argv:
+                return _completed(returncode=0, stdout="")
+            if argv[0] == "gh" and argv[1:3] == ["repo", "view"]:
+                return _completed(returncode=1, stderr="not a repo")
+            if argv[0] == "git":
+                return _completed(returncode=1, stderr="no remote")
+            if argv[0] == "gh" and "item-create" in argv:
+                return _completed(returncode=0, stdout="")
+            return _completed(returncode=1, stderr="unexpected call")
+
+        mock_run.side_effect = _side_effect
+
+        result = sync_on_pr_open(task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=str(tasks_dir))
+
+        assert result.success is True
+        item_create_call = next(
+            call for call in mock_run.call_args_list if "item-create" in call.args[0]
+        )
+        argv = item_create_call.args[0]
+        body = argv[argv.index("--body") + 1]
+        assert "PR:" not in body
+        assert "Task file:" in body
+
+
+class TestExtractSectionHelper:
+    """Unit coverage for `_extract_section`, the Story/Acceptance-criteria
+    extraction `_project_item_body` uses -- kept separate from `_pr_body()`
+    in git_ops.py per Requirement 11."""
+
+    def test_returns_empty_string_when_heading_absent(self) -> None:
+        from butler_core.projects import _extract_section
+
+        assert _extract_section("## Other\n\ncontent\n", "Story") == ""
+
+    def test_stops_at_next_top_level_heading(self) -> None:
+        from butler_core.projects import _extract_section
+
+        text = "## Story\n\nAs a user...\n\n## Description\n\nleaked detail\n"
+
+        section = _extract_section(text, "Story")
+
+        assert "As a user..." in section
+        assert "leaked detail" not in section
+
+    def test_captures_to_end_of_text_when_no_following_heading(self) -> None:
+        from butler_core.projects import _extract_section
+
+        text = "## Acceptance criteria\n\n- [ ] Scenario: last section\n"
+
+        section = _extract_section(text, "Acceptance criteria")
+
+        assert "Scenario: last section" in section

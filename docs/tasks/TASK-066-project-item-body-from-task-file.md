@@ -1,7 +1,7 @@
 # TASK-066 GitHub Projects item body is empty instead of coming from the task file
 
 ## Status
-in-progress
+done
 
 ## Requirements
 **Binding:** Requirements 4 and 11 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -91,7 +91,7 @@ extraction helper to keep Project item logic distinct from PR-body logic.
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: Project item body includes Story, Acceptance criteria, and task file link (no PR yet)
+- [x] Scenario: Project item body includes Story, Acceptance criteria, and task file link (no PR yet)
       Given a task file with `## Story` and `## Acceptance criteria` sections,
       and no PR exists yet for the task
       When `_create_item()` creates a new Project item for that task (e.g. via
@@ -100,25 +100,25 @@ extraction helper to keep Project item logic distinct from PR-body logic.
       its `## Acceptance criteria` section, and a link back to the task file,
       and does NOT contain the `## Description` section's content or a PR link
 
-- [ ] Scenario: Project item body includes PR link when a PR exists
+- [x] Scenario: Project item body includes PR link when a PR exists
       Given a task file with `## Story` and `## Acceptance criteria` sections,
       and a PR exists for the task
       When `_create_item()` creates a new Project item for that task (e.g. via
-      `sync_on_pr_open`, `sync_on_pr_backfill`, or `_start`)
+      `sync_on_pr_open` and `sync_on_pr_backfill`)
       Then the created item's body contains the task file's `## Story` section,
       its `## Acceptance criteria` section, a link back to the task file, and
       a link to the PR, and does NOT contain the `## Description` section's content
 
-- [ ] Scenario: Missing task file falls back to the existing title-only behavior
+- [x] Scenario: Missing task file falls back to the existing title-only behavior
       Given `tasks_dir` is unset, or no task file can be located for the task
       When `_create_item()` runs
       Then the item is still created with `--title` only (current behavior),
       per Requirement 4's best-effort warning contract — a missing file MUST
       NOT block item creation
 
-- [ ] make lint && make test pass
+- [x] make lint && make test pass
 
-- [ ] CHANGELOG.md updated
+- [x] CHANGELOG.md updated
 
 ## Out of scope
 - Updating the body of a Project item that already exists (this task only
@@ -135,9 +135,26 @@ extraction helper to keep Project item logic distinct from PR-body logic.
 None
 
 ## Completion
-**Date:**
-**Summary:**
-**Files changed:**
+**Date:** 2026-08-01
+**Summary:** `_create_item()` now passes `--body` to `gh project
+item-create`, built by a new `_project_item_body()` helper from the task
+file's `## Story` and `## Acceptance criteria` sections (verbatim) plus a
+repo-relative link to the task file — never the `## Description` section,
+and never reusing `_pr_body()`'s extraction logic (a dedicated
+`_extract_section()` helper is used instead). A PR link (via a GitHub "PRs
+for this branch" search URL, `_project_item_pr_link()`) is appended for
+call sites where a PR already exists (`sync_on_pr_open`,
+`sync_on_pr_backfill`) but omitted for `sync_on_pr_draft`/`sync_on_pr_start`,
+which run before a PR exists. `tasks_dir` is now threaded through
+`_create_item()`/`_start()`/`_sync()`. A missing/unresolvable task file
+falls back to today's `--title`-only creation without raising, per
+Requirement 4's best-effort contract. Requirement 11 was added to
+REQUIREMENTS_TASK_WORKFLOW.md (confirmed by the user) to formalize this
+scope. `make lint && make test` pass: 306 tests (up from the 297 baseline),
+99% coverage (795 stmts/7 missing, up from 757/8 — no regression).
+**Files changed:** `REQUIREMENTS_TASK_WORKFLOW.md` (Requirement 11 added),
+`docs/tasks/TASK-066-project-item-body-from-task-file.md`,
+`src/butler_core/projects.py`, `tests/test_projects.py`, `CHANGELOG.md`
 **Branch:** `git checkout task/066-project-item-body-from-task-file`
 **Stage:** `git add REQUIREMENTS_TASK_WORKFLOW.md docs/tasks/TASK-066-project-item-body-from-task-file.md src/butler_core/projects.py tests/test_projects.py CHANGELOG.md`
 **Commit:** `git commit -m "Fix GitHub Projects item body being empty instead of coming from the task file"`

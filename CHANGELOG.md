@@ -24,6 +24,14 @@
 
 ### Fixed
 
+- GitHub Projects items created by `butler task sync-project` (`draft`/`open`/
+  `start`/`backfill` stages) now get a populated body instead of an empty
+  one — built from the task file's `## Story` and `## Acceptance criteria`
+  sections plus a link back to the task file (and, once one exists, a link
+  to the task's PR), so a converted-to-Issue item is useful on its own
+  instead of a bare placeholder. The body deliberately excludes the task
+  file's `## Description` section, which stays reserved for the PR body.
+  (TASK-066)
 - The GitHub Projects sync (`butler task sync-project`, all stages —
   `draft`/`open`/`merge`/`backfill`) now looks up whether a Project item already
   exists for the task (matching on its TASK-ID title prefix) before creating one,

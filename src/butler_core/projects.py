@@ -273,7 +273,124 @@ def _select_item_id(stdout: str, task_id: str) -> tuple[str | None, str | None]:
     return matches[0], warning
 
 
-def _create_item(task: Task, project: str, owner: str, env: dict[str, str] | None) -> SyncResult:
+def _extract_section(text: str, heading: str) -> str:
+    """Extract a `## <heading>` section verbatim (heading line included)
+    from `text`, up to (not including) the next `## `-level heading.
+    Mirrors the boundary style `_pr_body()` in git_ops.py uses for `##
+    Description`, but is kept as its own function here: per Requirement 11,
+    the Project item body must never reuse or duplicate `_pr_body()`'s
+    Description extraction. Returns "" if `heading` isn't present."""
+    lines = text.splitlines()
+    section_lines: list[str] = []
+    capturing = False
+    for line in lines:
+        if line.startswith(f"## {heading}"):
+            capturing = True
+        elif capturing and line.startswith("## "):
+            break
+        if capturing:
+            section_lines.append(line)
+    return "\n".join(section_lines).strip()
+
+
+def _project_item_pr_link(task: Task, env: dict[str, str] | None) -> str | None:
+    """Build a link to `task`'s PR from its branch name, once one exists.
+
+    Deliberately avoids a runtime `gh pr view` lookup for the PR itself
+    (callers already know, from their own stage, whether a PR exists) --
+    resolving only the repo's owner/name via the already-established
+    best-effort `_lookup_owner_repo` (used elsewhere for the no-project
+    warning's setup suggestion). GitHub's "PRs for this branch" search URL
+    then resolves to the task's PR without needing its number. Returns None
+    (best-effort) if owner/repo can't be resolved."""
+    owner_repo = _lookup_owner_repo(env)
+    if owner_repo is None:
+        return None
+    owner, repo = owner_repo
+    return f"https://github.com/{owner}/{repo}/pulls?q=is%3Apr+head%3A{task.branch_name}"
+
+
+def _project_item_body(
+    task: Task,
+    tasks_dir: str | None,
+    env: dict[str, str] | None,
+    *,
+    include_pr_link: bool = False,
+) -> str | None:
+    """Build the `--body` for a new Project item from `task`'s file, per
+    Requirement 11: the `## Story` section verbatim, the `## Acceptance
+    criteria` section verbatim, a link back to the task file, and (when
+    `include_pr_link` is set) a link to the task's PR. Deliberately excludes
+    `## Description` (implementation-heavy detail `_pr_body()` in
+    git_ops.py extracts for PR reviewers, not this board-facing summary).
+
+    Returns None (best-effort, mirroring `_task_file_path`'s own
+    None-returning contract) when `tasks_dir` is unset or no task file can
+    be located, so callers fall back to today's `--title`-only creation."""
+    file_path = _task_file_path(task, tasks_dir)
+    if file_path is None:
+        return None
+
+    text = file_path.read_text()
+    parts = [
+        section
+        for section in (
+            _extract_section(text, "Story"),
+            _extract_section(text, "Acceptance criteria"),
+        )
+        if section
+    ]
+
+    # `_repo_root(file_path.parent)` always returns an ancestor of
+    # `file_path` (either the directory with `.git`, or `file_path.parent`
+    # itself as a fallback), so `relative_to` below always succeeds.
+    repo_root = _repo_root(file_path.parent)
+    file_link = file_path.resolve().relative_to(repo_root.resolve()).as_posix()
+    parts.append(f"Task file: {file_link}")
+
+    if include_pr_link:
+        pr_link = _project_item_pr_link(task, env)
+        if pr_link is not None:
+            parts.append(f"PR: {pr_link}")
+
+    return "\n\n".join(parts)
+
+
+def _item_create_args(
+    task: Task,
+    project: str,
+    owner: str,
+    tasks_dir: str | None,
+    env: dict[str, str] | None,
+    include_pr_link: bool,
+) -> list[str]:
+    """Build `gh project item-create`'s argv, including `--body` (per
+    Requirement 11) when a task file can be located; falls back to
+    `--title`-only otherwise."""
+    args = [
+        "project",
+        "item-create",
+        project,
+        "--owner",
+        owner,
+        "--title",
+        f"{task.id} {task.title}",
+    ]
+    body = _project_item_body(task, tasks_dir, env, include_pr_link=include_pr_link)
+    if body is not None:
+        args += ["--body", body]
+    return args
+
+
+def _create_item(
+    task: Task,
+    project: str,
+    owner: str,
+    env: dict[str, str] | None,
+    tasks_dir: str | None = None,
+    *,
+    include_pr_link: bool = False,
+) -> SyncResult:
     try:
         lookup_result = _item_list_lookup(task, project, owner, env)
     except FileNotFoundError:
@@ -293,16 +410,7 @@ def _create_item(task: Task, project: str, owner: str, env: dict[str, str] | Non
 
     try:
         result = _run_gh(
-            [
-                "project",
-                "item-create",
-                project,
-                "--owner",
-                owner,
-                "--title",
-                f"{task.id} {task.title}",
-            ],
-            env,
+            _item_create_args(task, project, owner, tasks_dir, env, include_pr_link), env
         )
     except FileNotFoundError:
         return _warning(task.id, "gh: not found")
@@ -389,10 +497,15 @@ def _update_status_done(
     )
 
 
-def _start(task: Task, project: str, owner: str, env: dict[str, str] | None) -> SyncResult:
+def _start(
+    task: Task, project: str, owner: str, env: dict[str, str] | None, tasks_dir: str | None = None
+) -> SyncResult:
     """Create/link a Project item for `task` (reusing `_create_item`'s
-    lookup-then-reuse behavior) and set its Status to "In Progress"."""
-    create_result = _create_item(task, project, owner, env)
+    lookup-then-reuse behavior) and set its Status to "In Progress".
+
+    Runs before a PR exists (`butler task branch` / `make branch-task`), so
+    the created item's body never includes a PR link."""
+    create_result = _create_item(task, project, owner, env, tasks_dir, include_pr_link=False)
     if not create_result.success:
         return create_result
     return _set_status(
@@ -410,6 +523,8 @@ def _sync(
     env: dict[str, str] | None,
     status: str | None,
     tasks_dir: str | None = None,
+    *,
+    include_pr_link: bool = False,
 ) -> SyncResult:
     project = _project_number(env, tasks_dir)
     if not project:
@@ -417,7 +532,7 @@ def _sync(
 
     owner = _owner(env)
     if status is None:
-        return _create_item(task, project, owner, env)
+        return _create_item(task, project, owner, env, tasks_dir, include_pr_link=include_pr_link)
     return _update_status_done(task, project, owner, env)
 
 
@@ -431,8 +546,11 @@ def sync_on_pr_open(
     `SyncResult(success=False, ...)` warning. The target Project is resolved
     from a `.butler-project` file in `tasks_dir`'s repo, falling back to the
     `BUTLER_GITHUB_PROJECT` environment variable if the file is absent.
+
+    A PR already exists by this stage, so the created item's body includes
+    a link to it (Requirement 11).
     """
-    return _sync(task, env, status=None, tasks_dir=tasks_dir)
+    return _sync(task, env, status=None, tasks_dir=tasks_dir, include_pr_link=True)
 
 
 def sync_on_pr_start(
@@ -447,14 +565,15 @@ def sync_on_pr_start(
     Progress" field/option, or any other error) is a `SyncResult(success=
     False, ...)` warning per Requirement 4. Project resolution follows the
     same `.butler-project` / `BUTLER_GITHUB_PROJECT` precedence as
-    `sync_on_pr_open`.
+    `sync_on_pr_open`. Runs before a PR exists, so the created item's body
+    never includes a PR link (Requirement 11).
     """
     project = _project_number(env, tasks_dir)
     if not project:
         return _no_project_warning(task, env)
 
     owner = _owner(env)
-    return _start(task, project, owner, env)
+    return _start(task, project, owner, env, tasks_dir)
 
 
 def sync_on_pr_draft(
@@ -464,8 +583,11 @@ def sync_on_pr_draft(
     file is drafted (before any PR exists). Behaves identically to
     `sync_on_pr_open`; kept as a separate name so callers (e.g. Workflow
     Guardian, right after merging Task Drafter's branch) can express intent.
+
+    Runs before a PR exists, so the created item's body never includes a PR
+    link (Requirement 11).
     """
-    return _sync(task, env, status=None, tasks_dir=tasks_dir)
+    return _sync(task, env, status=None, tasks_dir=tasks_dir, include_pr_link=False)
 
 
 def sync_on_pr_merge(
@@ -575,7 +697,10 @@ def _backfill(
     env: dict[str, str] | None,
     tasks_dir: str | None,
 ) -> SyncResult:
-    create_result = _create_item(task, project, owner, env)
+    # A PR already exists by the backfill stage (it runs against a
+    # historical, already-completed task), so the created item's body
+    # includes a link to it (Requirement 11).
+    create_result = _create_item(task, project, owner, env, tasks_dir, include_pr_link=True)
     if not create_result.success:
         return create_result
 
