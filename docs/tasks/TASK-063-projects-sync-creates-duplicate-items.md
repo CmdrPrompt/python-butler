@@ -1,7 +1,7 @@
 # TASK-063 GitHub Projects sync creates duplicate items instead of linking to an existing one
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 4 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -76,24 +76,24 @@ callers `_update_status_done`/`_backfill`), plus regression tests in
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Characterization test added that captures the current (broken) behavior
+- [x] Characterization test added that captures the current (broken) behavior
       Given a task already has a linked GitHub Projects item
       When a second sync stage (e.g. `--stage open` after `--stage draft`) runs for the same task
       Then a test demonstrates `_create_item`/`gh project item-create` is invoked again, producing a second item (documenting today's duplication bug as-is)
 
-- [ ] Requirement updated in the requirements document if needed
+- [x] Requirement updated in the requirements document if needed
       Given Requirement 4 already says "create or link" but only "create" is implemented
       When this task is scoped
       Then confirm with the user whether Requirement 4's text needs clarification (e.g. explicit "link to an existing item, identified by title prefix, before falling back to creating a new one") or is already sufficient as binding text for the fix
 
-- [ ] Bug fixed, test updated to assert the correct behavior
+- [x] Bug fixed, test updated to assert the correct behavior
       Given a task already has a linked GitHub Projects item
       When any sync stage runs again for that task
       Then no new item is created — the existing item (found via the same title-prefix lookup `_item_list_lookup` already performs) is reused/linked instead, and `_item_list_lookup`'s callers handle a multi-line/multi-match result safely (e.g. use the first match and log/warn on an unexpected multiple-match instead of concatenating IDs) rather than assuming exactly one line of output
 
-- [ ] make lint && make test pass
+- [x] make lint && make test pass
 
-- [ ] CHANGELOG.md updated
+- [x] CHANGELOG.md updated
 
 ## Out of scope
 - Cleaning up any further duplicate items already created on real GitHub
@@ -110,9 +110,21 @@ callers `_update_status_done`/`_backfill`), plus regression tests in
 None
 
 ## Completion
-**Date:**
-**Summary:**
-**Files changed:**
+**Date:** 2026-07-31
+**Summary:** `_create_item` now looks up an existing Project item (by
+TASK-ID title prefix, via the shared `_item_list_lookup`) before creating
+one, and reuses it instead of creating a duplicate across `draft`/`open`/
+`merge`/`backfill` sync stages. `_update_status_done` and
+`_backfill_resolve_and_set_status` now take only the first matching item ID
+via a new `_select_item_id` helper instead of assuming exactly one line of
+`item-list` output, so a stale multi-match can no longer be concatenated
+into a malformed `--id` value. Requirement 4 in
+`REQUIREMENTS_TASK_WORKFLOW.md` was clarified (user-confirmed) to spell out
+that "link" means look-up-then-reuse across all sync stages.
+**Files changed:** `REQUIREMENTS_TASK_WORKFLOW.md`,
+`src/butler_core/projects.py`, `tests/test_projects_backfill.py`,
+`tests/test_projects_duplicate_items.py` (new), `CHANGELOG.md`,
+`docs/tasks/TASK-063-projects-sync-creates-duplicate-items.md`
 **Branch:** `git checkout task/063-projects-sync-creates-duplicate-items`
 **Stage:** `git add src/butler_core/projects.py tests/test_projects*.py CHANGELOG.md docs/tasks/TASK-063-projects-sync-creates-duplicate-items.md`
 **Commit:** `git commit -m "Fix GitHub Projects sync creating duplicate items instead of linking to an existing one"`

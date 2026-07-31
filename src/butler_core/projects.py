@@ -240,7 +240,66 @@ def _no_project_warning(task: Task, env: dict[str, str] | None) -> SyncResult:
     return _warning(task.id, "no project configured for this repo", suggestion=suggestion)
 
 
+def _item_list_lookup(
+    task: Task, project: str, owner: str, env: dict[str, str] | None
+) -> subprocess.CompletedProcess[str]:
+    """The `gh project item-list --jq` lookup for the Project item linked to
+    `task`, shared by `_create_item`, `_update_status_done` and `_backfill`
+    so the `--jq` filter string is defined exactly once."""
+    return _run_gh(
+        [
+            "project",
+            "item-list",
+            project,
+            "--owner",
+            owner,
+            "--format",
+            "json",
+            "--jq",
+            f'.items[] | select(.content.title | startswith("{task.id}")) | .id',
+        ],
+        env,
+    )
+
+
+def _select_item_id(stdout: str, task_id: str) -> tuple[str | None, str | None]:
+    """Pick the Project item ID to act on from `_item_list_lookup`'s
+    (possibly multi-line) stdout, instead of assuming exactly one line of
+    output. Returns `(item_id, warning)`: `item_id` is the first matching
+    line (or None if there was no match at all); `warning` is a non-blocking
+    note to append to the caller's success message when more than one item
+    matched, so a stale duplicate never gets silently concatenated into a
+    single malformed `--id` value."""
+    matches = [line for line in stdout.splitlines() if line.strip()]
+    if not matches:
+        return None, None
+    warning = None
+    if len(matches) > 1:
+        warning = (
+            f"Warning: multiple existing GitHub Project items matched {task_id}; "
+            "using the first match"
+        )
+    return matches[0], warning
+
+
 def _create_item(task: Task, project: str, owner: str, env: dict[str, str] | None) -> SyncResult:
+    try:
+        lookup_result = _item_list_lookup(task, project, owner, env)
+    except FileNotFoundError:
+        return _warning(task.id, "gh: not found")
+    except subprocess.CalledProcessError as exc:
+        return _warning(task.id, (exc.stderr or "").strip() or "gh command failed")
+    except OSError as exc:
+        return _warning(task.id, str(exc))
+
+    if lookup_result.returncode == 0:
+        item_id, duplicate_warning = _select_item_id(lookup_result.stdout, task.id)
+        if item_id is not None:
+            message = f"Synced {task.id} {task.title} to GitHub Project item (status: In Progress)"
+            if duplicate_warning:
+                message = f"{message}\n{duplicate_warning}"
+            return SyncResult(success=True, message=message)
+
     try:
         result = _run_gh(
             [
@@ -268,28 +327,6 @@ def _create_item(task: Task, project: str, owner: str, env: dict[str, str] | Non
     return SyncResult(success=True, message=message)
 
 
-def _item_list_lookup(
-    task: Task, project: str, owner: str, env: dict[str, str] | None
-) -> subprocess.CompletedProcess[str]:
-    """The `gh project item-list --jq` lookup for the Project item linked to
-    `task`, shared by `_update_status_done` and `_backfill` so the `--jq`
-    filter string is defined exactly once."""
-    return _run_gh(
-        [
-            "project",
-            "item-list",
-            project,
-            "--owner",
-            owner,
-            "--format",
-            "json",
-            "--jq",
-            f'.items[] | select(.content.title | startswith("{task.id}")) | .id',
-        ],
-        env,
-    )
-
-
 def _update_status_done(
     task: Task, project: str, owner: str, env: dict[str, str] | None
 ) -> SyncResult:
@@ -297,7 +334,8 @@ def _update_status_done(
         item_result = _item_list_lookup(task, project, owner, env)
         if item_result.returncode != 0:
             return _warning(task.id, _classify_gh_failure(item_result.stderr))
-        item_id = item_result.stdout.strip() or task.id
+        item_id, duplicate_warning = _select_item_id(item_result.stdout, task.id)
+        item_id = item_id or task.id
 
         project_node_id = _resolve_project_node_id(project, owner, env)
         status_done_ids = _resolve_status_done_field_ids(project, owner, env)
@@ -330,9 +368,10 @@ def _update_status_done(
     if result.returncode != 0:
         return _warning(task.id, _classify_gh_failure(result.stderr))
 
-    return SyncResult(
-        success=True, message=f"Updated GitHub Project item for {task.id} to status: Done"
-    )
+    message = f"Updated GitHub Project item for {task.id} to status: Done"
+    if duplicate_warning:
+        message = f"{message}\n{duplicate_warning}"
+    return SyncResult(success=True, message=message)
 
 
 def _sync(
@@ -522,7 +561,8 @@ def _backfill_resolve_and_set_status(
     item_result = _item_list_lookup(task, project, owner, env)
     if item_result.returncode != 0:
         return _warning(task.id, _classify_gh_failure(item_result.stderr))
-    item_id = item_result.stdout.strip() or task.id
+    item_id, _duplicate_warning = _select_item_id(item_result.stdout, task.id)
+    item_id = item_id or task.id
 
     project_node_id = _resolve_project_node_id(project, owner, env)
     fields = _fetch_project_fields(project, owner, env)

@@ -60,10 +60,17 @@ def _make_side_effect(
     invocations are told apart by `--diff-filter=A` (first-commit lookup)
     vs. the plain `-1` (most-recent-commit lookup); `gh` invocations are
     told apart by their subcommand keyword.
+
+    Models a brand-new (not yet linked) task: the first `item-list` lookup
+    (made by `_create_item` to check for an existing item before creating
+    one) returns no match, so `item-create` actually runs; every later
+    `item-list` lookup (made when resolving Status/Created/Closed) returns
+    the newly created item's id, since the item now exists.
     """
     fields = fields if fields is not None else []
     first_commit_lines = first_commit_lines or []
     latest_commit_lines = latest_commit_lines or []
+    item_list_calls = {"count": 0}
 
     def _side_effect(argv, *args, **kwargs):
         if argv[0] == "git":
@@ -73,6 +80,9 @@ def _make_side_effect(
         if "item-create" in argv:
             return _completed(returncode=0, stdout="")
         if "item-list" in argv:
+            item_list_calls["count"] += 1
+            if item_list_calls["count"] == 1:
+                return _completed(returncode=0, stdout="")
             return _completed(returncode=0, stdout=item_id)
         if "view" in argv:
             return _completed(returncode=0, stdout=json.dumps({"id": project_node_id}))
@@ -649,7 +659,14 @@ class TestBackfillPropagatesFailuresFromEachStep:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
 
+        calls = {"item_list": 0}
+
         def _side_effect(argv, *args, **kwargs):
+            if argv[0] == "gh" and "item-list" in argv:
+                calls["item_list"] += 1
+                if calls["item_list"] == 1:
+                    return _completed(returncode=0, stdout="")
+                raise FileNotFoundError("gh")
             if argv[0] == "gh" and "item-create" in argv:
                 return _completed(returncode=0, stdout="")
             raise FileNotFoundError("gh")
@@ -672,7 +689,14 @@ class TestBackfillPropagatesFailuresFromEachStep:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
 
+        calls = {"item_list": 0}
+
         def _side_effect(argv, *args, **kwargs):
+            if argv[0] == "gh" and "item-list" in argv:
+                calls["item_list"] += 1
+                if calls["item_list"] == 1:
+                    return _completed(returncode=0, stdout="")
+                raise subprocess.CalledProcessError(1, argv, stderr="permission denied")
             if argv[0] == "gh" and "item-create" in argv:
                 return _completed(returncode=0, stdout="")
             raise subprocess.CalledProcessError(1, argv, stderr="permission denied")
@@ -695,7 +719,14 @@ class TestBackfillPropagatesFailuresFromEachStep:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
 
+        calls = {"item_list": 0}
+
         def _side_effect(argv, *args, **kwargs):
+            if argv[0] == "gh" and "item-list" in argv:
+                calls["item_list"] += 1
+                if calls["item_list"] == 1:
+                    return _completed(returncode=0, stdout="")
+                raise PermissionError("denied")
             if argv[0] == "gh" and "item-create" in argv:
                 return _completed(returncode=0, stdout="")
             raise PermissionError("denied")
