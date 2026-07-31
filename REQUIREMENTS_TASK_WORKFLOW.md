@@ -172,7 +172,13 @@ The sync MUST be invoked as an added step in the existing flow:
 
 - `make pr-current-task` (and `make pr-task`) MUST, after the PR is opened,
   attempt to create or link a GitHub Projects item for that PR and set its
-  TASK-ID/title fields from the task file.
+  TASK-ID/title fields from the task file. "Link" means the sync MUST FIRST
+  look up whether a Project item already exists for the task (matching on
+  the task's TASK-ID title prefix, the same lookup already used to update
+  status) and reuse that item; a new item MUST be created only when no
+  existing item matches. This applies across every sync stage
+  (`draft`/`open`/`merge`/`backfill`) so that running more than one stage
+  for the same task never produces more than one Project item.
 - `make merge-current-task` (and `make merge-pr`) MUST, after the PR is
   merged, attempt to update the linked Projects item's status field to
   reflect completion.

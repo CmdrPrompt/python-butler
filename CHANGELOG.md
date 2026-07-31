@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The GitHub Projects sync (`butler task sync-project`, all stages —
+  `draft`/`open`/`merge`/`backfill`) now looks up whether a Project item already
+  exists for the task (matching on its TASK-ID title prefix) before creating one,
+  and reuses that item instead of creating a duplicate — previously, running more
+  than one sync stage for the same task (the normal `draft` → `open` → `merge`
+  sequence) created a new Project item on every call. The item-lookup callers that
+  update an item's status (`--stage merge`/`--stage backfill`) also now take only
+  the first matching item ID instead of assuming exactly one line of output; a
+  stale multi-match no longer gets concatenated into a single malformed `--id`
+  value passed to `gh project item-edit`, which previously made the merge-stage
+  status update fail outright with a GraphQL error whenever a task already had more
+  than one linked item. (TASK-063)
+
 ### Changed
 
 - `butler task pr` (`make pr-task`/`pr-current-task`) no longer switches the working tree to
