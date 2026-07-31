@@ -60,6 +60,13 @@ vendored Makefile.
 - Changing the subtree-based adoption mechanism itself (`git subtree add`) —
   only refreshing the Makefile file within an already-adopted project is in
   scope.
+- Reading task status, or any other data, back from GitHub Projects into the
+  CLI, `git_ops.py`, the Makefile, or any agent's task-file read/write
+  behavior. The sync is strictly one-way (task file → Projects item) — see
+  Requirement 4.
+- Making GitHub Projects a source of truth for task state, or changing how
+  Workflow Guardian, Task Drafter, Implementation Worker, or any other agent
+  reads or writes `docs/tasks/TASK-XXX-*.md` files.
 
 ## Requirement 1: Regression test protecting the non-recursive architecture
 
@@ -142,6 +149,67 @@ butler sync
 # leaves other vendored files (governance docs, agents) untouched
 ```
 
+## Requirement 4: Best-effort one-way sync of task metadata to a linked GitHub Projects item
+
+**Description:** The task workflow MUST support an optional, additive
+one-way mirror of task metadata (TASK-ID, title, status) from the task file
+in `docs/tasks/TASK-XXX-*.md` to a GitHub Projects (v2) item linked to the
+task's PR. `docs/tasks/TASK-XXX-*.md` remains the sole source of truth;
+nothing from GitHub Projects is ever read back into the CLI, `git_ops.py`,
+the Makefile, or any agent's (Workflow Guardian, Task Drafter,
+Implementation Worker, etc.) read/write behavior against task files, which
+MUST NOT change as part of this requirement.
+
+The sync MUST be implemented as a single, separate, encapsulated entry
+point (e.g. a `butler task sync-project` command or an equivalent standalone
+script invoked via a dedicated `make` target such as `sync-project-item`) —
+not inlined into `git_ops.py`'s branch/stage/commit/pr/merge functions —
+so that a future, heavier integration (e.g. Projects as source of truth)
+can replace or extend this entry point without requiring changes to the
+existing branch/stage/commit/pr/merge call sites.
+
+The sync MUST be invoked as an added step in the existing flow:
+
+- `make pr-current-task` (and `make pr-task`) MUST, after the PR is opened,
+  attempt to create or link a GitHub Projects item for that PR and set its
+  TASK-ID/title fields from the task file.
+- `make merge-current-task` (and `make merge-pr`) MUST, after the PR is
+  merged, attempt to update the linked Projects item's status field to
+  reflect completion.
+
+The sync MUST use the `gh` CLI (e.g. `gh project item-add`) or the GitHub
+GraphQL API.
+
+The sync MUST be best-effort: if no GitHub Project is configured for the
+repository, if `gh` lacks the required permissions, if `gh` is not
+installed/authenticated, or if the sync otherwise fails for any reason, the
+failure MUST be reported as a warning (non-zero exit from the sync step MUST
+NOT propagate as a failure of `pr-task`/`pr-current-task`/`merge-pr`/
+`merge-current-task`) and MUST NOT block PR creation or merge. PR creation
+and merge MUST succeed identically whether or not the Projects sync
+succeeds.
+
+**Use case:**
+
+```bash
+make pr-current-task
+# ... existing behavior: branch pushed, PR opened using task file metadata ...
+# additionally attempts to sync task metadata to a linked GitHub Projects
+# item:
+#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: In Progress)
+# if no Project is configured or gh lacks permission:
+#   Warning: could not sync TASK-012 to GitHub Projects (no project configured for this repo) - continuing
+# PR creation succeeds either way; make pr-current-task exits 0
+
+make merge-current-task
+# ... existing behavior: PR squash-merged, main pulled ...
+# additionally attempts to update the linked Projects item's status:
+#   Updated GitHub Project item for TASK-012 to status: Done
+# if the sync fails for any reason:
+#   Warning: could not update GitHub Project item for TASK-012 (gh: not authenticated) - continuing
+# merge succeeds either way; make merge-current-task exits 0
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -155,5 +223,16 @@ butler sync
       match the installed CLI version, comparing content (hash/diff) to
       decide whether a change is needed, gated by a clean-working-tree
       check (`--force` to override), and supporting `--dry-run`.
+- [ ] A separate, encapsulated sync entry point exists for mirroring task
+      metadata (TASK-ID, title, status) to a linked GitHub Projects item,
+      invoked as an added step from `pr-task`/`pr-current-task` (on PR open)
+      and `merge-pr`/`merge-current-task` (on merge).
+- [ ] The sync is one-way only: nothing is read back from GitHub Projects
+      into the task workflow, and no existing agent's task-file read/write
+      behavior changes.
+- [ ] The sync is best-effort: failures (missing Project, missing `gh`
+      permissions, `gh` not installed/authenticated, etc.) produce a warning
+      and do not cause `pr-task`, `pr-current-task`, `merge-pr`, or
+      `merge-current-task` to fail or block.
 - [ ] `CHANGELOG.md` updated with a behavior-first entry.
 - [ ] `make lint && make test` pass.

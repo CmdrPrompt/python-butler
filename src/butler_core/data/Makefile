@@ -254,6 +254,7 @@ pr-task: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make pr-task f=<task-id>"; exit 1)
 	butler --tasks-dir $(TASKS_DIR) task branch $(f)
 	butler --tasks-dir $(TASKS_DIR) task pr $(f)
+	-butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage open
 
 ## Open PR using task file metadata for the current task branch
 pr-current-task:
@@ -266,6 +267,7 @@ pr-current-task:
 merge-pr: check-butler
 	@[ -n "$(f)" ] || (echo "Usage: make merge-pr f=<task-id>"; exit 1)
 	butler --tasks-dir $(TASKS_DIR) task merge $(f)
+	-butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage merge
 
 ## Squash-merge the open PR for the current task branch, then pull main
 merge-current-task:

@@ -25,6 +25,14 @@
 
 ### Added
 
+- Added a best-effort, one-way sync of task metadata to a linked GitHub Projects (v2) item: a new
+  `butler task sync-project <task_id> --stage open|merge` command (backed by `butler_core.projects`,
+  kept separate from `git_ops.py`) creates or links a Project item populated with the TASK-ID and
+  title when a PR is opened, and moves the item's status to "Done" when the PR is merged. The
+  target Project is configured via the `BUTLER_GITHUB_PROJECT` environment variable; `pr-task` and
+  `merge-pr` now invoke the sync step as a non-blocking addition after opening/merging the PR, so a
+  missing Project, an unauthenticated or missing `gh` CLI, or any other sync failure only prints a
+  warning and never fails PR creation or merge. (TASK-056)
 - Added five shared skills (`commit-workflow`, `task-file-format`, `tdd-cycle`, `changelog`,
   `characterization-tests`) under `.claude/skills/` (mirrored in `claude-skills/`) so procedures
   previously duplicated across every agent definition now live in one place; all agents now load
