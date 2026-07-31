@@ -173,9 +173,8 @@ class TestGitDelegation:
 
         assert exit_code == 0, "branch command should exit 0 on success"
         commands = [call.args[0] for call in mock_run.call_args_list]
-        assert ["git", "checkout", "-b", task.branch_name] in commands, (
-            f"expected a 'git checkout -b {task.branch_name}' invocation, got {commands}"
-        )
+        expected = ["git", "checkout", "-b", task.branch_name, "origin/main"]
+        assert expected in commands, f"expected {expected} invocation, got {commands}"
 
     @patch("butler_core.git_ops.subprocess.run")
     def test_stage_runs_tasks_stage_command(self, mock_run: MagicMock, tmp_path: Path) -> None:

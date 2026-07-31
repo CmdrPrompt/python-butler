@@ -29,7 +29,10 @@ def branch_for(task: Task) -> None:
     if _branch_exists(branch):
         subprocess.run(["git", "checkout", branch], check=True)  # nosec B603 B607
     else:
-        subprocess.run(["git", "checkout", "-b", branch], check=True)  # nosec B603 B607
+        subprocess.run(["git", "fetch", "origin", "main"], check=True)  # nosec B603 B607
+        subprocess.run(  # nosec B603 B607
+            ["git", "checkout", "-b", branch, "origin/main"], check=True
+        )
 
 
 def _markdown_files(root: Path) -> list[str]:
@@ -109,7 +112,6 @@ def open_pr_for(task: Task, tasks_dir: str = DEFAULT_TASKS_DIR) -> None:
         ["gh", "pr", "create", "--title", title, "--body", body, "--base", "main"],
         check=True,
     )
-    subprocess.run(["git", "checkout", "main"], check=True)  # nosec B603 B607
 
 
 def merge_pr_for(task: Task) -> None:
