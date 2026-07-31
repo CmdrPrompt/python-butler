@@ -136,6 +136,27 @@ def test_read_task_raises_for_unknown_task_id(tmp_path: Path) -> None:
         read_task("TASK-999", tasks_dir=str(tmp_path))
 
 
+def test_read_task_finds_criteria_under_gherkin_suffixed_heading(tmp_path: Path) -> None:
+    task = create_task("Gherkin heading task", "desc", tasks_dir=str(tmp_path))
+    path = tmp_path / f"{task.id}-gherkin-heading-task.md"
+    text = path.read_text().replace(
+        "## Acceptance criteria\n",
+        "## Acceptance criteria (Gherkin)\n\n- [ ] first\n- [x] second\n",
+    )
+    path.write_text(text)
+
+    updated = read_task(task.id, tasks_dir=str(tmp_path))
+
+    assert [criterion.text for criterion in updated.acceptance_criteria] == [
+        "first",
+        "second",
+    ]
+    assert [criterion.checked for criterion in updated.acceptance_criteria] == [
+        False,
+        True,
+    ]
+
+
 _safe_field = st.text(
     alphabet=st.characters(
         blacklist_categories=("Cs",),
@@ -203,3 +224,31 @@ def test_render_and_parse_round_trip(
     reparsed = parse_task(render_task(task))
 
     assert reparsed == task
+
+
+_heading_suffixes = st.sampled_from(["", " (Gherkin)"])
+
+
+@given(acceptance_criteria=_criteria, heading_suffix=_heading_suffixes)
+def test_parse_task_finds_acceptance_criteria_regardless_of_heading_suffix(
+    acceptance_criteria: list[AcceptanceCriterion], heading_suffix: str
+) -> None:
+    task = Task(
+        id="TASK-001",
+        title="Sample",
+        status="todo",
+        description="desc",
+        branch_name="task/001-sample",
+        switch_create_cmd="git checkout -b task/001-sample",
+        stage_cmd="git add foo.py CHANGELOG.md",
+        commit_message="Do the thing",
+        acceptance_criteria=acceptance_criteria,
+        completion=None,
+    )
+    text = render_task(task).replace(
+        "## Acceptance criteria\n", f"## Acceptance criteria{heading_suffix}\n"
+    )
+
+    reparsed = parse_task(text)
+
+    assert reparsed.acceptance_criteria == acceptance_criteria
