@@ -22,6 +22,13 @@
   `REQUIREMENTS_BUTLER_PULL.md` is superseded in full by `REQUIREMENTS_SUBMODULE.md`; its
   `claude-skills`/`claude-agents` copy-symmetry requirement carries forward unchanged, and
   `generate-governance-files`'s copy behavior is otherwise untouched. (TASK-054)
+- The "no project configured for this repo" warning printed by the GitHub Projects sync now
+  includes a concrete, copy-pasteable setup suggestion (`gh project create --owner <owner> --title
+  <repo>` followed by `export BUTLER_GITHUB_PROJECT=<number from the command above>`) with the
+  owner and repository name filled in from the current repository, derived at runtime via
+  `gh repo view --json owner,name` or by parsing the `origin` remote URL. If the owner/repository
+  cannot be determined (e.g. `gh` is not installed/authenticated, or there is no `origin` remote),
+  the sync falls back to the previous generic warning with no example. (TASK-057)
 
 ### Added
 

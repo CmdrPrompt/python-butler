@@ -15,7 +15,9 @@ Projects into the task file, the CLI, or git_ops.py.
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import subprocess  # nosec B404 -- used only to invoke the fixed `gh` CLI
 from dataclasses import dataclass
 
@@ -48,11 +50,57 @@ def _owner(env: dict[str, str] | None) -> str:
     return source.get(_OWNER_ENV_VAR) or "@me"
 
 
-def _warning(task_id: str, reason: str) -> SyncResult:
-    return SyncResult(
-        success=False,
-        message=f"Warning: could not sync {task_id} to GitHub Projects ({reason}) - continuing",
-    )
+def _warning(task_id: str, reason: str, *, suggestion: str | None = None) -> SyncResult:
+    message = f"Warning: could not sync {task_id} to GitHub Projects ({reason}) - continuing"
+    if suggestion:
+        message = f"{message}\n{suggestion}"
+    return SyncResult(success=False, message=message)
+
+
+def _parse_owner_repo_from_git_remote(url: str) -> tuple[str, str] | None:
+    """Parse an owner/repo pair out of a `git remote get-url origin` URL,
+    supporting both SSH (`git@github.com:owner/repo.git`) and HTTPS
+    (`https://github.com/owner/repo.git`) forms."""
+    match = re.search(r"[/:]([^/:]+)/([^/]+?)(?:\.git)?/?$", url.strip())
+    if not match:
+        return None
+    owner, repo = match.group(1), match.group(2)
+    if not owner or not repo:
+        return None
+    return owner, repo
+
+
+def _lookup_owner_repo(env: dict[str, str] | None) -> tuple[str, str] | None:
+    """Best-effort lookup of the current repository's owner/name, used to
+    build a copy-pasteable setup suggestion when no Project is configured.
+    Never raises; returns None on any failure so callers can fall back to
+    the generic warning."""
+    try:
+        gh_result = _run_gh(["repo", "view", "--json", "owner,name"], env)
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        gh_result = None
+    if gh_result is not None and gh_result.returncode == 0:
+        try:
+            data = json.loads(gh_result.stdout)
+            owner = data["owner"]["login"]
+            name = data["name"]
+        except (ValueError, KeyError, TypeError):
+            owner = name = None
+        if owner and name:
+            return owner, name
+
+    try:
+        git_result = subprocess.run(  # nosec B603 B607 -- fixed git CLI invocation, no shell/user input
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        return None
+    if git_result.returncode != 0:
+        return None
+    return _parse_owner_repo_from_git_remote(git_result.stdout)
 
 
 def _classify_gh_failure(stderr: str) -> str:
@@ -78,7 +126,16 @@ def _run_gh(args: list[str], env: dict[str, str] | None) -> subprocess.Completed
 def _sync(task: Task, env: dict[str, str] | None, status: str | None) -> SyncResult:
     project = _project_number(env)
     if not project:
-        return _warning(task.id, "no project configured for this repo")
+        suggestion = None
+        owner_repo = _lookup_owner_repo(env)
+        if owner_repo is not None:
+            owner, repo = owner_repo
+            suggestion = (
+                f"To configure one:\n"
+                f"  gh project create --owner {owner} --title {repo}\n"
+                f"  export BUTLER_GITHUB_PROJECT=<number from the command above>"
+            )
+        return _warning(task.id, "no project configured for this repo", suggestion=suggestion)
 
     owner = _owner(env)
     try:

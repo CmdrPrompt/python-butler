@@ -101,8 +101,14 @@ class TestSyncProjectCliBestEffort:
     def test_sync_project_merge_stage_exits_zero_when_no_project_configured(
         self, mock_run: MagicMock, tmp_path: Path, monkeypatch
     ) -> None:
+        """No project configured must still exit 0. Since TASK-057, the sync
+        may issue a read-only lookup call (e.g. `gh repo view` or
+        `git remote get-url origin`) to build a copy-pasteable setup
+        suggestion, so this only asserts no mutating `gh project` write call
+        (`item-create`/`item-edit`) is attempted."""
         task = create_task("Some feature", "desc", tasks_dir=str(tmp_path))
         monkeypatch.delenv("BUTLER_GITHUB_PROJECT", raising=False)
+        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="not a repo")
 
         exit_code = main(
             [
@@ -117,4 +123,9 @@ class TestSyncProjectCliBestEffort:
         )
 
         assert exit_code == 0
-        mock_run.assert_not_called()
+        mutating_calls = [
+            call
+            for call in mock_run.call_args_list
+            if "item-create" in call.args[0] or "item-edit" in call.args[0]
+        ]
+        assert mutating_calls == []
