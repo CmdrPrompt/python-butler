@@ -56,6 +56,16 @@
   value passed to `gh project item-edit`, which previously made the merge-stage
   status update fail outright with a GraphQL error whenever a task already had more
   than one linked item. (TASK-063)
+- `butler task show`, `butler-mcp`'s `get_task`/`list_tasks`, and any other
+  reader of `Task.acceptance_criteria` now correctly find a task's
+  acceptance criteria when the section is headed `## Acceptance criteria
+  (Gherkin)` — the heading every task file has used since TASK-043. The
+  parser's heading matcher previously required the heading line to be
+  exactly `## Acceptance criteria` with nothing but whitespace after it, so
+  it silently returned an empty list for every current-format task file,
+  even though the checkboxes were present and `butler task check`/the
+  GitHub Projects item body (both of which read the file differently)
+  worked correctly. (TASK-072)
 
 ### Changed
 

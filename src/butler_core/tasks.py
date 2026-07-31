@@ -49,7 +49,7 @@ def _find_task_file(task_id: str, tasks_dir: str) -> Path:
 
 
 def _section(text: str, heading: str) -> str:
-    pattern = rf"^## {re.escape(heading)}\s*\n(.*?)(?=^## |\Z)"
+    pattern = rf"^## {re.escape(heading)}[^\n]*\n(.*?)(?=^## |\Z)"
     match = re.search(pattern, text, re.MULTILINE | re.DOTALL)
     return match.group(1).strip() if match else ""
 

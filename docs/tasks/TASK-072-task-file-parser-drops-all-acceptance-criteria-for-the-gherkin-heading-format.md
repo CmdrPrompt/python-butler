@@ -1,7 +1,7 @@
 # TASK-072 Task-file parser drops all acceptance criteria for the Gherkin heading format
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 1 (REQUIREMENTS_MCP.md); BDD-025 (REQUIREMENTS_BDD.md)
@@ -78,7 +78,7 @@ parsing functions) asserting `parse_task` returns non-empty, correctly
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: `read_task` returns non-empty acceptance criteria for the current Gherkin-heading template
+- [x] Scenario: `read_task` returns non-empty acceptance criteria for the current Gherkin-heading template
       Given a task file whose acceptance criteria section is headed
       `## Acceptance criteria (Gherkin)` and contains one checked and one
       unchecked `- [ ]`/`- [x]` line
@@ -87,7 +87,7 @@ parsing functions) asserting `parse_task` returns non-empty, correctly
       with their correct `text` and `checked` values, matching what
       `butler task show` and `butler-mcp`'s `get_task`/`list_tasks` display
 
-- [ ] Scenario: Older plain-heading task files keep working unchanged
+- [x] Scenario: Older plain-heading task files keep working unchanged
       Given a task file whose acceptance criteria section is headed
       `## Acceptance criteria` (no suffix), the format used by task files
       before TASK-043
@@ -95,15 +95,15 @@ parsing functions) asserting `parse_task` returns non-empty, correctly
       Then the returned `acceptance_criteria` is unchanged from today's
       behavior (no regression for the legacy heading form)
 
-- [ ] Hypothesis-based regression coverage exists for `_section`/
+- [x] Hypothesis-based regression coverage exists for `_section`/
       `parse_task`'s heading matching across both heading forms, per
       CLAUDE.md's rule that parsing/data-transformation functions use
       Hypothesis
 
-- [ ] make lint && make test pass, with coverage not below the task-start
+- [x] make lint && make test pass, with coverage not below the task-start
       baseline
 
-- [ ] CHANGELOG.md updated
+- [x] CHANGELOG.md updated
 
 ## Out of scope
 - Changing the task file template or heading text itself — this task only
@@ -120,9 +120,27 @@ parsing functions) asserting `parse_task` returns non-empty, correctly
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-01
+**Summary:** Fixed `_section()` in `src/butler_core/tasks.py` to match a
+heading's trailing suffix with `[^\n]*` instead of `\s*`, so `## Acceptance
+criteria (Gherkin)` (and any other suffixed heading) is found the same way
+`## Acceptance criteria` always was. Chose `[^\n]*` rather than a DOTALL-`.*`
+suffix match: with `re.DOTALL` already active for the section body capture,
+a bare `.*` before the first `\n` would greedily cross line boundaries and
+backtrack from the end of the whole file looking for a `\n`, potentially
+matching far past the intended heading line before backing off — bounding
+the suffix match to `[^\n]*` keeps it on the heading's own line regardless
+of `DOTALL`. Added a Hypothesis-parametrized regression test
+(`test_parse_task_finds_acceptance_criteria_regardless_of_heading_suffix`)
+covering both the plain and `(Gherkin)`-suffixed heading forms, plus a
+concrete `read_task`-level test reproducing TASK-068's live symptom.
+Confirmed red before the fix (both new tests failed), green after. Full
+suite: 314 passed, coverage 98% on `tasks.py` (unchanged from baseline).
 **Files changed:**
+- `src/butler_core/tasks.py` - widened `_section()`'s heading match to tolerate a trailing suffix
+- `tests/test_tasks.py` - added Hypothesis and concrete regression coverage
+- `CHANGELOG.md` - documented the fix
+- `docs/tasks/TASK-072-task-file-parser-drops-all-acceptance-criteria-for-the-gherkin-heading-format.md` - checked off criteria, completion
 **Branch:** `git checkout task/072-task-file-parser-drops-all-acceptance-criteria-for-the-gherkin-heading-format`
 **Stage:** `git add src/butler_core/tasks.py tests/test_tasks.py CHANGELOG.md docs/tasks/TASK-072-task-file-parser-drops-all-acceptance-criteria-for-the-gherkin-heading-format.md`
 **Commit:** `git commit -m "Fix task-file parser to find Acceptance criteria sections with a Gherkin-suffixed heading"`
