@@ -20,11 +20,13 @@ import os
 import re
 import subprocess  # nosec B404 -- used only to invoke the fixed `gh` CLI
 from dataclasses import dataclass
+from pathlib import Path
 
 from butler_core.tasks import Task
 
 _PROJECT_ENV_VAR = "BUTLER_GITHUB_PROJECT"
 _OWNER_ENV_VAR = "GITHUB_REPOSITORY_OWNER"
+_PROJECT_CONFIG_FILENAME = ".butler-project"
 
 
 @dataclass
@@ -39,7 +41,30 @@ class SyncResult:
     message: str
 
 
-def _project_number(env: dict[str, str] | None) -> str | None:
+def _repo_root(start: Path) -> Path:
+    """Walk up from `start` looking for the target repo's root (marked by a
+    `.git` directory or file), so `.butler-project` is only looked up within
+    the repo that owns `start`, never an unrelated ancestor directory."""
+    for directory in [start, *start.parents]:
+        if (directory / ".git").exists():
+            return directory
+    return start
+
+
+def _butler_project_file_value(tasks_dir: str | None) -> str | None:
+    if not tasks_dir:
+        return None
+    repo_root = _repo_root(Path(tasks_dir).resolve())
+    config_file = repo_root / _PROJECT_CONFIG_FILENAME
+    if not config_file.is_file():
+        return None
+    return config_file.read_text().strip() or None
+
+
+def _project_number(env: dict[str, str] | None, tasks_dir: str | None = None) -> str | None:
+    from_file = _butler_project_file_value(tasks_dir)
+    if from_file:
+        return from_file
     source: dict[str, str] = env if env is not None else dict(os.environ)
     value = source.get(_PROJECT_ENV_VAR)
     return value or None
@@ -167,7 +192,8 @@ def _no_project_warning(task: Task, env: dict[str, str] | None) -> SyncResult:
         suggestion = (
             f"To configure one:\n"
             f"  gh project create --owner {owner} --title {repo}\n"
-            f"  export BUTLER_GITHUB_PROJECT=<number from the command above>"
+            f"  echo <number from the command above> > .butler-project\n"
+            f"  (or) export BUTLER_GITHUB_PROJECT=<number from the command above>"
         )
     return _warning(task.id, "no project configured for this repo", suggestion=suggestion)
 
@@ -258,8 +284,13 @@ def _update_status_done(
     )
 
 
-def _sync(task: Task, env: dict[str, str] | None, status: str | None) -> SyncResult:
-    project = _project_number(env)
+def _sync(
+    task: Task,
+    env: dict[str, str] | None,
+    status: str | None,
+    tasks_dir: str | None = None,
+) -> SyncResult:
+    project = _project_number(env, tasks_dir)
     if not project:
         return _no_project_warning(task, env)
 
@@ -269,21 +300,40 @@ def _sync(task: Task, env: dict[str, str] | None, status: str | None) -> SyncRes
     return _update_status_done(task, project, owner, env)
 
 
-def sync_on_pr_open(task: Task, *, env: dict[str, str] | None = None) -> SyncResult:
+def sync_on_pr_open(
+    task: Task, *, env: dict[str, str] | None = None, tasks_dir: str | None = None
+) -> SyncResult:
     """Create or link a GitHub Projects item for `task` after a PR is opened.
 
     Best-effort: never raises. Any failure (no project configured, `gh` not
     authenticated/installed, or any other error) is reported as a
-    `SyncResult(success=False, ...)` warning.
+    `SyncResult(success=False, ...)` warning. The target Project is resolved
+    from a `.butler-project` file in `tasks_dir`'s repo, falling back to the
+    `BUTLER_GITHUB_PROJECT` environment variable if the file is absent.
     """
-    return _sync(task, env, status=None)
+    return _sync(task, env, status=None, tasks_dir=tasks_dir)
 
 
-def sync_on_pr_merge(task: Task, *, env: dict[str, str] | None = None) -> SyncResult:
+def sync_on_pr_draft(
+    task: Task, *, env: dict[str, str] | None = None, tasks_dir: str | None = None
+) -> SyncResult:
+    """Create or link a GitHub Projects item for `task` as soon as its task
+    file is drafted (before any PR exists). Behaves identically to
+    `sync_on_pr_open`; kept as a separate name so callers (e.g. Workflow
+    Guardian, right after merging Task Drafter's branch) can express intent.
+    """
+    return _sync(task, env, status=None, tasks_dir=tasks_dir)
+
+
+def sync_on_pr_merge(
+    task: Task, *, env: dict[str, str] | None = None, tasks_dir: str | None = None
+) -> SyncResult:
     """Update the linked GitHub Projects item's status to "Done" after a PR
     for `task` is merged.
 
     Best-effort: never raises. Any failure is reported as a
-    `SyncResult(success=False, ...)` warning.
+    `SyncResult(success=False, ...)` warning. Project resolution follows the
+    same `.butler-project` / `BUTLER_GITHUB_PROJECT` precedence as
+    `sync_on_pr_open`.
     """
-    return _sync(task, env, status="Done")
+    return _sync(task, env, status="Done", tasks_dir=tasks_dir)
