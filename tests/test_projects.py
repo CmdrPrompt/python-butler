@@ -181,16 +181,27 @@ class TestSyncHandlesMissingProjectConfiguration:
         assert "no project configured" in result.message.lower()
 
     @patch("butler_core.projects.subprocess.run")
-    def test_does_not_shell_out_to_gh_when_no_project_configured(
+    def test_does_not_attempt_to_create_or_edit_a_project_item_when_no_project_configured(
         self, mock_run: MagicMock, tmp_path
     ) -> None:
+        """When no project is configured, the sync must never attempt to
+        write a GitHub Projects item (`gh project item-create` /
+        `item-edit`). TASK-057 permits a read-only lookup call (e.g. `gh
+        repo view` or `git remote get-url origin`) to determine the
+        owner/repo for the warning's setup suggestion, so this no longer
+        asserts zero subprocess calls (see TASK-057)."""
         from butler_core.projects import sync_on_pr_open
 
         task = create_task("My feature", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
 
         sync_on_pr_open(task, env={})
 
-        mock_run.assert_not_called()
+        mutating_calls = [
+            call
+            for call in mock_run.call_args_list
+            if "item-create" in call.args[0] or "item-edit" in call.args[0]
+        ]
+        assert mutating_calls == []
 
 
 class TestSyncHandlesGhNotAuthenticated:

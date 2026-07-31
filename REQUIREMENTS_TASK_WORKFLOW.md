@@ -189,6 +189,19 @@ NOT propagate as a failure of `pr-task`/`pr-current-task`/`merge-pr`/
 and merge MUST succeed identically whether or not the Projects sync
 succeeds.
 
+When the warning is specifically "no GitHub Project is configured"
+(the `BUTLER_GITHUB_PROJECT` environment variable is unset), the warning
+MUST additionally suggest, in the same message or an immediately following
+line, the concrete commands needed to create a Project and configure the
+variable, with the owner and repository name filled in from the current
+repository rather than left as a placeholder. The owner/repository name
+MUST be derived at runtime (e.g. via `gh repo view --json owner,name` or by
+parsing the `origin` remote URL) so the suggestion is directly copy-pasteable
+for whichever repository the sync runs in. If the owner/repository name
+cannot be determined (e.g. `gh` is not installed/authenticated, or there is
+no `origin` remote), the sync MUST fall back to the existing generic warning
+without a concrete example rather than failing or raising.
+
 **Use case:**
 
 ```bash
@@ -197,7 +210,15 @@ make pr-current-task
 # additionally attempts to sync task metadata to a linked GitHub Projects
 # item:
 #   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: In Progress)
-# if no Project is configured or gh lacks permission:
+# if no Project is configured, and owner/repo can be determined (e.g. this
+# repo, CmdrPrompt/python-butler):
+#   Warning: could not sync TASK-012 to GitHub Projects (no project configured for this repo) - continuing
+#   To configure one:
+#     gh project create --owner CmdrPrompt --title "python-butler"
+#     export BUTLER_GITHUB_PROJECT=<number from the command above>
+# if owner/repo cannot be determined (e.g. gh not authenticated):
+#   Warning: could not sync TASK-012 to GitHub Projects (no project configured for this repo) - continuing
+# if gh lacks permission or another failure occurs:
 #   Warning: could not sync TASK-012 to GitHub Projects (no project configured for this repo) - continuing
 # PR creation succeeds either way; make pr-current-task exits 0
 
@@ -234,5 +255,11 @@ make merge-current-task
       permissions, `gh` not installed/authenticated, etc.) produce a warning
       and do not cause `pr-task`, `pr-current-task`, `merge-pr`, or
       `merge-current-task` to fail or block.
+- [ ] The "no Project configured" warning includes a concrete,
+      copy-pasteable suggestion (`gh project create --owner <owner> --title
+      <repo>` and `export BUTLER_GITHUB_PROJECT=...`) with the owner and
+      repository name filled in from the current repository when they can
+      be determined at runtime, falling back to the existing generic
+      warning (no example) when they cannot.
 - [ ] `CHANGELOG.md` updated with a behavior-first entry.
 - [ ] `make lint && make test` pass.
