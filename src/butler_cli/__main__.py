@@ -14,6 +14,7 @@ from butler_core.git_ops import (
     open_pr_for,
     stage_for,
 )
+from butler_core.projects import sync_on_pr_merge, sync_on_pr_open
 from butler_core.sync import sync_makefile
 from butler_core.tasks import (
     DEFAULT_TASKS_DIR,
@@ -56,6 +57,10 @@ def _build_parser() -> argparse.ArgumentParser:
     for name in ("branch", "stage", "commit", "pr", "merge"):
         sub = task_subparsers.add_parser(name)
         sub.add_argument("task_id")
+
+    sync_project_parser = task_subparsers.add_parser("sync-project")
+    sync_project_parser.add_argument("task_id")
+    sync_project_parser.add_argument("--stage", choices=("open", "merge"), required=True)
 
     uninstall_parser = subparsers.add_parser("uninstall")
     uninstall_parser.add_argument("--categories", required=True)
@@ -120,6 +125,18 @@ def _cmd_merge(args: argparse.Namespace) -> None:
     merge_pr_for(read_task(args.task_id, tasks_dir=args.tasks_dir))
 
 
+def _cmd_sync_project(args: argparse.Namespace) -> None:
+    """Best-effort: never raises, and always prints the sync outcome
+    (success or warning) so the caller can surface it without gating on it.
+    """
+    task = read_task(args.task_id, tasks_dir=args.tasks_dir)
+    if args.stage == "open":
+        result = sync_on_pr_open(task)
+    else:
+        result = sync_on_pr_merge(task)
+    print(result.message)
+
+
 def _cmd_uninstall(args: argparse.Namespace) -> None:
     project_root = Path(args.project_root)
     categories = [c.strip() for c in args.categories.split(",") if c.strip()]
@@ -147,6 +164,7 @@ _TASK_HANDLERS = {
     "commit": _cmd_commit,
     "pr": _cmd_pr,
     "merge": _cmd_merge,
+    "sync-project": _cmd_sync_project,
 }
 
 
