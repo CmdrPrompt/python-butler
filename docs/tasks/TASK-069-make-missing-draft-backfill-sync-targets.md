@@ -1,7 +1,7 @@
 # TASK-069 No standalone `make` target reaches `--stage draft`/`--stage backfill`
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 4, Requirement 6, Requirement 8, Requirement 10 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -104,9 +104,30 @@ coverage for the new targets there).
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-01
+**Summary:** Added two standalone `make` targets, `sync-project-draft f=<TASK-ID>` and
+`sync-project-backfill f=<TASK-ID>`, each a thin `check-butler`-gated wrapper around
+`butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage draft`/`--stage backfill`,
+matching the `stage-task`/`commit-task` `f=`-argument convention. Both recipes are a single
+`-`-prefixed direct `butler` call with no `$(MAKE)` call-back, preserving Requirement 1's
+non-recursive architecture (explicitly asserted by new tests). Before implementing,
+REQUIREMENTS_TASK_WORKFLOW.md's Requirement 6 and Requirement 8 were extended (confirmed
+by the user) to bindingly require these targets, since — unlike Requirement 9's `--stage
+start` — neither previously mandated `make` wiring for its stage. Added
+`TestStandaloneDraftSyncTarget`/`TestStandaloneBackfillSyncTarget` to
+`tests/test_projects_makefile_integration.py` (check-butler dependency, `--stage`/`$(f)`
+presence, and the non-recursion guard), following TDD: confirmed red (target/recipe not
+found) before adding the Makefile targets, then green. Also re-copied the root `Makefile`
+into `src/butler_core/data/Makefile` (Requirement 3's vendored-copy parity, caught by the
+existing `test_bundled_makefile_matches_repo_root_makefile` drift test). `make lint` and
+`make test` pass: 312/312 (baseline 311/311 after TASK-067), coverage unchanged at 99%.
 **Files changed:**
+
+- `REQUIREMENTS_TASK_WORKFLOW.md` — modified (Requirement 6/8 extended with the `make` target mandate)
+- `Makefile` — modified (`sync-project-draft`, `sync-project-backfill` targets added; `.PHONY` updated)
+- `src/butler_core/data/Makefile` — modified (re-synced vendored copy)
+- `tests/test_projects_makefile_integration.py` — modified (new test coverage)
+- `CHANGELOG.md` — modified (behavior-first entry added)
 **Branch:** `git checkout task/069-make-missing-draft-backfill-sync-targets`
-**Stage:** `git add Makefile tests/test_projects_makefile_integration.py CHANGELOG.md docs/tasks/TASK-069-make-missing-draft-backfill-sync-targets.md`
+**Stage:** `git add REQUIREMENTS_TASK_WORKFLOW.md Makefile src/butler_core/data/Makefile tests/test_projects_makefile_integration.py CHANGELOG.md docs/tasks/TASK-069-make-missing-draft-backfill-sync-targets.md`
 **Commit:** `git commit -m "Add standalone make targets for the draft and backfill GitHub Projects sync stages"`
