@@ -498,6 +498,46 @@ make branch-task f=TASK-012
 # branch creation succeeds either way; make branch-task exits 0
 ```
 
+## Requirement 10: `CLAUDE.md.tmpl` instructs automatic self-application of Workflow Guardian's rules
+
+**Description:** `templates/CLAUDE.md.tmpl`'s "Task Management" section
+currently only points to the `{{WORKFLOW_GUARDIAN_NAME}}` agent's file as
+the source of the task-file format and workflow enforcement. It does not
+state that an assistant operating in a project generated from this
+template MUST apply that agent's gates (requirements-first, task-drafting,
+branch discipline, TDD, commit discipline, etc.) automatically whenever
+doing task-branch/requirements/TDD work in the repository, regardless of
+whether the agent is explicitly invoked by name (e.g. `@workflow-guardian`).
+Without this, an assistant may treat the referenced gates as optional
+guidance to consult on demand rather than a standing constraint, and skip
+steps (e.g. committing with a raw `git commit`, or skipping the GitHub
+Projects draft-stage sync) that the agent file itself mandates.
+
+The generated `Task Management` section MUST state explicitly that
+`{{WORKFLOW_GUARDIAN_NAME}}`'s rules apply automatically to any
+task-branch/requirements/TDD work, independent of explicit invocation. It
+MUST also state that the underlying operations (branch/stage/commit/pr/
+merge, task-file sync) may be performed via **any** of the three
+equivalent interfaces this project ships — the vendored `make` targets,
+the installed `butler` CLI directly, or the optional `butler-mcp` MCP
+server — rather than mandating `make` specifically; the gate is on *never
+bypassing all three* with a raw `git`/`gh` command, not on which of the
+three is used.
+
+**Use case:**
+
+```text
+A consumer project generates its CLAUDE.md from this template. An assistant
+working in that project is asked to "start TASK-005" without any
+@-mention of the Workflow Guardian agent. Because the generated CLAUDE.md
+states the agent's rules apply automatically, the assistant runs the full
+gated flow (requirements confirmation, task drafting, branch creation,
+TDD, draft-stage Projects sync, commit discipline, etc.) without being
+separately asked to invoke the agent by name — using make targets, the
+`butler` CLI, or the `butler-mcp` MCP server, whichever is available/
+configured in that environment, instead of raw `git`/`gh` commands.
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -577,3 +617,12 @@ make branch-task f=TASK-012
       `--stage merge` are added steps in `pr-task`/`merge-pr` (not inlined
       into `branch_for` in `git_ops.py`); a sync failure is a best-effort
       warning and never blocks the branch creation/switch.
+- [ ] `templates/CLAUDE.md.tmpl`'s "Task Management" section states that
+      `{{WORKFLOW_GUARDIAN_NAME}}`'s rules apply automatically to any
+      task-branch/requirements/TDD work, independent of explicit
+      invocation.
+- [ ] The same section states that the underlying operations may be
+      performed via the `make` targets, the `butler` CLI, or the
+      `butler-mcp` MCP server interchangeably, and that a raw `git`/`gh`
+      command bypassing all three is what is disallowed — not `make`
+      specifically.
