@@ -665,6 +665,50 @@ make worktree-clean b=worktree-agent-abc123   # remove the worktree + branch
 # `git branch` no longer show it.
 ```
 
+## Requirement 13: An `obsolete` task Status for work superseded before completion
+
+**Description:** The task Status enum (`todo` | `in-progress` | `blocked` |
+`done`) has no value for a task that will never be implemented as written
+because something else already solved the same problem — e.g. TASK-039
+("Conflict-free butler-pull with CLI upgrade") was superseded by TASK-054's
+git-submodule migration, which removed the subtree-merge-conflict problem
+TASK-039 existed to work around. Historically such tasks were left at an
+ad-hoc, non-enum value (`Draft`) that neither the task-file-format template
+nor `butler_core`'s status handling recognizes, so they get miscounted as
+outstanding work (`todo`) by anything that reads the file literally,
+including GitHub Projects backfill sync.
+
+Add `obsolete` as a fifth Status value:
+
+- `task-file-format` skill: the canonical template's Status line documents
+  `todo | in-progress | blocked | done | obsolete`.
+- `butler_core`: wherever the four existing values are validated/parsed
+  (task creation, `set-status`, the Projects sync's status-matching), accept
+  `obsolete` identically to the existing four — no special-cased behavior
+  beyond being a valid value.
+- GitHub Projects: the configured Project's "Status" field needs a matching
+  `Obsolete` option added (a one-time manual `gh project field-create`
+  action per Project, documented in this repo's README/setup notes — butler
+  does not create Project custom-field options itself, consistent with how
+  the existing four options are also assumed pre-configured, not
+  autocreated).
+- Status-transition ownership: unchanged from the existing rule — only the
+  Workflow Guardian (or the user, per `task-file-format`'s existing
+  "Only the user can waive a blocker" precedent) sets a task's Status to
+  `obsolete`, and only when the task file itself documents why (a note
+  identifying the superseding task/requirement), mirroring the pattern
+  TASK-039 already used ad hoc.
+- A task with Status `obsolete` MUST NOT be picked up for implementation
+  (same implementation-blocking effect `blocked` already has on Workflow
+  Guardian), but is a terminal state — unlike `blocked`, nothing is expected
+  to resolve it back to `todo`.
+
+**Use case:** Workflow Guardian reviews TASK-039 after confirming TASK-054
+is merged, sets TASK-039's Status to `obsolete` (task file already documents
+the supersession), and runs `butler task sync-project TASK-039 --stage
+backfill`. The GitHub Projects item is created/updated with Status
+"Obsolete" instead of being left uncreated or miscounted as "Todo"/"Done".
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -763,4 +807,19 @@ make worktree-clean b=worktree-agent-abc123   # remove the worktree + branch
       `<branch>` and deletes the branch itself.
 - [ ] The `commit-workflow` skill documents `worktree-clean` as a step run
       after `commit-current-task` succeeds, not folded into `merge-worktree`.
+- [ ] The `task-file-format` skill's canonical template documents
+      `obsolete` as a fifth valid Status value, alongside `todo` |
+      `in-progress` | `blocked` | `done`.
+- [ ] `butler_core` accepts `obsolete` everywhere the four existing Status
+      values are validated or parsed (task creation, `set-status`, Projects
+      sync status-matching), with no behavior beyond being a valid value.
+- [ ] `butler task sync-project <ID> --stage backfill` on a task with
+      Status `obsolete` sets the linked Project item's "Status" field to
+      the option matching "Obsolete", using the same generalized
+      status-option resolution already used for the other four values —
+      a missing "Obsolete" option on the configured Project produces a
+      best-effort warning (per Requirement 4), not a raised exception.
+- [ ] Only the Workflow Guardian (or the user) sets a task's Status to
+      `obsolete`; `task-file-format` documents this alongside the existing
+      "only the Workflow Guardian edits Status" rule.
 </content>

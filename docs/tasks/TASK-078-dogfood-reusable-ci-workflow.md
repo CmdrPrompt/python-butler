@@ -1,7 +1,7 @@
 # TASK-078 Dogfood the reusable python-ci.yml in this repo's own ci.yml
 
 ## Status
-in-progress
+done
 
 ## Requirements
 **Binding:** Requirement 5 (REQUIREMENTS_REUSABLE_CI.md)

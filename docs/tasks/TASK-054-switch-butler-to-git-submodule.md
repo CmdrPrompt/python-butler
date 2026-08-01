@@ -1,7 +1,7 @@
 # TASK-054 Switch `.butler` distribution from git subtree to git submodule
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirements 1-6 (REQUIREMENTS_SUBMODULE.md)
