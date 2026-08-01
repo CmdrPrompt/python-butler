@@ -1,7 +1,7 @@
 # TASK-083 Add BDD governance templates and enable ENABLE_BDD flag for generators
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** BDD-040, BDD-041, BDD-042, BDD-051
@@ -44,7 +44,7 @@ Add and update governance templates and generator logic:
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: CLAUDE.md template includes BDD section
+- [x] Scenario: CLAUDE.md template includes BDD section
       Given the CLAUDE.md template
       When the BDD section is inspected
       Then it covers directory layout (`tests/bdd/features/`, `tests/bdd/steps/`)
@@ -53,33 +53,33 @@ Add and update governance templates and generator logic:
       And it documents criterion mapping per BDD-019 (each AC maps to at least one scenario)
       And it documents the outside-in loop per BDD-033 (bind steps, then inner TDD)
 
-- [ ] Scenario: Copilot instructions receive semantically identical BDD content
+- [x] Scenario: Copilot instructions receive semantically identical BDD content
       Given the Copilot instructions template and corresponding Claude template
       When both are inspected
       Then BDD sections in both are semantically equivalent
       And they cover the same directory layout, naming, style, mapping, and loop logic
 
-- [ ] Scenario: make init-project emits BDD additions by default
+- [x] Scenario: make init-project emits BDD additions by default
       Given `make init-project` is run without ENABLE_BDD specified
       When the generated project is inspected
       Then CLAUDE.md includes a BDD section
       And Copilot instructions (if generated) include a BDD section
       And scaffold directories and example files are in place
 
-- [ ] Scenario: make generate-governance-files emits BDD additions by default
+- [x] Scenario: make generate-governance-files emits BDD additions by default
       Given `make generate-governance-files` is run without ENABLE_BDD specified
       When the generated files are inspected
       Then updated CLAUDE.md and Copilot instructions include BDD sections
       And any scaffold files are created with BDD support
 
-- [ ] Scenario: ENABLE_BDD=0 omits BDD sections
+- [x] Scenario: ENABLE_BDD=0 omits BDD sections
       Given `make init-project ENABLE_BDD=0` or `make generate-governance-files ENABLE_BDD=0`
       When the generated files are inspected
       Then CLAUDE.md does not include a BDD section
       And Copilot instructions do not include BDD content
       And scaffold directories (tests/bdd/) are not created
 
-- [ ] Scenario: Existing projects adopt BDD via FORCE=1
+- [x] Scenario: Existing projects adopt BDD via FORCE=1
       Given an existing project without BDD support
       When `make generate-governance-files FORCE=1` is run
       Then CLAUDE.md and Copilot instructions are regenerated with BDD sections
@@ -94,10 +94,31 @@ Add and update governance templates and generator logic:
 None
 
 ## Completion
-**Date:** YYYY-MM-DD
-**Summary:** What was done, any decisions made, and what was left out and why.
+**Date:** 2026-08-01
+**Summary:** Added a BDD section (directory layout, naming per BDD-015, style
+per BDD-018, criterion mapping per BDD-019, outside-in loop per BDD-033) to
+both `templates/CLAUDE.md.tmpl` and `templates/copilot-instructions.md.tmpl`,
+wrapped in `<!--BDD:START-->`/`<!--BDD:END-->` markers. Added an optional
+`ENABLE_BDD` Makefile variable (default `1`); `generate-governance-files`
+strips the marked block (and skips `generate-bdd-scaffold`) when
+`ENABLE_BDD=0`, and `init-project` forwards `ENABLE_BDD` through to
+`generate-governance-files`. Removed the now-redundant direct
+`generate-bdd-scaffold` call from `init-project` (it was double-invoking the
+scaffold generator, which would fail on the second, non-`FORCE`, call).
+Documented `FORCE=1`/`ENABLE_BDD=0` in the `make help` text as the adoption
+path for BDD in existing projects, per the out-of-scope note deferring
+README.md prose to a separate requirements-drafter round. Synced the bundled
+`src/butler_core/data/Makefile` copy to match. Copilot per-agent template
+files under `templates/*.agent.md.tmpl` were left untouched, consistent with
+the task's "Creating agent files for Copilot" out-of-scope note.
 **Files changed:**
-- `path/to/file` - created / modified
+- `templates/CLAUDE.md.tmpl` - modified (BDD section)
+- `templates/copilot-instructions.md.tmpl` - modified (BDD section)
+- `Makefile` - modified (`ENABLE_BDD` variable, conditional BDD emission, help text)
+- `src/butler_core/data/Makefile` - modified (synced bundled copy)
+- `tests/test_bdd_governance_templates.py` - created
+- `tests/test_bdd_scaffold.py` - modified (updated test for refactored init-project call chain)
+- `CHANGELOG.md` - modified
 **Branch:** `git checkout task/083-add-bdd-governance-templates-and-generators`
-**Stage:** `git add path/to/file1 path/to/file2 CHANGELOG.md`
-**Commit:** `git commit -m "Add BDD governance templates and enable ENABLE_BDD flag for generators"`
+**Stage:** `git add templates/CLAUDE.md.tmpl templates/copilot-instructions.md.tmpl Makefile src/butler_core/data/Makefile tests/test_bdd_governance_templates.py tests/test_bdd_scaffold.py CHANGELOG.md docs/tasks/TASK-083-add-bdd-governance-templates-and-generators.md`
+**Commit:** `git commit -m "Add BDD governance templates and enable ENABLE_BDD flag for generators (TASK-083)"`
