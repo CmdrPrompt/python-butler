@@ -1,7 +1,7 @@
 # TASK-071 Investigate whether `butler sync` (Requirement 3) is still relevant post-submodule migration
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 3 (REQUIREMENTS_TASK_WORKFLOW.md); related to REQUIREMENTS_SUBMODULE.md Requirements 1-2
@@ -83,7 +83,7 @@ parity additions mirroring TASK-068/TASK-069.
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: `butler sync`'s relevance under the submodule distribution model is established
+- [x] Scenario: `butler sync`'s relevance under the submodule distribution model is established
       Given REQUIREMENTS_SUBMODULE.md's Requirements 1-2 (submodule
       adoption) and Requirement 4 (migration path for existing subtree
       consumers)
@@ -92,7 +92,7 @@ parity additions mirroring TASK-068/TASK-069.
       serves live (subtree-based) consumer projects, or is superseded by
       `butler-fetch`/`butler-pull`/`butler-check` for submodule-based ones
 
-- [ ] Scenario: A recommendation is presented for user confirmation before any requirement text is written
+- [x] Scenario: A recommendation is presented for user confirmation before any requirement text is written
       Given the two candidate directions described above (still-relevant
       vs. legacy/superseded)
       When the findings are ready
@@ -112,9 +112,34 @@ parity additions mirroring TASK-068/TASK-069.
 None
 
 ## Completion
-**Date:**
-**Summary:**
-**Files changed:**
-**Branch:** `git checkout task/071-investigate-butler-sync-relevance`
+**Date:** 2026-08-01
+**Summary:** Investigation confirmed `butler sync` (Requirement 3,
+REQUIREMENTS_TASK_WORKFLOW.md) is scoped entirely to the `git subtree`
+adoption mechanism: Requirement 3's own Out of scope section excludes "the
+subtree-based adoption mechanism itself," `sync_makefile()`
+(`src/butler_core/sync.py` lines 79-104) overwrites `.butler/Makefile` as a
+plain vendored file which only produces a dirty diff inside a submodule
+rather than the pointer-move semantics `butler-pull`/`butler-check` use,
+REQUIREMENTS_SUBMODULE.md never mentions `butler sync` (including in its
+Requirement 4 subtree-to-submodule migration path, which is "remove the
+subtree, re-add as submodule," not "run butler sync"), README.md has zero
+mentions of `butler sync`, and `tests/test_sync.py`'s own docstring
+confirms it targets `git subtree add --prefix=.butler` consumers. The user
+confirmed (via AskUserQuestion, two rounds) that `butler sync` is legacy/
+superseded, not still-relevant, and explicitly chose to deprecate
+Requirement 3 for eventual removal (rather than mark it legacy-but-kept or
+build `make`/MCP parity for it, rejecting a TASK-068/069-style follow-up).
+This task records that recommendation and decision only; it makes no
+requirement-text or production-code changes. The actual deprecation of
+Requirement 3 (REQUIREMENTS_TASK_WORKFLOW.md), and any follow-up doc/code
+changes in `src/butler_core/sync.py`/README.md, require a separate
+Requirements Drafter round followed by a new implementation task. No
+CHANGELOG.md entry was added: this task shipped no user-facing behavior
+change, only a recorded investigation/decision, and the changelog skill's
+rule against "task was completed"-only entries means no honest
+behavior-first entry can be written here; the eventual deprecation of
+`butler sync` will get its own changelog entry when implemented.
+**Files changed:** `docs/tasks/TASK-071-investigate-butler-sync-relevance.md` (this file only — no production code touched)
+**Branch:** `task/071-investigate-butler-sync-relevance`
 **Stage:** `git add docs/tasks/TASK-071-investigate-butler-sync-relevance.md`
-**Commit:** `git commit -m "Investigate whether butler sync is still relevant post-submodule migration"`
+**Commit:** `git commit -m "Record investigation: deprecate butler sync (Requirement 3) for removal post-submodule migration"`
