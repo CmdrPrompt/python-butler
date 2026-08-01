@@ -61,6 +61,16 @@ def test_job_runs_checkout_setup_install_lint_test_audit_as_separate_steps():
         assert "||" not in step["run"]
 
 
+def test_checkout_fetches_submodules():
+    jobs = _load_workflow()["jobs"]
+    ((_, job),) = jobs.items()
+    steps = job["steps"]
+
+    uses = [step.get("uses", "") for step in steps]
+    checkout_index = next(i for i, u in enumerate(uses) if u.startswith("actions/checkout@"))
+    assert steps[checkout_index]["with"]["submodules"] is True
+
+
 def test_uv_is_set_up_before_install():
     jobs = _load_workflow()["jobs"]
     ((_, job),) = jobs.items()
