@@ -1,7 +1,7 @@
 # TASK-082 Update agents to support BDD workflow
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** BDD-032, BDD-033, BDD-034, BDD-035
@@ -54,26 +54,26 @@ tooling existed.
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: workflow-guardian checks feature files and red state before starting work
+- [x] Scenario: workflow-guardian checks feature files and red state before starting work
       Given a task with Status not `blocked`
       When workflow-guardian approves the start of implementation
       Then it verifies that feature files exist (BDD-ACTIVE) or inline Gherkin is present (BDD-PLANNED/BDD-ABSENT)
       And it verifies the task's scenarios fail or are unbound (red state via `make bdd` if available)
 
-- [ ] Scenario: implementation-worker works outside-in
+- [x] Scenario: implementation-worker works outside-in
       Given a task with Gherkin scenarios and no step definitions
       When implementation-worker begins
       Then it first writes step definitions (binding steps to fail for the right reason)
       And then drives implementation with the inner TDD loop
       And the task is not considered complete until both `make bdd` and `make test` pass
 
-- [ ] Scenario: pr-reviewer verifies criterion coverage
+- [x] Scenario: pr-reviewer verifies criterion coverage
       Given a completed task with acceptance criteria
       When pr-reviewer reviews the PR
       Then it verifies every criterion ID is covered by a passing scenario
       And it rejects the PR if any criterion is uncovered
 
-- [ ] Scenario: characterization-test-writer prefers Gherkin for user-facing behavior
+- [x] Scenario: characterization-test-writer prefers Gherkin for user-facing behavior
       Given existing user-facing behavior to document
       When characterization-test-writer creates tests
       Then it prefers Gherkin scenarios
@@ -89,10 +89,47 @@ tooling existed.
 None
 
 ## Completion
-**Date:** YYYY-MM-DD
-**Summary:** What was done, any decisions made, and what was left out and why.
+**Date:** 2026-08-01
+**Summary:** Updated four agent definitions (bundled `claude-agents/` source and
+mirrored `.claude/agents/` copies, kept byte-identical per `check-agents-sync`)
+to enforce/support the BDD outside-in workflow. workflow-guardian gained a
+"BDD red-state gate" rule (BDD-032): verify feature files (BDD-ACTIVE) or
+inline Gherkin (BDD-PLANNED/BDD-ABSENT) exist, and, where `make bdd` is
+available, that scenarios fail or are unbound before implementation starts;
+wired into the Operating Procedure as step 7a, before spawning Implementation
+Worker. implementation-worker gained an outside-in rule (BDD-033): bind step
+definitions first so scenarios fail for the right reason, then drive the
+inner Red/Green/Refactor loop, and treat the task incomplete until both
+`make bdd` and `make test` pass. pr-reviewer gained a "BDD scenario coverage
+gate" (BDD-034): every acceptance criterion ID must be covered by a passing
+scenario, or the PR is rejected (REQUEST CHANGES) listing the uncovered IDs.
+characterization-test-writer gained guidance (BDD-035) to prefer Gherkin
+scenarios for user-facing behavior while keeping internal implementation
+behavior as plain pytest. Added 8 docs-level regression tests (TDD:
+written red, then made to pass) asserting the required phrases are present
+in both copies of all four files, following the existing
+`tests/test_workflow_guardian_draft_sync_docs.py` pattern. `make lint` and
+`make test` pass; total suite went from 339 to 347 tests, coverage held at
+99% (no regression against the task-start baseline). Implementation was
+delegated to Implementation Worker in an isolated worktree; its report was
+independently re-verified (diffs read directly, `.claude/agents/` vs
+`claude-agents/` byte-identity re-checked, `make lint`/`make test` re-run,
+new test count re-collected) before merging — no discrepancies found.
+task-drafter, requirements-drafter, `templates/*.tmpl` (Copilot-flavored),
+and actual `.feature` files were left untouched, per the task's Out of scope
+section.
 **Files changed:**
-- `path/to/file` - created / modified
+- `claude-agents/workflow-guardian.agent.md` - modified (BDD red-state gate)
+- `.claude/agents/workflow-guardian.agent.md` - modified (mirror, BDD red-state gate)
+- `claude-agents/implementation-worker.agent.md` - modified (outside-in loop, make bdd)
+- `.claude/agents/implementation-worker.agent.md` - modified (mirror, outside-in loop, make bdd)
+- `claude-agents/pr-reviewer.agent.md` - modified (BDD scenario coverage gate)
+- `.claude/agents/pr-reviewer.agent.md` - modified (mirror, BDD scenario coverage gate)
+- `claude-agents/characterization-test-writer.agent.md` - modified (Gherkin preference for user-facing behavior)
+- `.claude/agents/characterization-test-writer.agent.md` - modified (mirror, Gherkin preference)
+- `tests/test_agents_bdd_workflow_docs.py` - created (8 regression tests, one per requirement per file copy)
+- `CHANGELOG.md` - modified (behavior-first entry, TASK-082 suffix)
+- `docs/tasks/TASK-082-update-agents-for-bdd-workflow.md` - modified (Status, acceptance criteria checkboxes, Completion)
 **Branch:** `git checkout task/082-update-agents-for-bdd-workflow`
-**Stage:** `git add path/to/file1 path/to/file2 CHANGELOG.md`
-**Commit:** `git commit -m "Update agents to support BDD workflow"`
+**Stage:** `git add .claude/agents/characterization-test-writer.agent.md .claude/agents/implementation-worker.agent.md .claude/agents/pr-reviewer.agent.md .claude/agents/workflow-guardian.agent.md claude-agents/characterization-test-writer.agent.md claude-agents/implementation-worker.agent.md claude-agents/pr-reviewer.agent.md claude-agents/workflow-guardian.agent.md tests/test_agents_bdd_workflow_docs.py CHANGELOG.md docs/tasks/TASK-082-update-agents-for-bdd-workflow.md`
+**Commit:** `git commit -m "Update agents to support BDD workflow (TASK-082)"`
