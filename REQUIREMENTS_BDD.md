@@ -189,6 +189,59 @@ adoption hint and exit zero.
 **BDD-051** `make generate-governance-files FORCE=1` SHALL be the documented
 path for regenerating agent files with BDD support in existing projects.
 
+### 4.8 Dogfooding
+
+**BDD-052** This repo (python-butler) SHALL adopt its own `tests/bdd/`
+scaffold (BDD-001/002/003): `pyproject.toml` SHALL depend on `pytest-bdd`
+and collect `tests/bdd/` via `testpaths`, and `tests/bdd/features/` /
+`tests/bdd/steps/` SHALL exist with the example scenario, mirroring what
+`make generate-bdd-scaffold` produces for a consumer project. `make bdd`
+and `make bdd-missing` (BDD-010/012) SHALL therefore be meaningful when run
+against this repo itself, not only when vendored into a consumer project.
+
+**BDD-053** Every non-`done` task file whose `**BDD mode:**` is
+`BDD-ABSENT` and which already has concrete (non-`TBD`) Gherkin acceptance
+criteria SHALL have those scenarios lifted verbatim into
+`tests/bdd/features/TASK-<NNN>-<short-description>.feature` per BDD-015,
+and the task file's `**BDD mode:**` field updated to `BDD-ACTIVE`, with
+each acceptance criterion updated to reference its scenario per BDD-019. A
+task whose acceptance criteria are still `TBD` (e.g. a blocked task
+awaiting a requirement) is out of scope for this lift — there is nothing
+concrete to migrate yet, and it stays `BDD-ABSENT` until real scenarios
+exist. Lifting scenarios into `.feature` files at this stage does NOT
+include writing step definitions (BDD-017) or otherwise beginning
+implementation of the task's own feature — binding steps remains
+implementation-worker's job, following the outside-in loop (BDD-033), once
+the task is actually picked up.
+
+**Use case:**
+
+```bash
+# Before (docs/tasks/TASK-084-obsolete-task-status.md):
+#   **BDD mode:** BDD-ABSENT
+#   ## Acceptance criteria (Gherkin)
+#   - [ ] Scenario: obsolete is a documented, valid Status value
+#         Given the task-file-format skill's canonical template
+#         ...
+
+# After BDD-053:
+#   **BDD mode:** BDD-ACTIVE
+#   ## Acceptance criteria (Gherkin)
+#   - [ ] See tests/bdd/features/TASK-084-obsolete-task-status.feature:
+#         Scenario: obsolete is a documented, valid Status value
+
+# tests/bdd/features/TASK-084-obsolete-task-status.feature now contains:
+#   Feature: Add an obsolete task Status for work superseded before completion
+#     Scenario: obsolete is a documented, valid Status value
+#       Given the task-file-format skill's canonical template
+#       ...
+
+uv run pytest tests/bdd/ --collect-only
+# TASK-084-obsolete-task-status.feature's scenarios collect but fail/are
+# unbound (no step definitions yet) - the expected red state per BDD-032,
+# ready for implementation-worker to pick up when TASK-084 is implemented.
+```
+
 ## 5. Acceptance criteria (for this change itself)
 
 1. A fresh project bootstrapped per README steps has `pytest-bdd` installed,
