@@ -4,6 +4,14 @@
 
 ### Added
 
+- This repo now dogfoods its own BDD scaffold: `pytest-bdd` is a dev
+  dependency, and `tests/bdd/features/`/`tests/bdd/steps/` exist with the
+  example scenario, so `make bdd`/`make bdd-missing` are meaningful here, not
+  only in consumer projects. TASK-084 and TASK-085's existing Gherkin
+  acceptance criteria have been lifted into real `.feature` files
+  (`BDD mode: BDD-ACTIVE`), bound via `scenarios()`-only step files marked
+  `xfail` so their pending (not-yet-implemented) scenarios show as visibly
+  red in `make bdd -v` without failing `make test`/CI. (TASK-088)
 - The `CLAUDE.md` and Copilot instructions governance templates now include a BDD
   section covering directory layout (`tests/bdd/features/`, `tests/bdd/steps/`),
   feature file naming, declarative scenario style, acceptance-criterion-to-scenario

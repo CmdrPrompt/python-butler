@@ -5,7 +5,8 @@ todo
 
 ## Requirements
 **Binding:** Requirement 14: `butler sync` marked deprecated ahead of removal
-**BDD mode:** BDD-ABSENT
+**BDD mode:** BDD-ACTIVE
+**Feature files:** `tests/bdd/features/TASK-085-mark-butler-sync-deprecated.feature`
 **Depends on:** TASK-071
 **Precedence:** The requirements above are the binding definition of this task.
 The story and scenarios below are derived from them. On any discrepancy, the
@@ -47,41 +48,11 @@ shipped (per Requirement 14's final paragraph).
 **Make target:** `make branch-task f=TASK-085`
 
 ## Acceptance criteria (Gherkin)
-- [ ] Scenario: butler sync --help displays deprecation notice
-      Given a user runs `butler sync --help`
-      When the command completes
-      Then the output includes a deprecation notice stating the command applies only to
-           git-subtree-based consumer projects and will be removed in a future release
-      And the output references REQUIREMENTS_SUBMODULE.md as the current distribution mechanism
-
-- [ ] Scenario: sync_makefile docstring mentions deprecation
-      Given a developer reads the `sync_makefile()` function in src/butler_core/sync.py
-      When they view the function's docstring
-      Then the docstring states the command is deprecated, applies only to git-subtree
-           consumer projects, and will be removed in a future release
-      And the docstring references REQUIREMENTS_SUBMODULE.md as the current mechanism
-
-- [ ] Scenario: check_sync docstring mentions deprecation
-      Given a developer reads the `check_sync()` function in src/butler_core/sync.py
-      When they view the function's docstring
-      Then the docstring states the command is deprecated, applies only to git-subtree
-           consumer projects, and will be removed in a future release
-      And the docstring references REQUIREMENTS_SUBMODULE.md as the current mechanism
-
-- [ ] Scenario: Existing sync behavior continues unchanged
-      Given the deprecation notices have been added to CLI help and docstrings
-      When `butler sync --dry-run` is run with a local .butler/Makefile
-      Then the command behaves exactly as before (comparing content hash/diff, reporting
-           whether a change is needed, etc.)
-      And the `--force` flag continues to override the working tree cleanliness check
-      And the dry-run output format is unchanged
-
-- [ ] Scenario: All existing sync tests pass
-      Given the deprecation notices have been added
-      When `make test` is run
-      Then all tests related to `butler sync` (in src/butler_core/tests/ or similar)
-           continue to pass unchanged
-      And no new test failures are introduced by the documentation changes
+- [ ] See `tests/bdd/features/TASK-085-mark-butler-sync-deprecated.feature`: Scenario: butler sync --help displays deprecation notice
+- [ ] See `tests/bdd/features/TASK-085-mark-butler-sync-deprecated.feature`: Scenario: sync_makefile docstring mentions deprecation
+- [ ] See `tests/bdd/features/TASK-085-mark-butler-sync-deprecated.feature`: Scenario: check_sync docstring mentions deprecation
+- [ ] See `tests/bdd/features/TASK-085-mark-butler-sync-deprecated.feature`: Scenario: Existing sync behavior continues unchanged
+- [ ] See `tests/bdd/features/TASK-085-mark-butler-sync-deprecated.feature`: Scenario: All existing sync tests pass
 
 ## Out of scope
 - Removing the `sync` command itself from `src/butler_cli/__main__.py`
