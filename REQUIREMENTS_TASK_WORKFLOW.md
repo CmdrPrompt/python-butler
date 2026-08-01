@@ -68,6 +68,27 @@ vendored Makefile.
   Workflow Guardian, Task Drafter, Implementation Worker, or any other agent
   reads or writes `docs/tasks/TASK-XXX-*.md` files.
 
+## Deprecations
+
+- **Requirement 3 (`butler sync`) — deprecated, on a removal track.**
+  TASK-071 confirmed `butler sync` is scoped entirely to the `git subtree`
+  adoption mechanism (its own Out of scope excludes "the subtree-based
+  adoption mechanism itself"), that `sync_makefile()` overwrites
+  `.butler/Makefile` as a plain vendored file — structurally incompatible
+  with the submodule model, where `.butler` is a nested git repo pointed to
+  by a commit, not a tree of files to overwrite — and that
+  `REQUIREMENTS_SUBMODULE.md` (the current distribution mechanism) neither
+  mentions nor depends on `butler sync` anywhere, including its own
+  Requirement 4 migration path ("remove the subtree, re-add as submodule,"
+  not "run butler sync"). `README.md` never documents `butler sync` either.
+  The user confirmed (2026-08-01) deprecation for eventual removal, not
+  merely marking it legacy while keeping it. Requirement 3's text below is
+  left unchanged as a historical record of what the command does today;
+  Requirement 14 defines the deprecation-marking step, and full removal
+  (the `butler sync` command, `src/butler_core/sync.py`, and its tests) is
+  tracked as a follow-up implementation task once the deprecation notice
+  has shipped.
+
 ## Requirement 1: Regression test protecting the non-recursive architecture
 
 **Description:** An automated test MUST exist that fails if the
@@ -118,6 +139,12 @@ make test
 ```
 
 ## Requirement 3: `butler` command to refresh a consumer project's vendored Makefile
+
+> **Deprecated, on a removal track (TASK-071, confirmed 2026-08-01).** This
+> requirement is scoped to `git subtree`-based consumers; it does not apply
+> to the submodule distribution model (`REQUIREMENTS_SUBMODULE.md`). See
+> the Deprecations section above. Do not build further parity (e.g.
+> `make`/MCP wrappers) against this requirement.
 
 **Description:** A CLI command, `butler sync`, MUST be able to overwrite a
 consumer project's `.butler/Makefile` with the version bundled in the
@@ -709,6 +736,30 @@ the supersession), and runs `butler task sync-project TASK-039 --stage
 backfill`. The GitHub Projects item is created/updated with Status
 "Obsolete" instead of being left uncreated or miscounted as "Todo"/"Done".
 
+## Requirement 14: `butler sync` marked deprecated ahead of removal
+
+**Description:** `butler sync`'s CLI help text (`src/butler_cli/__main__.py`'s
+subparser for `sync`) and `sync_makefile`'s/`check_sync`'s docstrings
+(`src/butler_core/sync.py`) MUST state that the command is deprecated,
+applies only to `git subtree`-based consumer projects, and will be removed
+in a future release, pointing to `REQUIREMENTS_SUBMODULE.md` as the current
+distribution mechanism. Running `butler sync` MUST continue to work exactly
+as it does today (Requirement 3) — this requirement only adds a visible
+deprecation notice, it does not change behavior or remove the command yet.
+Actual removal of the `sync` command, `src/butler_core/sync.py`, and its
+tests is a separate follow-up task, to be filed once this notice has
+shipped.
+
+**Use case:**
+
+```bash
+butler sync --help
+# ... existing --dry-run/--force help text ...
+# DEPRECATED: butler sync only applies to git-subtree-based consumer
+# projects and will be removed in a future release. Submodule-based
+# projects (see REQUIREMENTS_SUBMODULE.md) use `make butler-pull` instead.
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -721,7 +772,11 @@ backfill`. The GitHub Projects item is created/updated with Status
 - [ ] `butler sync` can refresh a consumer project's `.butler/Makefile` to
       match the installed CLI version, comparing content (hash/diff) to
       decide whether a change is needed, gated by a clean-working-tree
-      check (`--force` to override), and supporting `--dry-run`.
+      check (`--force` to override), and supporting `--dry-run`. (deprecated
+      — see Deprecations)
+- [ ] `butler sync --help` and its docstrings state the command is
+      deprecated, subtree-only, and slated for removal, without changing its
+      existing behavior (Requirement 14).
 - [ ] A separate, encapsulated sync entry point exists for mirroring task
       metadata (TASK-ID, title, status) to a linked GitHub Projects item,
       invoked as an added step from `pr-task`/`pr-current-task` (on PR open)
