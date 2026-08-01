@@ -33,6 +33,10 @@
   with no shell access can now reach Workflow Guardian's GitHub Projects
   sync gate. Like the CLI, it's best-effort and returns the sync's
   success/message instead of raising. (TASK-068)
+- New `butler task set-status <ID> <status>` CLI subcommand, matching what
+  `butler-mcp`'s `set_task_status` tool already did — the `butler` CLI can
+  now set a task's `## Status` field the same way MCP can, instead of that
+  operation only being reachable via MCP or a manual file edit. (TASK-073)
 
 ### Fixed
 

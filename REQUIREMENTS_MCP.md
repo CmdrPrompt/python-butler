@@ -154,6 +154,7 @@ butler task list --status todo
 butler task show TASK-015
 butler task create --title "..." --description "..."
 butler task check TASK-015 --criterion 2
+butler task set-status TASK-015 done
 butler task branch TASK-015
 butler task stage TASK-015
 butler task commit TASK-015

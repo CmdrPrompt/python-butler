@@ -157,6 +157,27 @@ class TestCheck:
         assert [c.checked for c in updated.acceptance_criteria] == [False, True, False]
 
 
+class TestSetStatus:
+    def test_sets_status_field_to_the_given_value(self, tmp_path: Path) -> None:
+        task = create_task("Status task", "desc", tasks_dir=str(tmp_path))
+
+        main(["--tasks-dir", str(tmp_path), "task", "set-status", task.id, "done"])
+
+        updated = read_task(task.id, tasks_dir=str(tmp_path))
+        assert updated.status == "done"
+
+    def test_rejects_an_invalid_status_value(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        task = create_task("Status task", "desc", tasks_dir=str(tmp_path))
+
+        exit_code = main(["--tasks-dir", str(tmp_path), "task", "set-status", task.id, "bogus"])
+
+        assert exit_code == 1
+        err = capsys.readouterr().err
+        assert "Invalid status" in err
+
+
 class TestGitDelegation:
     """Mocks subprocess.run at the git_ops module's external boundary (not the CLI's
     internal git_ops imports) so these tests observe the actual git/gh commands the
