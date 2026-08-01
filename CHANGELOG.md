@@ -4,6 +4,16 @@
 
 ### Added
 
+- Workflow Guardian, Implementation Worker, PR Reviewer, and Characterization Test
+  Writer now enforce/support the BDD outside-in workflow: Guardian gates the start
+  of implementation on the task's feature files (or inline Gherkin) existing and,
+  where `make bdd` is available, showing the task's scenarios failing or unbound
+  (red state); Implementation Worker binds step definitions first so scenarios fail
+  for the right reason before driving the inner TDD loop, and treats the task
+  incomplete until both `make bdd` and `make test` pass; PR Reviewer rejects a PR
+  that leaves any acceptance criterion ID uncovered by a passing scenario; and
+  Characterization Test Writer prefers Gherkin scenarios for user-facing behavior,
+  keeping plain pytest for internal implementation details. (TASK-082)
 - The canonical task file template (`task-file-format` skill) now structures acceptance
   criteria as numbered items, each carrying either an inline Gherkin scenario or a reference
   to the `.feature` file and scenario name that covers it, plus a `Feature files:` field for

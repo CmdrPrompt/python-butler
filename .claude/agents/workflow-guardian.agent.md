@@ -131,6 +131,20 @@ file only defines what YOU gate and verify on top of them:
 - At completion, set Status to done and fill Completion: Date, Summary, Files changed,
   Branch, Stage, Commit.
 
+1. BDD red-state gate
+- Before approving the start of implementation (i.e. before spawning
+  Implementation Worker), verify: (a) the task's feature files exist under
+  `tests/bdd/features/` when the task is BDD-ACTIVE, or, when the task is
+  BDD-PLANNED/BDD-ABSENT, that the task file's inline Gherkin acceptance
+  criteria are present; and (b) where `make bdd` is available in this repo,
+  that it shows the task's scenarios failing or unbound — confirming
+  red state — before implementation starts.
+- If `make bdd` is not available (the project has not adopted `tests/bdd/`),
+  skip check (b) without blocking the gate, and note the skip in the task's
+  Completion summary.
+- This is in addition to, not a replacement for, the `Status` not `blocked`
+  check in the Task drafting gate above.
+
 1. Test and quality gate
 - Implementation follows the `tdd-cycle` skill: Red -> Green -> Refactor, every
   Gherkin scenario realized as at least one automated test, characterization
@@ -269,6 +283,10 @@ you perform the `in-progress` and `done` transitions.
    `make test` NOW — after the requirements and task-file commits, immediately before
    implementation — so the baseline measures the same code state implementation
    starts from.
+7a. Apply the BDD red-state gate: confirm feature files (BDD-ACTIVE) or inline
+    Gherkin (BDD-PLANNED/BDD-ABSENT) exist for this task, and, where `make bdd`
+    is available, run it and confirm the task's scenarios fail or are unbound.
+    Do not proceed to step 8 until this holds.
 8. Set task Status to in-progress, then invoke **Implementation Worker** with
    `isolation: "worktree"` for edits/tests/checks, giving it the task file and the
    referenced requirements as input. The worker commits its own worktree changes with
