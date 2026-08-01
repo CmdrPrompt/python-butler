@@ -92,6 +92,13 @@
 
 ### Changed
 
+- The reusable `.github/workflows/python-ci.yml` now runs Install, Lint, Test, and Audit as
+  separate `needs`-chained jobs instead of steps within one `ci` job, so a consumer PR's checks
+  list shows each stage as its own entry (e.g. "lint" failing red at a glance) instead of a single
+  combined "ci / ci" check that has to be opened to see which step failed. Each job re-runs
+  `install-command`, made fast by `astral-sh/setup-uv`'s `enable-cache: true` restoring the
+  resolved packages. The `workflow_call` input contract is unchanged, so no consumer `ci.yml`
+  needs edits. (TASK-077)
 - `butler task pr` (`make pr-task`/`pr-current-task`) no longer switches the working tree to
   `main` after opening the PR — it now leaves you on the task branch, so `make
   merge-current-task` can run immediately afterward without a manual `git checkout
