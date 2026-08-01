@@ -4,6 +4,12 @@
 
 ### Added
 
+- The canonical task file template (`task-file-format` skill) now structures acceptance
+  criteria as numbered items, each carrying either an inline Gherkin scenario or a reference
+  to the `.feature` file and scenario name that covers it, plus a `Feature files:` field for
+  BDD-ACTIVE tasks and explicit guidance mapping preconditions/triggers/obligations to
+  Given/When/Then. Checkbox markers stay at the start of the line so `butler task check`
+  keeps working unchanged. (TASK-081)
 - `make bdd` and `make bdd-missing` targets let a project run its BDD scenarios verbosely
   (`uv run pytest tests/bdd/ -v`) or list scenarios missing bound step definitions, exiting
   non-zero on a failure or an unbound step; both degrade gracefully with an adoption hint and
