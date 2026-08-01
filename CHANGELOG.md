@@ -4,6 +4,12 @@
 
 ### Added
 
+- `make bdd` and `make bdd-missing` targets let a project run its BDD scenarios verbosely
+  (`uv run pytest tests/bdd/ -v`) or list scenarios missing bound step definitions, exiting
+  non-zero on a failure or an unbound step; both degrade gracefully with an adoption hint and
+  exit 0 in projects that haven't adopted `tests/bdd/` yet, and `make help` now lists both
+  targets. `make test` already collects `tests/bdd/` since it's nested under the project's
+  regular test directory. (TASK-080)
 - Scaffolded projects (`make init-project` / `make generate-governance-files`) now come with
   `pytest-bdd` support out of the box: `pytest-bdd` is added to the `dev` dependency group,
   `tool.pytest.ini_options.testpaths` collects `tests/bdd/` alongside the project's regular
