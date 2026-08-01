@@ -30,6 +30,7 @@ README = REPO_ROOT / "README.md"
 TEMPLATES = REPO_ROOT / "templates"
 CLAUDE_AGENTS = REPO_ROOT / "claude-agents"
 CLAUDE_SKILLS = REPO_ROOT / "claude-skills"
+SCAFFOLD = REPO_ROOT / "scaffold"
 
 # Local git submodule fetches over a plain filesystem path are blocked by
 # default (CVE-2022-39253 hardening) unless explicitly allowed. This is a
@@ -77,6 +78,7 @@ def _build_upstream(path: Path) -> None:
     shutil.copytree(TEMPLATES, path / "templates")
     shutil.copytree(CLAUDE_AGENTS, path / "claude-agents")
     shutil.copytree(CLAUDE_SKILLS, path / "claude-skills")
+    shutil.copytree(SCAFFOLD, path / "scaffold")
     _git(["add", "-A"], cwd=path)
     _git(["commit", "-m", "initial butler"], cwd=path)
 

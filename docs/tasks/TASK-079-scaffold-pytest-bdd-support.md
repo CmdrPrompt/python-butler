@@ -1,7 +1,7 @@
 # TASK-079 Scaffold pytest-bdd support in template and example projects
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** BDD-001, BDD-002, BDD-003, BDD-016
@@ -77,10 +77,31 @@ This change applies to both `make init-project` and `make generate-governance-fi
 None
 
 ## Completion
-**Date:** YYYY-MM-DD
-**Summary:** What was done, any decisions made, and what was left out and why.
+**Date:** 2026-08-01
+**Summary:** Added `pytest-bdd` to the scaffold `pyproject.toml.tmpl` dev
+dependency group and appended `"tests/bdd/"` to `testpaths`. Added a new
+`make generate-bdd-scaffold` target that creates `tests/bdd/features/` and
+`tests/bdd/steps/` with one example `.feature` file and one example
+pytest-bdd step-definition file (both clearly marked as removable
+examples, verified to actually run and pass under pytest-bdd). Wired the
+new target into both `init-project` and `generate-governance-files`, and
+synced the vendored copy at `src/butler_core/data/Makefile`. Updated the
+two existing submodule/subtree fixture builders
+(`tests/test_butler_submodule.py`, `tests/test_butler_pull_governance_regen.py`)
+to vendor `scaffold/` too, since `generate-governance-files` now depends on
+it. Nothing was left out; the actual `make bdd` test-runner target is
+TASK-080's scope.
 **Files changed:**
-- `path/to/file` - created / modified
+- `scaffold/pyproject.toml.tmpl` - modified (pytest-bdd dep, testpaths)
+- `scaffold/tests/bdd/features/example_search.feature.tmpl` - created
+- `scaffold/tests/bdd/steps/test_example_search_steps.py.tmpl` - created
+- `Makefile` - modified (new `generate-bdd-scaffold` target, wired into
+  `init-project` and `generate-governance-files`)
+- `src/butler_core/data/Makefile` - modified (synced vendored copy)
+- `tests/test_bdd_scaffold.py` - created
+- `tests/test_butler_submodule.py` - modified (fixture vendors `scaffold/`)
+- `tests/test_butler_pull_governance_regen.py` - modified (fixture vendors `scaffold/`)
+- `CHANGELOG.md` - modified
 **Branch:** `git checkout task/079-scaffold-pytest-bdd-support`
-**Stage:** `git add path/to/file1 path/to/file2 CHANGELOG.md`
+**Stage:** `git add scaffold/ Makefile src/butler_core/data/Makefile tests/test_bdd_scaffold.py tests/test_butler_submodule.py tests/test_butler_pull_governance_regen.py CHANGELOG.md docs/tasks/TASK-079-scaffold-pytest-bdd-support.md`
 **Commit:** `git commit -m "Scaffold pytest-bdd support in init-project and generate-governance-files"`

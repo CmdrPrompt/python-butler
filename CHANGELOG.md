@@ -4,6 +4,12 @@
 
 ### Added
 
+- Scaffolded projects (`make init-project` / `make generate-governance-files`) now come with
+  `pytest-bdd` support out of the box: `pytest-bdd` is added to the `dev` dependency group,
+  `tool.pytest.ini_options.testpaths` collects `tests/bdd/` alongside the project's regular
+  test directory, and a new `make generate-bdd-scaffold` target creates `tests/bdd/features/`
+  and `tests/bdd/steps/` with a runnable example scenario and step definitions demonstrating
+  the Given/When/Then and step-reuse conventions. (TASK-079)
 - This repo's own `.github/workflows/ci.yml` now dogfoods the reusable `python-ci.yml` it
   publishes: a new `ci` job calls `./.github/workflows/python-ci.yml` with `make lint`/`make
   test`/`uv run pip-audit`, alongside the existing `validate-agents` job — a lint or test
