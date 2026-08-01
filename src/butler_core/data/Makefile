@@ -3,7 +3,7 @@
         sync-project-draft sync-project-backfill \
 	merge-current-task merge-worktree worktree-clean test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown \
-	generate-bdd-scaffold init-project \
+	generate-bdd-scaffold init-project bdd bdd-missing \
 	butler-fetch butler-pull butler-check butler-uninstall
 
 BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
@@ -47,6 +47,8 @@ help:
 	@echo "    make stage    -- Auto-fix and re-stage all staged changes"
 	@echo "    make test     -- Run pytest with coverage"
 	@echo "    make validate-agents  -- Validate agent definitions (frontmatter and tool names)"
+	@echo "    make bdd              -- Run BDD scenarios in tests/bdd/ verbosely"
+	@echo "    make bdd-missing      -- List BDD scenarios missing bound step definitions"
 	@echo ""
 	@echo "  Governance templates:"
 	@echo "    make generate-governance-files  -- Generate CLAUDE.md, .github/copilot-instructions.md, and .github/chatmodes/"
@@ -318,6 +320,30 @@ worktree-clean:
 ## Run tests with coverage
 test:
 	uv run pytest $(TESTS_DIR)/ --cov=$(SRC_DIR) --cov-report=term-missing
+
+## Run BDD scenarios verbosely; degrades gracefully if tests/bdd/ is absent
+bdd:
+	@if [ ! -d $(TESTS_DIR)/bdd ]; then \
+		echo "No $(TESTS_DIR)/bdd/ directory found — nothing to run. Adopt BDD with 'make generate-bdd-scaffold'."; \
+		exit 0; \
+	fi; \
+	uv run pytest $(TESTS_DIR)/bdd/ -v
+
+## List BDD scenarios without bound step definitions; degrades gracefully if tests/bdd/ is absent
+bdd-missing:
+	@if [ ! -d $(TESTS_DIR)/bdd ]; then \
+		echo "No $(TESTS_DIR)/bdd/ directory found — nothing to check. Adopt BDD with 'make generate-bdd-scaffold'."; \
+		exit 0; \
+	fi; \
+	OUTPUT=$$(uv run pytest $(TESTS_DIR)/bdd/ -q 2>&1); \
+	if echo "$$OUTPUT" | grep -q "StepDefinitionNotFoundError"; then \
+		echo "$$OUTPUT" | grep -B5 "StepDefinitionNotFoundError"; \
+		echo ""; \
+		echo "Scenarios above are missing bound step definitions."; \
+		exit 1; \
+	else \
+		echo "✓ All BDD scenarios have bound step definitions"; \
+	fi
 
 ## Interactively prompt for project values and generate governance files
 init-project:
