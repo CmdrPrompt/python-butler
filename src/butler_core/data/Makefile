@@ -2,7 +2,8 @@
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
         sync-project-draft sync-project-backfill \
 	merge-current-task merge-worktree worktree-clean test clean clean-complexity generate-governance-files \
-	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
+	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown \
+	generate-bdd-scaffold init-project \
 	butler-fetch butler-pull butler-check butler-uninstall
 
 BUTLER_REMOTE ?= https://github.com/CmdrPrompt/python-butler.git
@@ -104,6 +105,19 @@ generate-pre-commit-config:
 		(echo ".pre-commit-config.yaml already exists. Run with FORCE=1 to overwrite."; exit 1)
 	@cp .butler/scaffold/.pre-commit-config.yaml.tmpl .pre-commit-config.yaml
 	@echo "✓ Generated .pre-commit-config.yaml"
+
+## Generate the tests/bdd/ directory skeleton with example feature/step files
+generate-bdd-scaffold:
+	@mkdir -p $(TESTS_DIR)/bdd/features $(TESTS_DIR)/bdd/steps
+	@[ ! -f $(TESTS_DIR)/bdd/features/example_search.feature ] || [ "$(FORCE)" = "1" ] || \
+		(echo "$(TESTS_DIR)/bdd/features/example_search.feature already exists. Run with FORCE=1 to overwrite."; exit 1)
+	@cp .butler/scaffold/tests/bdd/features/example_search.feature.tmpl \
+		$(TESTS_DIR)/bdd/features/example_search.feature
+	@[ ! -f $(TESTS_DIR)/bdd/steps/test_example_search_steps.py ] || [ "$(FORCE)" = "1" ] || \
+		(echo "$(TESTS_DIR)/bdd/steps/test_example_search_steps.py already exists. Run with FORCE=1 to overwrite."; exit 1)
+	@cp .butler/scaffold/tests/bdd/steps/test_example_search_steps.py.tmpl \
+		$(TESTS_DIR)/bdd/steps/test_example_search_steps.py
+	@echo "✓ Generated $(TESTS_DIR)/bdd/ skeleton with example feature and step files"
 
 ## Install uv if missing (run once per machine)
 setup:
@@ -327,6 +341,7 @@ init-project:
 	$(MAKE) generate-pyproject FORCE=$(FORCE) \
 		PROJECT_NAME="$$pname" \
 		PROJECT_DESCRIPTION="$$pdesc"; \
+	$(MAKE) generate-bdd-scaffold FORCE=$(FORCE); \
 	$(MAKE) generate-gitignore FORCE=$(FORCE); \
 	$(MAKE) generate-pre-commit-config FORCE=$(FORCE); \
 	echo ""; \
@@ -446,6 +461,7 @@ generate-governance-files:
 		mkdir -p ".claude/skills/$$name"; \
 		cp "$$dir/SKILL.md" ".claude/skills/$$name/SKILL.md"; \
 	done; true
+	@$(MAKE) generate-bdd-scaffold FORCE=$(FORCE)
 	@echo "✓ Generated CLAUDE.md, .github/copilot-instructions.md, .github/agents/, .claude/agents/, and .claude/skills/"
 
 ## Remove generated complexipy artifacts
