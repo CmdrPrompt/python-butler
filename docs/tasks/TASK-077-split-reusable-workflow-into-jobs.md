@@ -1,7 +1,7 @@
 # TASK-077 Split the reusable python-ci.yml into separate needs-chained jobs
 
 ## Status
-in-progress
+done
 
 ## Requirements
 **Binding:** Requirement 1 (REQUIREMENTS_REUSABLE_CI.md)

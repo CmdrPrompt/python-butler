@@ -1,7 +1,7 @@
 # TASK-076 Check out consumer submodules in the reusable python-ci.yml workflow
 
 ## Status
-in-progress
+done
 
 ## Requirements
 **Binding:** Requirement 4 (REQUIREMENTS_REUSABLE_CI.md)

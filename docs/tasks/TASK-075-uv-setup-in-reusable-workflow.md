@@ -1,7 +1,7 @@
 # TASK-075 Set up uv before the Install step in the reusable python-ci.yml workflow
 
 ## Status
-in-progress
+done
 
 ## Requirements
 **Binding:** Requirement 3 (REQUIREMENTS_REUSABLE_CI.md)
