@@ -1,6 +1,6 @@
 """Structural checks for the reusable .github/workflows/python-ci.yml.
 
-These validate the workflow_call input contract and step ordering that
+These validate the workflow_call input contract and job structure that
 consumer repos (e.g. firefly-bank-importer) depend on, since the workflow
 itself can only be exercised end-to-end by GitHub Actions.
 """
@@ -22,6 +22,16 @@ def _load_workflow() -> dict:
     return data
 
 
+def _step(job: dict, name: str) -> dict:
+    steps = job["steps"]
+    names = [step.get("name") for step in steps]
+    return steps[names.index(name)]
+
+
+def _step_uses(job: dict, prefix: str) -> dict:
+    return next(step for step in job["steps"] if step.get("uses", "").startswith(prefix))
+
+
 def test_workflow_is_triggered_by_workflow_call():
     workflow = _load_workflow()
     assert "workflow_call" in workflow["on"]
@@ -37,62 +47,48 @@ def test_workflow_declares_the_existing_consumer_input_contract():
     assert inputs["audit-command"]["required"] is False
 
 
-def test_job_runs_checkout_setup_install_lint_test_audit_as_separate_steps():
+def test_jobs_are_install_lint_test_audit_needs_chained():
     jobs = _load_workflow()["jobs"]
-    ((_, job),) = jobs.items()
-    steps = job["steps"]
 
-    uses = [step.get("uses", "") for step in steps]
-    assert any(u.startswith("actions/checkout@") for u in uses)
-    assert any(u.startswith("actions/setup-python@") for u in uses)
-
-    names = [step.get("name") for step in steps]
-    assert names.index("Install") < names.index("Lint") < names.index("Test")
-
-    install_step = steps[names.index("Install")]
-    lint_step = steps[names.index("Lint")]
-    test_step = steps[names.index("Test")]
-
-    assert install_step["run"] == "${{ inputs.install-command }}"
-    assert lint_step["run"] == "${{ inputs.lint-command }}"
-    assert test_step["run"] == "${{ inputs.test-command }}"
-
-    for step in (install_step, lint_step, test_step):
-        assert "||" not in step["run"]
+    assert set(jobs.keys()) == {"install", "lint", "test", "audit"}
+    assert jobs["lint"]["needs"] == "install"
+    assert jobs["test"]["needs"] == "lint"
+    assert jobs["audit"]["needs"] == "test"
 
 
-def test_checkout_fetches_submodules():
+def test_each_job_checks_out_submodules_and_sets_up_cached_uv():
     jobs = _load_workflow()["jobs"]
-    ((_, job),) = jobs.items()
-    steps = job["steps"]
 
-    uses = [step.get("uses", "") for step in steps]
-    checkout_index = next(i for i, u in enumerate(uses) if u.startswith("actions/checkout@"))
-    assert steps[checkout_index]["with"]["submodules"] is True
+    for job in jobs.values():
+        checkout_step = _step_uses(job, "actions/checkout@")
+        assert checkout_step["with"]["submodules"] is True
+
+        setup_uv_step = _step_uses(job, "astral-sh/setup-uv@")
+        assert setup_uv_step["with"]["enable-cache"] is True
+
+        assert _step(job, "Install")["run"] == "${{ inputs.install-command }}"
 
 
-def test_uv_is_set_up_before_install():
+def test_each_job_runs_its_own_command_after_install():
     jobs = _load_workflow()["jobs"]
-    ((_, job),) = jobs.items()
-    steps = job["steps"]
 
-    uses = [step.get("uses", "") for step in steps]
-    setup_uv_index = next(i for i, u in enumerate(uses) if u.startswith("astral-sh/setup-uv@"))
+    for job_name, command_step_name, input_name in [
+        ("lint", "Lint", "lint-command"),
+        ("test", "Test", "test-command"),
+        ("audit", "Audit", "audit-command"),
+    ]:
+        job = jobs[job_name]
+        names = [step.get("name") for step in job["steps"]]
+        assert names.index("Install") < names.index(command_step_name)
 
-    names = [step.get("name") for step in steps]
-    setup_python_index = names.index("Set up Python")
-    install_index = names.index("Install")
-
-    assert setup_python_index < setup_uv_index < install_index
+        command_step = _step(job, command_step_name)
+        assert command_step["run"] == "${{ inputs." + input_name + " }}"
+        assert "||" not in command_step["run"]
 
 
-def test_audit_step_is_conditional_and_does_not_swallow_failures():
-    jobs = _load_workflow()["jobs"]
-    ((_, job),) = jobs.items()
-    steps = job["steps"]
-
-    names = [step.get("name") for step in steps]
-    audit_step = steps[names.index("Audit")]
+def test_audit_job_is_conditional_and_does_not_swallow_failures():
+    audit_job = _load_workflow()["jobs"]["audit"]
+    audit_step = _step(audit_job, "Audit")
 
     assert "if" in audit_step
     assert audit_step["run"] == "${{ inputs.audit-command }}"

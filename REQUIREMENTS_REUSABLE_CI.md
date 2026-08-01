@@ -59,18 +59,22 @@ contain.
 `on: workflow_call:` with five `inputs`: `python-version` (string,
 required), `install-command` (string, required), `lint-command` (string,
 required), `test-command` (string, required), `audit-command` (string,
-optional — audit step is skipped if not provided). A single job checks out
-the caller's repo, sets up the given Python version, runs
-`install-command`, then `lint-command`, then `test-command`, then
-`audit-command` (if set), each as a separate step so failures are
-attributable to the right step in the Actions UI.
+optional — audit step is skipped if not provided). Install, Lint, Test, and
+Audit each run as their **own job** (`install`, `lint`, `test`, `audit`),
+`needs`-chained in that order, rather than as steps within one job — each
+checks out the caller's repo, sets up the given Python version and `uv`,
+and re-runs `install-command` (fast, since `astral-sh/setup-uv`'s
+`enable-cache: true` restores the resolved packages from cache so repeat
+installs don't re-download anything) before its own Lint/Test/Audit step.
+This is purely an internal restructuring of this workflow — the
+`workflow_call` input contract consumers pass under `with:` is unchanged.
 
-**Use case:** `firefly-bank-importer`'s `.github/workflows/ci.yml` (after
-its own `uses:` line is repointed to
-`CmdrPrompt/python-butler/.github/workflows/python-ci.yml@main`) opens a
-PR with a failing `make lint`. The reusable workflow's lint step fails,
-the PR check goes red, and the Actions log clearly shows the lint step
-(not install or test) as the failure point.
+**Use case:** `firefly-bank-importer`'s `.github/workflows/ci.yml` opens a
+PR with a failing `make lint`. Instead of a single "ci / ci" check that
+must be opened to see which step failed, the PR's checks list shows
+separate "ci / lint", "ci / test", "ci / audit" entries — `lint` shows red
+at a glance, `test`/`audit` show as skipped (since they `needs: lint`),
+without opening any logs.
 
 ## Requirement 2: Correct failure propagation
 
@@ -131,3 +135,6 @@ checkout populates `.butler` and the Lint step can `include .butler/Makefile`.
 - [ ] The checkout step fetches the caller's submodules, so a consumer with
       a git submodule dependency (e.g. `.butler`) has it populated before
       Install/Lint/Test/Audit run.
+- [ ] Install, Lint, Test, and Audit each run as their own `needs`-chained
+      job, so a PR's checks list shows them as separate entries instead of
+      one combined "ci / ci" check.
