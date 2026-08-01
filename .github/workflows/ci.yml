@@ -12,3 +12,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate agent definitions
         run: make validate-agents
+
+  ci:
+    uses: ./.github/workflows/python-ci.yml
+    with:
+      python-version: "3.11"
+      install-command: "uv sync --extra dev"
+      lint-command: "make lint"
+      test-command: "make test"
+      audit-command: "uv run pip-audit --progress-spinner=off"

@@ -114,6 +114,26 @@ directory` — `.butler` is a git submodule (TASK-054) and the checkout step
 left it as an empty directory. Once this requirement is met, the same PR's
 checkout populates `.butler` and the Lint step can `include .butler/Makefile`.
 
+## Requirement 5: This repo dogfoods its own reusable workflow
+
+**Description:** `.github/workflows/ci.yml` (this repo's own PR gate,
+currently only `validate-agents`) adds a `ci` job that calls
+`./.github/workflows/python-ci.yml` (a same-repo relative reference — no
+`@main` needed) with `install-command: "uv sync --extra dev"`,
+`lint-command: "make lint"`, `test-command: "make test"`, and
+`audit-command: "uv run pip-audit --progress-spinner=off"`. `pip-audit` is
+added to `pyproject.toml`'s `dev` extra so `uv sync --extra dev` installs
+it, matching the fix already applied to `firefly-bank-importer` (TASK-061).
+
+**Use case:** Until now, `make lint`/`make test` were only ever run
+manually per task, with no GitHub Actions enforcement in this repo — a PR
+with a real lint or test failure could be merged undetected by CI. After
+this requirement is met, a PR here shows separate `ci / install`,
+`ci / lint`, `ci / test`, `ci / audit` checks (via the dogfooded reusable
+workflow) alongside `validate-agents`, and a failing `make lint`/`make
+test`/`pip-audit` blocks the PR the same way it already does for
+`firefly-bank-importer`.
+
 ## Acceptance criteria (overall)
 
 - [ ] `.github/workflows/python-ci.yml` exists in this repo, triggered by
@@ -138,3 +158,7 @@ checkout populates `.butler` and the Lint step can `include .butler/Makefile`.
 - [ ] Install, Lint, Test, and Audit each run as their own `needs`-chained
       job, so a PR's checks list shows them as separate entries instead of
       one combined "ci / ci" check.
+- [ ] This repo's own `.github/workflows/ci.yml` calls its own
+      `python-ci.yml` (dogfooding), running `make lint`/`make test`/
+      `pip-audit` on every PR here, alongside the existing
+      `validate-agents` job.

@@ -4,6 +4,12 @@
 
 ### Added
 
+- This repo's own `.github/workflows/ci.yml` now dogfoods the reusable `python-ci.yml` it
+  publishes: a new `ci` job calls `./.github/workflows/python-ci.yml` with `make lint`/`make
+  test`/`uv run pip-audit`, alongside the existing `validate-agents` job — a lint or test
+  failure here is now caught by CI instead of only by whoever happens to run `make lint`/`make
+  test` locally. Added `pip-audit` to the `dev` extra so the audit command is runnable. (TASK-078)
+
 - The generated `CLAUDE.md`'s "Task Management" section now states that
   Workflow Guardian's rules apply automatically to task-branch/requirements/
   TDD work, independent of explicit `@`-mention invocation, and that the
