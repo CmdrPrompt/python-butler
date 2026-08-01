@@ -82,10 +82,12 @@ class TestBddDirectorySkeleton:
 class TestGeneratorsEmitBddAdditions:
     """Scenario: generator support so both entry points emit the BDD additions."""
 
-    def test_init_project_calls_generate_bdd_scaffold(self) -> None:
+    def test_init_project_calls_generate_governance_files_which_scaffolds_bdd(self) -> None:
         makefile_text = MAKEFILE.read_text()
         init_target = makefile_text.split("\ninit-project:")[1].split("\n\n")[0]
-        assert "generate-bdd-scaffold" in init_target
+        assert "generate-governance-files" in init_target
+        gov_target = makefile_text.split("\ngenerate-governance-files:")[1].split("\n\n")[0]
+        assert "generate-bdd-scaffold" in gov_target
 
     def test_generate_governance_files_calls_generate_bdd_scaffold(self) -> None:
         makefile_text = MAKEFILE.read_text()

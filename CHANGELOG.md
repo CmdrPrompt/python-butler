@@ -4,6 +4,14 @@
 
 ### Added
 
+- The `CLAUDE.md` and Copilot instructions governance templates now include a BDD
+  section covering directory layout (`tests/bdd/features/`, `tests/bdd/steps/`),
+  feature file naming, declarative scenario style, acceptance-criterion-to-scenario
+  mapping, and the outside-in implementation loop. `make init-project` and
+  `make generate-governance-files` emit these additions and the `tests/bdd/`
+  scaffold by default; pass `ENABLE_BDD=0` to omit them for projects that don't
+  want BDD support. Existing projects adopt BDD by regenerating with
+  `make generate-governance-files FORCE=1`. (TASK-083)
 - Workflow Guardian, Implementation Worker, PR Reviewer, and Characterization Test
   Writer now enforce/support the BDD outside-in workflow: Guardian gates the start
   of implementation on the task's feature files (or inline Gherkin) existing and,

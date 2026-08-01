@@ -81,6 +81,24 @@ produces a prioritised list, and creates task files for approved bugs.
 - Use **Hypothesis** for all parsing and data transformation functions.
 - Coverage must not drop below the task-start baseline when a task is completed.
 
+<!--BDD:START-->
+## Behavior-Driven Development (BDD)
+
+- **Directory layout:** feature files live in `tests/bdd/features/`, step
+  definitions live in `tests/bdd/steps/`.
+- **Naming:** feature files are named
+  `tests/bdd/features/TASK-<NNN>-<short-description>.feature`, matching the
+  task file naming in `docs/tasks/`.
+- **Style:** scenarios are written in English, in declarative style (what
+  the user achieves, not UI mechanics), one behavior per scenario.
+- **Criterion mapping:** each acceptance criterion in a task file maps to
+  at least one scenario, referencing its criterion ID in a comment or tag
+  (e.g. `@AC-3`).
+- **Outside-in loop:** bind step definitions first so scenarios fail for
+  the right reason, then drive implementation with the inner TDD loop. Do
+  not consider a task complete until `make bdd` and `make test` both pass.
+<!--BDD:END-->
+
 ## Running the Application
 
 ```bash
