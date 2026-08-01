@@ -97,6 +97,19 @@ this reusable workflow, after repointing its `uses:` from the renamed
 runner. Once this requirement is met, the same PR's Install step succeeds
 and proceeds to Lint/Test/Audit.
 
+## Requirement 4: Consumer submodules are checked out
+
+**Description:** The `actions/checkout@v4` step checks out the caller's repo
+with `submodules: true` (or `recursive`), so a consumer whose build depends
+on a git submodule (e.g. `.butler`) has that submodule's contents present
+before Install/Lint/Test/Audit run.
+
+**Use case:** `firefly-bank-importer`'s PR #38, after Requirement 3 is met,
+fails at the Lint step with `Makefile:1: .butler/Makefile: No such file or
+directory` — `.butler` is a git submodule (TASK-054) and the checkout step
+left it as an empty directory. Once this requirement is met, the same PR's
+checkout populates `.butler` and the Lint step can `include .butler/Makefile`.
+
 ## Acceptance criteria (overall)
 
 - [ ] `.github/workflows/python-ci.yml` exists in this repo, triggered by
@@ -115,3 +128,6 @@ and proceeds to Lint/Test/Audit.
       job.
 - [ ] The workflow sets up `uv` before the Install step, so a `uv`-based
       `install-command` succeeds without `uv: command not found`.
+- [ ] The checkout step fetches the caller's submodules, so a consumer with
+      a git submodule dependency (e.g. `.butler`) has it populated before
+      Install/Lint/Test/Audit run.

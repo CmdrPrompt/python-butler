@@ -49,6 +49,11 @@
 
 ### Fixed
 
+- The reusable `.github/workflows/python-ci.yml`'s checkout step now fetches
+  submodules (`submodules: true`), fixing a missing-file failure (e.g.
+  `include .butler/Makefile: No such file or directory`) for consumer repos
+  whose build depends on a git submodule — found via `firefly-bank-importer`
+  PR #38's Lint step after the `uv` fix below let it get that far. (TASK-076)
 - The reusable `.github/workflows/python-ci.yml` now sets up `uv` (via
   `astral-sh/setup-uv`) before the Install step, fixing `uv: command not
   found` for consumer repos whose `install-command` is a `uv` invocation —
