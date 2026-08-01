@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shlex
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -206,9 +205,8 @@ class TestGitDelegation:
 
         assert exit_code == 0, "stage command should exit 0 on success"
         commands = [call.args[0] for call in mock_run.call_args_list]
-        assert shlex.split(task.stage_cmd) in commands, (
-            f"expected the task's stage command {task.stage_cmd!r} to run, got {commands}"
-        )
+        expected = ["git", "add", *task.stage_paths]
+        assert expected in commands, f"expected {expected} to run, got {commands}"
 
     @patch("butler_core.git_ops.subprocess.run")
     def test_commit_runs_git_commit_with_task_message(

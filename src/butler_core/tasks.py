@@ -35,7 +35,7 @@ class Task:
     description: str
     branch_name: str
     switch_create_cmd: str
-    stage_cmd: str
+    stage_paths: list[str]
     commit_message: str
     acceptance_criteria: list[AcceptanceCriterion]
     completion: Completion | None = None
@@ -105,7 +105,7 @@ def parse_task(text: str) -> Task:
     acceptance_criteria = _parse_acceptance_criteria(criteria_section)
 
     completion_section = _section(text, "Completion")
-    stage_cmd = _extract_backtick("Stage", completion_section)
+    stage_paths = _extract_backtick("Stage", completion_section).split()
     commit_match = re.search(
         r'^\*\*Commit:\*\*.*?`git commit -m "([^"]*)"`', completion_section, re.MULTILINE
     )
@@ -119,7 +119,7 @@ def parse_task(text: str) -> Task:
         description=description,
         branch_name=branch_name,
         switch_create_cmd=switch_create_cmd,
-        stage_cmd=stage_cmd,
+        stage_paths=stage_paths,
         commit_message=commit_message,
         acceptance_criteria=acceptance_criteria,
         completion=completion,
@@ -160,7 +160,7 @@ def render_task(task: Task) -> str:
         lines.append(f"- `{changed_file}`")
     lines.append("")
     lines.append(f"**Branch:** `git checkout {task.branch_name}`")
-    lines.append(f"**Stage:** `{task.stage_cmd}`")
+    lines.append(f"**Stage:** `{' '.join(task.stage_paths)}`")
     lines.append(f'**Commit:** `git commit -m "{task.commit_message}"`')
     return "\n".join(lines) + "\n"
 
@@ -207,7 +207,7 @@ def create_task(title: str, description: str, tasks_dir: str = DEFAULT_TASKS_DIR
         description=description,
         branch_name=branch_name,
         switch_create_cmd=f"git checkout -b {branch_name}",
-        stage_cmd=f"git add {path} CHANGELOG.md",
+        stage_paths=[str(path), "CHANGELOG.md"],
         commit_message=title,
         acceptance_criteria=[],
         completion=None,

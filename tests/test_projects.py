@@ -681,7 +681,7 @@ class TestProjectItemBodyFromTaskFile:
             description="desc",
             branch_name="task/999-untracked",
             switch_create_cmd="",
-            stage_cmd="",
+            stage_paths=[],
             commit_message="",
             acceptance_criteria=[],
         )
@@ -712,7 +712,7 @@ class TestProjectItemBodyFromTaskFile:
             description="desc",
             branch_name="task/999-untracked",
             switch_create_cmd="",
-            stage_cmd="",
+            stage_paths=[],
             commit_message="",
             acceptance_criteria=[],
         )

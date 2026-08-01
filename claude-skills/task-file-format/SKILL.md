@@ -73,7 +73,7 @@ trigger -> When, obligation/measurable value -> Then.
 **Files changed:**
 - `path/to/file` - created / modified
 **Branch:** `git checkout task/<NNN>-short-description`
-**Stage:** `git add path/to/file1 path/to/file2 CHANGELOG.md`
+**Stage:** `path/to/file1 path/to/file2 CHANGELOG.md`
 **Commit:** `git commit -m "Short imperative summary of what was done"`
 ```
 
@@ -91,6 +91,13 @@ trigger -> When, obligation/measurable value -> Then.
   implemented. Only the user can waive a blocker.
 - The `**Commit:**` line is the message used by `make commit-current-task` -
   keep it a single short imperative sentence.
+- The `**Stage:**` line is a whitespace-separated list of file paths only -
+  never a command line. `butler task stage` always runs `git add <paths>`
+  itself; it never executes the field's text as a shell command. Never write
+  `make ...`/`butler ...`/`git ...` there - doing so does not run that
+  command, it is treated as literal (and almost certainly invalid) file
+  paths (see REQUIREMENTS_TASK_WORKFLOW.md Requirement 15, and the
+  TASK-069/TASK-082/TASK-083 incidents this closes off).
 - `CHANGELOG.md` must always be in the Stage list.
 - Acceptance criteria are numbered (1, 2, 3, ...); each criterion keeps the
   checkbox marker (`- [ ]`/`- [x]`) at the start of the line — the number is
