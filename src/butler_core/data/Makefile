@@ -1,7 +1,7 @@
 .PHONY: all help setup install lint check-agents-sync validate-agents check-butler fix stage branch-task sync-main stage-task commit-task \
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
         sync-project-draft sync-project-backfill \
-	merge-current-task merge-worktree test clean clean-complexity generate-governance-files \
+	merge-current-task merge-worktree worktree-clean test clean clean-complexity generate-governance-files \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown init-project \
 	butler-fetch butler-pull butler-check butler-uninstall
 
@@ -67,6 +67,7 @@ help:
 	@echo "  Agent / worktree helpers:"
 	@echo "    make sync-main                          -- Merge main into current branch"
 	@echo "    make merge-worktree b=<branch>          -- Squash-merge a worktree branch into current branch"
+	@echo "    make worktree-clean b=<branch>          -- Remove a merged worktree and its temporary branch"
 	@echo "    make commit-output f='files' m='msg'    -- Stage and commit arbitrary files"
 	@echo ""
 
@@ -292,6 +293,13 @@ merge-current-task:
 merge-worktree:
 	@[ -n "$(b)" ] || (echo "Usage: make merge-worktree b=<branch-name>"; exit 1)
 	git merge --squash $(b)
+
+## Remove a subagent's isolated worktree and its temporary branch after merging: make worktree-clean b=<branch>
+worktree-clean:
+	@[ -n "$(b)" ] || (echo "Usage: make worktree-clean b=<branch-name>"; exit 1)
+	@path=$$(git worktree list --porcelain | awk -v b="refs/heads/$(b)" '/^worktree /{p=$$2} /^branch /{if ($$2==b){print p; exit}}'); \
+	if [ -z "$$path" ]; then echo "No worktree found for branch $(b)"; exit 1; fi; \
+	git worktree remove --force "$$path" && git branch -D $(b)
 
 ## Run tests with coverage
 test:

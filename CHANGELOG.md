@@ -37,6 +37,15 @@
   `butler-mcp`'s `set_task_status` tool already did — the `butler` CLI can
   now set a task's `## Status` field the same way MCP can, instead of that
   operation only being reachable via MCP or a manual file edit. (TASK-073)
+- New `make worktree-clean b=<branch>` target removes a subagent's isolated
+  worktree and its temporary branch after `merge-worktree`/
+  `commit-current-task` have integrated its changes — previously nothing in
+  the documented workflow ever cleaned these up, and stale worktrees
+  accumulated indefinitely in `.claude/worktrees/` across sessions. The
+  `commit-workflow` skill's "Merging a worktree branch" section now
+  documents it as a step run after `commit-current-task` succeeds, kept
+  separate from `merge-worktree` itself so a failed commit doesn't lose the
+  worker's recoverable commit history. (TASK-074)
 
 ### Fixed
 

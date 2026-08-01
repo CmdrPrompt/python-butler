@@ -623,6 +623,48 @@ butler task sync-project TASK-099 --stage draft
 # still succeeds, consistent with Requirement 4's best-effort contract.
 ```
 
+## Requirement 12: Clean up isolated worktrees after merging
+
+**Description:** `make merge-worktree b=<branch>` (used per the
+`commit-workflow` skill's "Merging a worktree branch" procedure, when a
+subagent spawned with `isolation: "worktree"` returns a branch) squash-merges
+the subagent's commit(s) into the current branch's staging area via `git
+merge --squash`, but nothing in the documented workflow ever removes the
+worktree directory (`.claude/worktrees/agent-*`) or deletes its temporary
+local branch (`worktree-agent-*`) afterward. Confirmed live in this repo
+(2026-08-01): 11 stale worktree directories, each a real `git worktree
+list` entry with its own undeleted branch, accumulated from past subagent
+sessions with no cleanup step ever run.
+
+A new `make worktree-clean b=<branch>` target MUST resolve the worktree
+path registered for `<branch>` (via `git worktree list`) and run `git
+worktree remove --force <path>` followed by `git branch -D <branch>`.
+
+This MUST be a separate step from `merge-worktree`, run only after `make
+commit-current-task` has succeeded — not folded into `merge-worktree`
+itself. Folding cleanup into `merge-worktree` would delete the worktree and
+its branch immediately after the squash, before it's known whether the
+subsequent `commit-current-task` step succeeds, destroying the only
+recovery path (the worker's original commit history) if something goes
+wrong in between. Running cleanup only after a confirmed-successful commit
+preserves that recovery path until it's no longer needed.
+
+The `commit-workflow` skill's "Merging a worktree branch" section MUST be
+updated to add this as step 3, after its existing `commit-current-task`
+step.
+
+**Use case:**
+
+```bash
+# Workflow Guardian, after Implementation Worker (isolation: "worktree")
+# returns branch worktree-agent-abc123:
+make merge-worktree b=worktree-agent-abc123   # squash into staged changes
+make commit-current-task                      # the one real commit
+make worktree-clean b=worktree-agent-abc123   # remove the worktree + branch
+# .claude/worktrees/agent-abc123 no longer exists; `git worktree list` and
+# `git branch` no longer show it.
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -717,4 +759,8 @@ butler task sync-project TASK-099 --stage draft
       Description` section, and never `_pr_body()`'s extraction logic.
 - [ ] A missing/unresolvable task file falls back to today's `--title`-only
       item creation without blocking or raising.
+- [ ] `make worktree-clean b=<branch>` removes the worktree registered for
+      `<branch>` and deletes the branch itself.
+- [ ] The `commit-workflow` skill documents `worktree-clean` as a step run
+      after `commit-current-task` succeeds, not folded into `merge-worktree`.
 </content>
