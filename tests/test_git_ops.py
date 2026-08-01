@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shlex
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -114,8 +113,41 @@ class TestStageFor:
         assert "--return-code-scheme" in commands[2]
         scheme_index = commands[2].index("--return-code-scheme")
         assert commands[2][scheme_index + 1] == "minimal"
-        assert commands[3] == shlex.split(task.stage_cmd)
+        assert commands[3] == ["git", "add", *task.stage_paths]
         assert commands[4] == ["git", "update-index", "-q", "--refresh"]
+
+    def test_a_make_invocation_in_stage_paths_fails_as_invalid_pathspec_not_recursion(
+        self, tmp_path: Path
+    ) -> None:
+        """TASK-086 regression: a Stage field mistakenly containing a `make`/
+        `butler` invocation (the TASK-069/TASK-082/TASK-083 incidents) must fail
+        immediately as an invalid git pathspec, never execute as a shell command."""
+        real_run = subprocess.run
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True
+        )
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+        (tmp_path / "README.md").write_text("# hi\n")
+        task = create_task("Some task", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
+        task.stage_paths = ["make", "stage-current-task"]
+
+        def fake_run(
+            cmd: list[str], check: bool = False, cwd: Path | None = None, **kwargs: object
+        ) -> MagicMock | subprocess.CompletedProcess[str]:
+            if cmd[:2] == ["git", "add"]:
+                return real_run(cmd, check=check, cwd=cwd, capture_output=True, text=True)
+            return _completed(returncode=0)
+
+        with (
+            patch("butler_core.git_ops.subprocess.run", side_effect=fake_run),
+            pytest.raises(subprocess.CalledProcessError) as exc_info,
+        ):
+            stage_for(task, repo_root=tmp_path)
+
+        assert exc_info.value.cmd[:2] == ["git", "add"]
+        assert "make" in exc_info.value.cmd
+        assert "stage-current-task" in exc_info.value.cmd
 
     def test_does_not_raise_when_pymarkdown_fixes_a_file(self, tmp_path: Path) -> None:
         (tmp_path / "README.md").write_text("# hi\n")

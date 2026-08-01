@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shlex
 import subprocess  # nosec B404 -- used only to invoke fixed git/gh CLI commands
 from pathlib import Path
 
@@ -68,7 +67,9 @@ def stage_for(task: Task, repo_root: Path | None = None) -> None:
         check=True,
         cwd=root,
     )
-    subprocess.run(shlex.split(task.stage_cmd), check=True, cwd=root)  # nosec B603
+    subprocess.run(  # nosec B603 B607 -- fixed git CLI invocation; paths are data, never shell text
+        ["git", "add", *task.stage_paths], check=True, cwd=root
+    )
     subprocess.run(  # nosec B603 B607
         ["git", "update-index", "-q", "--refresh"], check=True, cwd=root
     )

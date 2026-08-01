@@ -33,7 +33,10 @@ def test_read_task_returns_structured_data_for_existing_file() -> None:
     assert task.status == "done"
     assert task.branch_name == "task/015-butler-trim-target"
     assert task.switch_create_cmd == "git checkout -b task/015-butler-trim-target"
-    assert task.stage_cmd.startswith("git add Makefile")
+    # TASK-015's Stage field predates TASK-086 and still has "git add" in the
+    # backticks; that's parsed as literal path tokens now, unmigrated.
+    assert task.stage_paths[:2] == ["git", "add"]
+    assert "Makefile" in task.stage_paths
     assert "butler-trim, butler-fetch, butler-pull" in task.commit_message
     assert len(task.acceptance_criteria) == 8
     assert all(criterion.checked for criterion in task.acceptance_criteria)
@@ -65,7 +68,7 @@ def test_create_task_allocates_next_number_and_writes_parseable_file(tmp_path: P
                 description="desc",
                 branch_name="task/005-existing",
                 switch_create_cmd="git checkout -b task/005-existing",
-                stage_cmd="git add foo.py CHANGELOG.md",
+                stage_paths=["foo.py", "CHANGELOG.md"],
                 commit_message="Do the thing",
                 acceptance_criteria=[],
                 completion=None,
@@ -83,12 +86,47 @@ def test_create_task_allocates_next_number_and_writes_parseable_file(tmp_path: P
     assert reparsed.branch_name == "task/006-new-feature"
 
 
+def test_stage_field_parses_as_a_whitespace_separated_path_list(tmp_path: Path) -> None:
+    """TASK-086: the Completion `**Stage:**` field is data (file paths), never
+    an executable command line — see REQUIREMENTS_TASK_WORKFLOW.md Requirement 15."""
+    (tmp_path / "TASK-001-sample.md").write_text(
+        render_task(
+            Task(
+                id="TASK-001",
+                title="Sample",
+                status="todo",
+                description="desc",
+                branch_name="task/001-sample",
+                switch_create_cmd="git checkout -b task/001-sample",
+                stage_paths=["src/foo.py", "tests/test_foo.py", "CHANGELOG.md"],
+                commit_message="Add foo",
+                acceptance_criteria=[],
+                completion=None,
+            )
+        )
+    )
+
+    task = read_task("TASK-001", tasks_dir=str(tmp_path))
+
+    assert task.stage_paths == ["src/foo.py", "tests/test_foo.py", "CHANGELOG.md"]
+
+
+def test_created_task_files_stage_field_has_no_leading_git_add(tmp_path: Path) -> None:
+    task = create_task("New feature", "desc", tasks_dir=str(tmp_path))
+    text = (tmp_path / f"{task.id}-new-feature.md").read_text()
+
+    stage_line = next(line for line in text.splitlines() if line.startswith("**Stage:**"))
+
+    assert "git add" not in stage_line
+    assert "CHANGELOG.md" in task.stage_paths
+
+
 def test_created_task_file_is_makefile_grep_compatible(tmp_path: Path) -> None:
     task = create_task("Grep compatible task", "desc", tasks_dir=str(tmp_path))
     text = (tmp_path / f"{task.id}-grep-compatible-task.md").read_text()
 
     switch_match = re.search(r"\*\*Switch/create:\*\*.*`(git checkout[^`]*)`", text)
-    stage_match = re.search(r"\*\*Stage:\*\*.*`(git add[^`]*)`", text)
+    stage_match = re.search(r"\*\*Stage:\*\*.*`([^`]*CHANGELOG\.md[^`]*)`", text)
     commit_match = re.search(r'\*\*Commit:\*\*.*`git commit -m "(.*)"`', text)
 
     assert switch_match is not None
@@ -167,6 +205,17 @@ _safe_field = st.text(
     max_size=25,
 ).filter(lambda s: s == s.strip())
 
+_path_token = st.text(
+    alphabet=st.characters(
+        blacklist_categories=("Cs",),
+        blacklist_characters='`#\n"',
+        max_codepoint=0x2FFF,
+    ),
+    min_size=1,
+    max_size=25,
+).filter(lambda s: s == s.strip() and not any(c.isspace() for c in s))
+_stage_paths = st.lists(_path_token, max_size=5)
+
 _task_ids = st.integers(min_value=1, max_value=999).map(lambda n: f"TASK-{n:03d}")
 _statuses = st.sampled_from(["todo", "in-progress", "done"])
 _criteria = st.lists(
@@ -191,7 +240,7 @@ _completions = st.one_of(
     description=_safe_field,
     branch_name=_safe_field,
     switch_create_cmd=_safe_field,
-    stage_cmd=_safe_field,
+    stage_paths=_stage_paths,
     commit_message=_safe_field,
     acceptance_criteria=_criteria,
     completion=_completions,
@@ -203,7 +252,7 @@ def test_render_and_parse_round_trip(
     description: str,
     branch_name: str,
     switch_create_cmd: str,
-    stage_cmd: str,
+    stage_paths: list[str],
     commit_message: str,
     acceptance_criteria: list[AcceptanceCriterion],
     completion: Completion | None,
@@ -215,7 +264,7 @@ def test_render_and_parse_round_trip(
         description=description,
         branch_name=branch_name,
         switch_create_cmd=switch_create_cmd,
-        stage_cmd=stage_cmd,
+        stage_paths=stage_paths,
         commit_message=commit_message,
         acceptance_criteria=acceptance_criteria,
         completion=completion,
@@ -240,7 +289,7 @@ def test_parse_task_finds_acceptance_criteria_regardless_of_heading_suffix(
         description="desc",
         branch_name="task/001-sample",
         switch_create_cmd="git checkout -b task/001-sample",
-        stage_cmd="git add foo.py CHANGELOG.md",
+        stage_paths=["foo.py", "CHANGELOG.md"],
         commit_message="Do the thing",
         acceptance_criteria=acceptance_criteria,
         completion=None,

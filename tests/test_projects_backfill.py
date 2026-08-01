@@ -495,7 +495,7 @@ class TestTaskFilePathHelper:
             description="",
             branch_name="",
             switch_create_cmd="",
-            stage_cmd="",
+            stage_paths=[],
             commit_message="",
             acceptance_criteria=[],
         )
@@ -513,7 +513,7 @@ class TestTaskFilePathHelper:
             description="",
             branch_name="",
             switch_create_cmd="",
-            stage_cmd="",
+            stage_paths=[],
             commit_message="",
             acceptance_criteria=[],
         )
@@ -562,7 +562,7 @@ class TestClosedDateHelper:
             description="",
             branch_name="",
             switch_create_cmd="",
-            stage_cmd="",
+            stage_paths=[],
             commit_message="",
             acceptance_criteria=[],
             completion=Completion(date=""),

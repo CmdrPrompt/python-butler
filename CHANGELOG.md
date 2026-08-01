@@ -83,6 +83,16 @@
 
 ### Fixed
 
+- A task file's Completion `**Stage:**` field is now parsed and rendered as a
+  plain whitespace-separated list of file paths (`Task.stage_paths`) instead
+  of a free-form command string — `butler task stage` (and `make
+  stage-current-task`/`stage-task`) now always construct `git add <paths>`
+  themselves and never execute the field's text as a shell command. A
+  mistakenly-written `make`/`butler` invocation in that field (as happened in
+  TASK-069, TASK-082, and TASK-083, each spawning a runaway recursive `make`
+  process tree) now fails immediately with a "pathspec did not match any
+  files" git error instead of recursing. The `**Commit:**` field already
+  worked this way and is unchanged. (TASK-086)
 - The reusable `.github/workflows/python-ci.yml`'s checkout step now fetches
   submodules (`submodules: true`), fixing a missing-file failure (e.g.
   `include .butler/Makefile: No such file or directory`) for consumer repos

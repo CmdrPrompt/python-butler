@@ -760,11 +760,76 @@ butler sync --help
 # projects (see REQUIREMENTS_SUBMODULE.md) use `make butler-pull` instead.
 ```
 
+## Requirement 15: Task file Completion `Stage:` field is data, not an executable command
+
+**Description:** `butler_core.tasks.parse_task()` currently extracts the
+Completion section's `**Stage:**` backtick content verbatim as
+`Task.stage_cmd`, and `git_ops.stage_for()` executes it via
+`subprocess.run(shlex.split(task.stage_cmd))` — so whatever text an agent
+writes in that field runs as an arbitrary shell command. This has caused
+three incidents (TASK-069, TASK-082, TASK-083) where an agent wrote `make
+stage-current-task` into the field instead of a literal `git add ...`
+command; `butler task stage` then executed that text, reinvoking `make
+stage-current-task` on itself and recursing, spawning runaway nested `make`
+processes that had to be killed manually each time. `commit_for()` already
+avoids this class of bug for the `**Commit:**` field: it extracts only the
+commit message text via regex and always constructs `["git", "commit",
+"-m", task.commit_message]` itself, so no value written there can ever run
+as a shell command — only `**Stage:**` still has the hazard.
+
+The Completion section's `**Stage:**` field MUST be changed to match the
+`**Commit:**` field's pattern: it holds only a whitespace-separated list of
+file paths (data), never a full command line.
+`butler_core.tasks.parse_task()` MUST parse it into
+`Task.stage_paths: list[str]` (replacing `stage_cmd: str`), and
+`git_ops.stage_for()` MUST always construct the `git add` invocation itself
+(`["git", "add", *task.stage_paths]`) rather than executing any parsed
+string. The rendered Completion template (`task-file-format` skill, task
+templates, `create_task`'s default rendering) MUST show a plain file list
+(e.g. `` **Stage:** `path/to/file1 path/to/file2 CHANGELOG.md` ``, dropping
+the leading `git add`) so the field can no longer be filled with an
+arbitrary command regardless of what an agent writes there.
+
+Historical task files already committed with the old `git add ...` Stage
+format are read-only history and MUST NOT require migration — a completed
+task's Stage field is never re-parsed or re-executed after that task's
+`butler task stage` has already run once; only the parser/template for
+newly-drafted and in-progress task files changes.
+
+**Use case:**
+
+```bash
+# TASK-090's task file Completion section:
+# **Stage:** `src/foo.py tests/test_foo.py CHANGELOG.md`
+# **Commit:** `git commit -m "Add foo"`
+
+make stage-current-task
+# git_ops.stage_for() always runs:
+#   git add src/foo.py tests/test_foo.py CHANGELOG.md
+# -- never shells out to whatever text happens to be in the Stage field
+
+# If an agent accidentally writes a `make`/`butler` invocation as the
+# Stage field's content instead of a file list:
+# **Stage:** `make stage-current-task`
+
+make stage-current-task
+# git_ops.stage_for() runs:
+#   git add make stage-current-task
+# -> fatal: pathspec 'make' did not match any files
+# fails loudly and immediately -- no recursive make invocation, no runaway
+# process tree
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
       out to `make`, and that `butler task <cmd>` end-to-end does not spawn
       a nested `butler`/`make` process.
+- [ ] A regression test exists asserting `Task.stage_paths` is a parsed file
+      list (never a raw command string) and that `git_ops.stage_for()`
+      always constructs `git add <paths>` itself, so a Stage field
+      containing `make ...`/`butler ...` text fails as an invalid pathspec
+      rather than executing (Requirement 15).
 - [ ] A dedicated automated test exists (run in `make test`) that parses
       every `butler` flag used in the root Makefile and asserts it is
       accepted by the CLI's argparse definition, failing the build on
