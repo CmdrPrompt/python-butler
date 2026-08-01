@@ -102,5 +102,5 @@ None
 **Summary:**
 **Files changed:**
 **Branch:** `git checkout task/085-mark-butler-sync-deprecated`
-**Stage:** `git add src/butler_cli/__main__.py src/butler_core/sync.py CHANGELOG.md`
+**Stage:** `src/butler_cli/__main__.py src/butler_core/sync.py CHANGELOG.md`
 **Commit:** `git commit -m "Add deprecation notice to butler sync command and docstrings"`

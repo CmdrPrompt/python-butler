@@ -88,5 +88,5 @@ None
 **Files changed:**
 - `path/to/file` - created / modified
 **Branch:** `git checkout task/084-obsolete-task-status`
-**Stage:** `git add path/to/file1 path/to/file2 CHANGELOG.md`
+**Stage:** `path/to/file1 path/to/file2 CHANGELOG.md`
 **Commit:** `git commit -m "Add an obsolete task Status for work superseded before completion"`
