@@ -49,6 +49,11 @@
 
 ### Fixed
 
+- The reusable `.github/workflows/python-ci.yml` now sets up `uv` (via
+  `astral-sh/setup-uv`) before the Install step, fixing `uv: command not
+  found` for consumer repos whose `install-command` is a `uv` invocation —
+  found via `firefly-bank-importer`'s first real end-to-end run of this
+  workflow after repointing to the renamed repo. (TASK-075)
 - GitHub Projects items created by `butler task sync-project` (`draft`/`open`/
   `start`/`backfill` stages) now get a populated body instead of an empty
   one — built from the task file's `## Story` and `## Acceptance criteria`
