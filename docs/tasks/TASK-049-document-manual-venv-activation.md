@@ -73,5 +73,5 @@ to activate anything.
 - `docs/tasks/TASK-049-document-manual-venv-activation.md` — modified
 
 **Branch:** `git checkout task/049-document-manual-venv-activation`
-**Stage:** `git add Makefile README.md CHANGELOG.md docs/tasks/TASK-049-document-manual-venv-activation.md`
+**Stage:** `Makefile README.md CHANGELOG.md docs/tasks/TASK-049-document-manual-venv-activation.md`
 **Commit:** `git commit -m "Document manual .venv activation in make help and README (TASK-049)"`

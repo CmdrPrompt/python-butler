@@ -53,5 +53,5 @@ were the only genuinely missing piece: CLI installation (`uv tool install`) and 
 - `docs/tasks/TASK-027-packaging-and-optionality.md` — modified (acceptance criteria + completion)
 
 **Branch:** `git checkout task/027-packaging-and-optionality`
-**Stage:** `git add README.md tests/test_packaging.py REQUIREMENTS_MCP.md CHANGELOG.md docs/tasks/TASK-027-packaging-and-optionality.md`
+**Stage:** `README.md tests/test_packaging.py REQUIREMENTS_MCP.md CHANGELOG.md docs/tasks/TASK-027-packaging-and-optionality.md`
 **Commit:** `git commit -m "Document CLI and MCP server installation as optional additions, verify packaging isolation"`
