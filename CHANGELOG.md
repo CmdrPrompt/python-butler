@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `butler task sync-project`'s Project item lookup now passes `--limit 1000`
+  to `gh project item-list` instead of relying on its default 30-item page.
+  Once a Project has more than 30 items, the previous unpaginated lookup
+  silently failed to find an existing item's real ID for any task beyond
+  that first page — status updates fell back to the bare task ID (an
+  invalid GraphQL node id, surfacing as "Could not resolve to a node with
+  the global id of 'TASK-XXX'"), and item-creation, unable to find the
+  existing item to reuse, created a duplicate on every sync stage instead.
+  Found and reproduced live against this repo's own Project after it
+  crossed 30 items. (TASK-089)
+
 ### Added
 
 - This repo now dogfoods its own BDD scaffold: `pytest-bdd` is a dev
