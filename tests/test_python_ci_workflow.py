@@ -61,6 +61,21 @@ def test_job_runs_checkout_setup_install_lint_test_audit_as_separate_steps():
         assert "||" not in step["run"]
 
 
+def test_uv_is_set_up_before_install():
+    jobs = _load_workflow()["jobs"]
+    ((_, job),) = jobs.items()
+    steps = job["steps"]
+
+    uses = [step.get("uses", "") for step in steps]
+    setup_uv_index = next(i for i, u in enumerate(uses) if u.startswith("astral-sh/setup-uv@"))
+
+    names = [step.get("name") for step in steps]
+    setup_python_index = names.index("Set up Python")
+    install_index = names.index("Install")
+
+    assert setup_python_index < setup_uv_index < install_index
+
+
 def test_audit_step_is_conditional_and_does_not_swallow_failures():
     jobs = _load_workflow()["jobs"]
     ((_, job),) = jobs.items()

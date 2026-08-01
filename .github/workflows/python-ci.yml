@@ -35,6 +35,9 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install
         run: ${{ inputs.install-command }}
 

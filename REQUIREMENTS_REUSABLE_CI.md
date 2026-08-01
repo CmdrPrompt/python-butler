@@ -82,6 +82,21 @@ non-zero exit code (e.g. no unguarded `|| true`).
 failure. The PR's required "CI" check must show as failed, blocking merge
 under standard branch protection, not silently pass.
 
+## Requirement 3: `uv` is available before the install step runs
+
+**Description:** The reusable workflow's `install-command` input is, in
+practice, always a `uv` invocation (`uv sync --extra dev`), since every
+current and expected consumer manages dependencies with `uv`. The workflow
+sets up a `uv` toolchain (e.g. via `astral-sh/setup-uv`) before the Install
+step runs, so `install-command` does not fail with `uv: command not found`.
+
+**Use case:** `firefly-bank-importer`'s PR #38 (first real end-to-end run of
+this reusable workflow, after repointing its `uses:` from the renamed
+`python-commons` to `python-butler`) fails at the Install step with
+`uv: command not found` (exit 127) — `uv` was never installed on the
+runner. Once this requirement is met, the same PR's Install step succeeds
+and proceeds to Lint/Test/Audit.
+
 ## Acceptance criteria (overall)
 
 - [ ] `.github/workflows/python-ci.yml` exists in this repo, triggered by
@@ -98,3 +113,5 @@ under standard branch protection, not silently pass.
       step in the Actions log.
 - [ ] Omitting `audit-command` skips the audit step without failing the
       job.
+- [ ] The workflow sets up `uv` before the Install step, so a `uv`-based
+      `install-command` succeeds without `uv: command not found`.
