@@ -231,6 +231,13 @@ def _no_project_warning(task: Task, env: dict[str, str] | None) -> SyncResult:
     return _warning(task.id, "no project configured for this repo", suggestion=suggestion)
 
 
+_ITEM_LIST_LIMIT = 1000
+"""Passed to `gh project item-list --limit`, well above gh's default page
+size of 30. Without this, the title-prefix lookup below silently misses any
+item past the first page once a Project accumulates more than 30 items —
+see REQUIREMENTS_TASK_WORKFLOW.md Requirement 16 / TASK-089."""
+
+
 def _item_list_lookup(
     task: Task, project: str, owner: str, env: dict[str, str] | None
 ) -> subprocess.CompletedProcess[str]:
@@ -244,6 +251,8 @@ def _item_list_lookup(
             project,
             "--owner",
             owner,
+            "--limit",
+            str(_ITEM_LIST_LIMIT),
             "--format",
             "json",
             "--jq",

@@ -820,6 +820,58 @@ make stage-current-task
 # process tree
 ```
 
+## Requirement 16: Project item lookup MUST paginate past `gh`'s default page size
+
+**Description:** `_item_list_lookup()` in `src/butler_core/projects.py` runs
+`gh project item-list <project> --owner <owner> --format json --jq '...'`
+with no `--limit` flag. `gh project item-list` defaults to returning only
+the first 30 items. Once a Project accumulates more than 30 items (this
+repo's own Project reached 58), the title-prefix lookup silently returns no
+match for any task whose item falls outside that first page — indistinguishable
+from "no item exists yet" — with two compounding failures observed in this
+repo's own Project on 2026-08-01 (TASK-087 and TASK-088, each freshly
+created that day, already past the 30-item mark):
+
+1. `_set_status()`'s fallback `item_id = item_id or task.id` passes the bare
+   task ID string (e.g. `"TASK-087"`) to `gh project item-edit --id`, which
+   is not a valid Project item node ID, producing a GraphQL "Could not
+   resolve to a node with the global id of 'TASK-087'" error on every
+   `start`/`open`/`merge`/`backfill` stage that hits this path — silently
+   swallowed as a best-effort warning (Requirement 4), never actually
+   updating the item's status.
+2. `_create_item()`'s "look up existing item, reuse it" step (Requirement 4)
+   uses the same unpaginated lookup, so a stage that can't find the
+   already-created item creates a *new* one instead — TASK-087 ended up
+   with 3 duplicate Project items and TASK-088 with 4, all stuck at their
+   creation-time status because none of the later status-setting stages
+   could resolve a real node ID for any of them either.
+
+`_item_list_lookup()` MUST retrieve every item in the Project, not just the
+first page, before applying the title-prefix filter — either by passing a
+`--limit` high enough to exceed any realistic Project size (e.g. `1000`) or
+by paginating with `gh`'s cursor support until exhausted. Whichever
+approach is chosen, a Project with more items than `gh`'s default page size
+MUST NOT cause lookups for existing (non-first-page) items to report "not
+found".
+
+**Use case:**
+
+```bash
+# Project has 58 items; TASK-087's item is the 52nd (outside gh's default
+# 30-item page).
+butler task sync-project TASK-087 --stage backfill
+# Before this requirement: item-list (no --limit) returns only the first
+# 30 items, TASK-087's title-prefix match finds nothing, status-set falls
+# back to the bogus "TASK-087" node id, gh rejects it:
+#   Warning: could not sync TASK-087 to GitHub Projects (GraphQL: Could not
+#   resolve to a node with the global id of 'TASK-087' ...) - continuing
+#
+# After this requirement: item-list retrieves all 58 items (or paginates
+# until exhausted), finds TASK-087's real item id, and the status update
+# succeeds:
+#   Updated GitHub Project item for TASK-087 to status: Done
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells

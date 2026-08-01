@@ -53,6 +53,42 @@ class TestModuleIsSeparateFromGitOps:
         assert not hasattr(git_ops, "sync_on_pr_merge")
 
 
+class TestItemListLookupPagination:
+    """TASK-089 / REQUIREMENTS_TASK_WORKFLOW.md Requirement 16: the item-list
+    lookup must retrieve every Project item, not just `gh`'s default 30-item
+    page, before applying the title-prefix filter."""
+
+    def test_item_list_lookup_passes_a_limit_above_ghs_default_page_size(self) -> None:
+        from butler_core.projects import _item_list_lookup
+
+        task = Task(
+            id="TASK-999",
+            title="Some task",
+            status="todo",
+            description="desc",
+            branch_name="task/999-some-task",
+            switch_create_cmd="git checkout -b task/999-some-task",
+            stage_paths=[],
+            commit_message="Some task",
+            acceptance_criteria=[],
+            completion=None,
+        )
+
+        with patch("butler_core.projects.subprocess.run") as mock_run:
+            mock_run.return_value = _completed(returncode=0, stdout="")
+            _item_list_lookup(task, project="2", owner="acme", env=None)
+
+        argv = mock_run.call_args.args[0]
+        assert "--limit" in argv or "-L" in argv, (
+            f"expected item-list to pass a --limit above gh's default page size (30), got {argv}"
+        )
+        limit_flag = "--limit" if "--limit" in argv else "-L"
+        limit_value = int(argv[argv.index(limit_flag) + 1])
+        assert limit_value > 30, (
+            f"--limit {limit_value} does not exceed gh's default page size (30)"
+        )
+
+
 class TestSyncOnPrOpen:
     """Scenario: Sync creates GitHub Projects item on PR open with correct
     metadata."""
