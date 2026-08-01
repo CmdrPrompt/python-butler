@@ -29,6 +29,7 @@ from butler_core.tasks import (
     create_task,
     list_tasks,
     read_task,
+    set_status,
 )
 from butler_core.uninstall import (
     DirtyWorkingTreeError,
@@ -59,6 +60,10 @@ def _build_parser() -> argparse.ArgumentParser:
     check_parser = task_subparsers.add_parser("check")
     check_parser.add_argument("task_id")
     check_parser.add_argument("--criterion", type=int, required=True)
+
+    set_status_parser = task_subparsers.add_parser("set-status")
+    set_status_parser.add_argument("task_id")
+    set_status_parser.add_argument("status")
 
     for name in ("branch", "stage", "commit", "pr", "merge"):
         sub = task_subparsers.add_parser(name)
@@ -111,6 +116,10 @@ def _cmd_create(args: argparse.Namespace) -> None:
 
 def _cmd_check(args: argparse.Namespace) -> None:
     check_criterion(args.task_id, args.criterion - 1, tasks_dir=args.tasks_dir)
+
+
+def _cmd_set_status(args: argparse.Namespace) -> None:
+    set_status(args.task_id, args.status, tasks_dir=args.tasks_dir)
 
 
 def _cmd_branch(args: argparse.Namespace) -> None:
@@ -173,6 +182,7 @@ _TASK_HANDLERS = {
     "show": _cmd_show,
     "create": _cmd_create,
     "check": _cmd_check,
+    "set-status": _cmd_set_status,
     "branch": _cmd_branch,
     "stage": _cmd_stage,
     "commit": _cmd_commit,

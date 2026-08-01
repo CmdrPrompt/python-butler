@@ -1,7 +1,7 @@
 # TASK-073 Add `butler task set-status` CLI subcommand
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 4, Requirement 6 (REQUIREMENTS_MCP.md, as amended
@@ -53,23 +53,25 @@ handler in `_TASK_HANDLERS`.
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: `butler task set-status` updates the task file's Status field
+- [x] Scenario: `butler task set-status` updates the task file's Status field
       Given a task file with `## Status\ntodo`
       When `butler task set-status TASK-015 done` is run
       Then the task file's `## Status` field reads `done`, matching what
       `butler-mcp`'s `set_task_status` tool already does for the same input
 
-- [ ] Scenario: An invalid status value is rejected
+- [x] Scenario: An invalid status value is rejected
       Given a task file with `## Status\ntodo`
       When `butler task set-status TASK-015 bogus` is run
-      Then the command fails with the same `ValueError` message
-      `butler_core.tasks.set_status` already raises for an invalid status,
-      matching the MCP tool's behavior for the same input
+      Then the command exits with status 1 and prints the same "Invalid
+      status" message `butler_core.tasks.set_status` already raises for an
+      invalid value, matching how every other CLI error (e.g. `task show`
+      for an unknown ID) is surfaced — a caught exception printed to
+      stderr, not an uncaught traceback
 
-- [ ] `make lint && make test` pass, with coverage not below the task-start
+- [x] `make lint && make test` pass, with coverage not below the task-start
       baseline
 
-- [ ] CHANGELOG.md updated
+- [x] CHANGELOG.md updated
 
 ## Out of scope
 - Adding a `make set-status-task f=TASK-XXX` Makefile target — not
@@ -88,9 +90,31 @@ handler in `_TASK_HANDLERS`.
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-01
+**Summary:** Added `task set-status <ID> <status>` to the CLI's argparse
+surface (`_build_parser`, `_cmd_set_status`, registered in
+`_TASK_HANDLERS`), a thin wrapper over the existing, already-tested
+`butler_core.tasks.set_status`, following `task check`'s pattern exactly.
+No new `butler_core` logic needed — `set_status` already validates against
+`VALID_STATUSES` and the CLI's existing `main()` error handling already
+catches `ValueError` and prints it to stderr with exit code 1, matching
+every other CLI error path (no new exception handling needed). Wrote two
+tests first (red — `set-status` wasn't a recognized subcommand), then
+implemented (green): one confirming the Status field is written correctly,
+one confirming an invalid value surfaces the same way `task show` surfaces
+`TaskNotFoundError` (exit 1 + stderr message, not a raised exception —
+adjusted the task file's second scenario to match this, since `main()`
+always catches and returns rather than propagating). Also amended
+REQUIREMENTS_MCP.md's Requirement 6 example list per TASK-070's confirmed
+recommendation, before writing any code, per CLAUDE.md's spec-driven rule.
+Full suite: 316 passed, no coverage regression on `butler_cli`/`butler_core.tasks`
+(both still 99%).
 **Files changed:**
+- `src/butler_cli/__main__.py` - added `set-status` subparser, `_cmd_set_status`, handler registration, `set_status` import
+- `tests/test_cli.py` - added `TestSetStatus` with two tests
+- `REQUIREMENTS_MCP.md` - added `task set-status` to Requirement 6's example list (confirmed by user)
+- `CHANGELOG.md` - documented the new subcommand
+- `docs/tasks/TASK-073-add-butler-task-set-status-cli-subcommand.md` - checked off criteria, completion
 **Branch:** `git checkout task/073-add-butler-task-set-status-cli-subcommand`
 **Stage:** `git add src/butler_cli/__main__.py tests/test_cli.py REQUIREMENTS_MCP.md CHANGELOG.md docs/tasks/TASK-073-add-butler-task-set-status-cli-subcommand.md`
 **Commit:** `git commit -m "Add butler task set-status CLI subcommand"`
