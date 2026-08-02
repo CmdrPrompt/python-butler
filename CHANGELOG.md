@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- `generate-pyproject` and `generate-governance-files` no longer break when
+  `PROJECT_NAME` or `PROJECT_DESCRIPTION` contains a single quote (e.g. an
+  ordinary apostrophe in "member's"). Previously the value was expanded
+  directly into a single-quoted `sed` argument, so the quote terminated the
+  shell string early — aborting `generate-pyproject` outright, or, under
+  `init-project FORCE=1`'s combined script, desynchronizing quote-parsing
+  for the rest of the run and corrupting files unrelated to what `generate-*`
+  was meant to touch. The values are now passed as exported shell
+  environment variables referenced inside the `sed` script instead of being
+  substituted as Make text. (TASK-093)
 - `generate-governance-files` now gates `CLAUDE.md` and
   `.github/copilot-instructions.md` on their own existence independently,
   so a missing `CLAUDE.md` is generated even when

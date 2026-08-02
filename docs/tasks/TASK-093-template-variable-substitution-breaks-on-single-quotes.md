@@ -1,7 +1,7 @@
 # TASK-093 Template variable substitution breaks (and corrupts unrelated files) on single quotes in PROJECT_DESCRIPTION
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 1 (REQUIREMENTS_TEMPLATE_VAR_SHELL_SAFETY.md)
@@ -63,17 +63,17 @@ literal — per REQUIREMENTS_TEMPLATE_VAR_SHELL_SAFETY.md Requirement 1.
 ## Acceptance criteria (Gherkin)
 **Feature files:** None
 
-- [ ] 1. Scenario: PROJECT_DESCRIPTION with a single quote does not break generate-pyproject
+- [x] 1. Scenario: PROJECT_DESCRIPTION with a single quote does not break generate-pyproject
       Given `PROJECT_DESCRIPTION` is set to `Tracks each member's monthly share.`
       When `make generate-pyproject PROJECT_DESCRIPTION="Tracks each member's monthly share."` runs
       Then the command exits 0
       And `pyproject.toml`'s description field contains `Tracks each member's monthly share.` verbatim, apostrophe included
-- [ ] 2. Scenario: PROJECT_DESCRIPTION with a single quote does not break generate-governance-files
+- [x] 2. Scenario: PROJECT_DESCRIPTION with a single quote does not break generate-governance-files
       Given `PROJECT_DESCRIPTION` is set to `Tracks each member's monthly share.`
       When `make generate-governance-files PROJECT_DESCRIPTION="Tracks each member's monthly share."` runs
       Then the command exits 0
       And `CLAUDE.md` and `.github/copilot-instructions.md` contain `Tracks each member's monthly share.` verbatim
-- [ ] 3. Scenario: A description without special characters is unaffected
+- [x] 3. Scenario: A description without special characters is unaffected
       Given `PROJECT_DESCRIPTION` is set to `Describe your project here.`
       When `make generate-pyproject` and `make generate-governance-files` run
       Then the generated files are byte-for-byte identical to current behavior
@@ -88,9 +88,21 @@ literal — per REQUIREMENTS_TEMPLATE_VAR_SHELL_SAFETY.md Requirement 1.
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-03
+**Summary:** `PROJECT_NAME`/`PROJECT_DESCRIPTION` are now exported as shell
+environment variables and referenced inside `sed`'s replacement text via
+`$$PROJECT_NAME`/`$$PROJECT_DESCRIPTION` in double-quoted `-e` arguments,
+instead of being expanded directly by Make into a single-quoted `sed -e
+'s|...|...|g'` literal. A single quote in the value no longer terminates
+the shell string early, so it survives verbatim into `pyproject.toml`,
+`CLAUDE.md`, and `.github/copilot-instructions.md`. `src/butler_core/data/
+Makefile` was re-copied from the root `Makefile` to keep
+`tests/test_sync.py`'s drift check green.
 **Files changed:**
+- `Makefile` - export `PROJECT_NAME`/`PROJECT_DESCRIPTION`; switch their `sed` substitutions to double-quoted `$$VAR` references in `generate-pyproject` and `generate-governance-files`
+- `src/butler_core/data/Makefile` - re-synced copy of the root Makefile
+- `tests/test_template_var_shell_safety.py` - created, covers all 3 acceptance scenarios
+- `CHANGELOG.md` - added entry
 **Branch:** `git checkout task/093-template-variable-substitution-breaks-on-single-quotes`
-**Stage:**
-**Commit:**
+**Stage:** `Makefile src/butler_core/data/Makefile tests/test_template_var_shell_safety.py CHANGELOG.md docs/tasks/TASK-093-template-variable-substitution-breaks-on-single-quotes.md`
+**Commit:** `git commit -m "Fix generate-pyproject and generate-governance-files to tolerate single quotes in PROJECT_NAME/PROJECT_DESCRIPTION (TASK-093)"`

@@ -12,6 +12,8 @@ SRC_DIR ?= src
 TESTS_DIR ?= tests
 PROJECT_NAME ?= my-project
 PROJECT_DESCRIPTION ?= Describe your project here.
+export PROJECT_NAME
+export PROJECT_DESCRIPTION
 REQUIREMENTS_PATH ?= docs/REQUIREMENTS.md
 WORKFLOW_GUARDIAN_NAME ?= Workflow Guardian
 WORKFLOW_GUARDIAN_REF ?= Workflow Guardian agent (`.github/agents/workflow-guardian.agent.md`)
@@ -82,8 +84,8 @@ generate-pyproject:
 	@[ ! -f pyproject.toml ] || [ "$(FORCE)" = "1" ] || \
 		(echo "pyproject.toml already exists. Run with FORCE=1 to overwrite."; exit 1)
 	@sed \
-		-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
-		-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
+		-e "s|{{PROJECT_NAME}}|$$PROJECT_NAME|g" \
+		-e "s|{{PROJECT_DESCRIPTION}}|$$PROJECT_DESCRIPTION|g" \
 		-e 's|{{TESTS_DIR}}|$(TESTS_DIR)|g' \
 		-e 's|{{SRC_DIR}}|$(SRC_DIR)|g' \
 		.butler/scaffold/pyproject.toml.tmpl > pyproject.toml
@@ -466,8 +468,8 @@ generate-governance-files:
 		echo "CLAUDE.md already exists. Run with FORCE=1 to overwrite."; \
 	else \
 		$$BDD_FILTER .butler/templates/CLAUDE.md.tmpl | sed \
-			-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
-			-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
+			-e "s|{{PROJECT_NAME}}|$$PROJECT_NAME|g" \
+			-e "s|{{PROJECT_DESCRIPTION}}|$$PROJECT_DESCRIPTION|g" \
 			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
 			-e 's|{{WORKFLOW_GUARDIAN_NAME}}|$(WORKFLOW_GUARDIAN_NAME)|g' \
 			-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
@@ -480,7 +482,7 @@ generate-governance-files:
 	else \
 		$$BDD_FILTER .butler/templates/copilot-instructions.md.tmpl | sed \
 			-e 's|{{GUIDELINES_TITLE}}|$(GUIDELINES_TITLE)|g' \
-			-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
+			-e "s|{{PROJECT_DESCRIPTION}}|$$PROJECT_DESCRIPTION|g" \
 			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
 			-e 's|{{WORKFLOW_GUARDIAN_REF}}|$(WORKFLOW_GUARDIAN_REF)|g' \
 			-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
