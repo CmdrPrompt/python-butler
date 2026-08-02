@@ -872,6 +872,59 @@ butler task sync-project TASK-087 --stage backfill
 #   Updated GitHub Project item for TASK-087 to status: Done
 ```
 
+## Requirement 17: Visibility note when Project resolution falls back to the global `BUTLER_GITHUB_PROJECT` env var
+
+**Description:** Requirement 6's resolution order (`.butler-project` file
+first, `BUTLER_GITHUB_PROJECT` environment variable fallback) is correct but
+silent: nothing in butler's output distinguishes "this repo resolved its
+Project via the env var because that's how it's configured" from "this repo
+has no local config at all and is silently reusing whatever Project the
+invoking shell happens to have set for a *different* repo." Observed live in
+`CmdrPrompt/firefly-bank-importer`: a new GitHub Project (#3) was created for
+that repo, but no `.butler-project` file was added. `BUTLER_GITHUB_PROJECT=2`
+was exported globally in the shell profile for unrelated work on
+`python-butler`'s own Project (#2). Resolution correctly fell back to the env
+var per Requirement 6, but every sync silently wrote to Project #2 instead of
+the intended #3, with no warning — Requirement 4's "no project configured"
+warning only fires when the env var is *also* unset.
+
+Whenever project-number resolution (`_project_number()`) uses the
+`BUTLER_GITHUB_PROJECT` fallback rather than a repo-local `.butler-project`
+file, every sync stage that reports a *success* message (`--stage open`,
+`start`, `draft`, `merge`, `backfill`) MUST append a distinct visibility
+note to that message, e.g.:
+
+```text
+Note: TASK-XXX synced to GitHub Project 2 via $BUTLER_GITHUB_PROJECT (no .butler-project file in this repo) - if this isn't the right Project for this repo, run: echo <number> > .butler-project
+```
+
+This is additive only:
+
+- MUST NOT change Requirement 6's resolution precedence (file first, env
+  var fallback) or which Project number is ultimately used.
+- MUST NOT fire when `.butler-project` is present (the common,
+  already-unambiguous case).
+- MUST NOT block, fail, or alter the best-effort posture of any sync stage
+  (Requirement 4) — it is an informational addition to an otherwise
+  successful result, never a new failure mode.
+
+**Use case:**
+
+```bash
+# target-repo has no .butler-project file; BUTLER_GITHUB_PROJECT=2 is set
+# in the shell environment.
+butler task sync-project TASK-012 --stage open
+# Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: Todo)
+# Note: TASK-012 synced to GitHub Project 2 via $BUTLER_GITHUB_PROJECT (no
+# .butler-project file in this repo) - if this isn't the right Project for
+# this repo, run: echo <number> > .butler-project
+
+# target-repo has a .butler-project file containing "3":
+butler task sync-project TASK-012 --stage open
+# Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: Todo)
+# (no note - resolution source is already unambiguous)
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells

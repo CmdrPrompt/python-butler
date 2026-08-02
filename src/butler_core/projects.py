@@ -84,6 +84,33 @@ def _warning(task_id: str, reason: str, *, suggestion: str | None = None) -> Syn
     return SyncResult(success=False, message=message)
 
 
+def _env_fallback_note(task_id: str, project: str, tasks_dir: str | None) -> str | None:
+    """Requirement 17: when project-number resolution used the
+    `BUTLER_GITHUB_PROJECT` env var fallback rather than a repo-local
+    `.butler-project` file, return a visibility note to append to a
+    successful sync's message; `None` when `.butler-project` was present
+    (the already-unambiguous case)."""
+    if _butler_project_file_value(tasks_dir):
+        return None
+    return (
+        f"Note: {task_id} synced to GitHub Project {project} via "
+        "$BUTLER_GITHUB_PROJECT (no .butler-project file in this repo) - "
+        "if this isn't the right Project for this repo, run: "
+        "echo <number> > .butler-project"
+    )
+
+
+def _with_env_fallback_note(
+    result: SyncResult, task_id: str, project: str, tasks_dir: str | None
+) -> SyncResult:
+    if not result.success:
+        return result
+    note = _env_fallback_note(task_id, project, tasks_dir)
+    if note is None:
+        return result
+    return SyncResult(success=True, message=f"{result.message}\n{note}")
+
+
 def _parse_owner_repo_from_git_remote(url: str) -> tuple[str, str] | None:
     """Parse an owner/repo pair out of a `git remote get-url origin` URL,
     supporting both SSH (`git@github.com:owner/repo.git`) and HTTPS
@@ -541,8 +568,10 @@ def _sync(
 
     owner = _owner(env)
     if status is None:
-        return _create_item(task, project, owner, env, tasks_dir, include_pr_link=include_pr_link)
-    return _update_status_done(task, project, owner, env)
+        result = _create_item(task, project, owner, env, tasks_dir, include_pr_link=include_pr_link)
+    else:
+        result = _update_status_done(task, project, owner, env)
+    return _with_env_fallback_note(result, task.id, project, tasks_dir)
 
 
 def sync_on_pr_open(
@@ -582,7 +611,8 @@ def sync_on_pr_start(
         return _no_project_warning(task, env)
 
     owner = _owner(env)
-    return _start(task, project, owner, env, tasks_dir)
+    result = _start(task, project, owner, env, tasks_dir)
+    return _with_env_fallback_note(result, task.id, project, tasks_dir)
 
 
 def sync_on_pr_draft(
@@ -835,4 +865,5 @@ def sync_on_pr_backfill(
         return _no_project_warning(task, env)
 
     owner = _owner(env)
-    return _backfill(task, project, owner, env, tasks_dir)
+    result = _backfill(task, project, owner, env, tasks_dir)
+    return _with_env_fallback_note(result, task.id, project, tasks_dir)
