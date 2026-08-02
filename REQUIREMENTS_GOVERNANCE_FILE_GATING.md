@@ -7,9 +7,9 @@ with two existence checks before writing anything:
 
 ```make
 @[ ! -f CLAUDE.md ] || [ "$(FORCE)" = "1" ] || \
-	(echo "CLAUDE.md already exists. Run with FORCE=1 to overwrite."; exit 1)
+    (echo "CLAUDE.md already exists. Run with FORCE=1 to overwrite."; exit 1)
 @[ ! -f .github/copilot-instructions.md ] || [ "$(FORCE)" = "1" ] || \
-	(echo ".github/copilot-instructions.md already exists. Run with FORCE=1 to overwrite."; exit 1)
+    (echo ".github/copilot-instructions.md already exists. Run with FORCE=1 to overwrite."; exit 1)
 ```
 
 Both checks must pass before the recipe reaches the line that actually
@@ -84,6 +84,7 @@ $ make generate-governance-files
 ✓ Generated CLAUDE.md, .github/agents/, .claude/agents/, and .claude/skills/
 $ diff .github/copilot-instructions.md <(git show HEAD:.github/copilot-instructions.md)
 ```
+
 (no output — file unchanged)
 
 ## Requirement 3: `init-project`'s success message reflects actual outcome
