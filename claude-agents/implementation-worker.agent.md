@@ -33,6 +33,12 @@ commit — your commit message does not need to match the task file's
 - Do not pipe Bash commands through additional shell filters (`| tail`, `| head`, `| grep`) purely
   to shorten output — a piped command may fall outside the allowlist even when its first command
   alone is permitted. Run the plain command and let its full output return.
+- Because you cannot pipe, use the Makefile's quiet targets instead: `make verify` runs lint, tests
+  and BDD in a single call and prints only failures. `make lint-quiet`, `make test-quiet` and
+  `make bdd-quiet` are the individual variants. They run exactly the same checks as `make lint`,
+  `make test` and `make bdd` — only the output on success is smaller. Prefer them for every routine
+  check, and fall back to the verbose targets only when a failure needs more context than the quiet
+  output gives you.
 - If a Bash call is nonetheless blocked or interrupted, state the exact command that was blocked
   in your response instead of ending your turn silently — this is the only way the failure is
   diagnosable from outside.
@@ -55,12 +61,14 @@ commit — your commit message does not need to match the task file's
    fail for the right reason (missing behavior, not a missing/undefined step),
    then drive the implementation with the inner Red -> Green -> Refactor TDD
    loop from the `tdd-cycle` skill. Do not consider the task complete until
-   both `make bdd` and `make test` pass.
-4. Run `make lint && make test` to verify all checks pass; also run `make bdd`
-   and confirm it passes when the task has feature files or `tests/bdd/` is
-   adopted in this repo.
+   BDD scenarios and unit tests both pass.
+4. Run `make verify` to confirm lint, tests and BDD all pass. This replaces
+   running `make lint`, `make test` and `make bdd` as separate calls, and is
+   quiet on success. Inside the Red -> Green -> Refactor loop, run
+   `make test-quiet` alone; save the full `make verify` for the end.
 5. Verify that total test coverage at completion is equal to or higher than the task-start
-   baseline. If coverage has dropped, add tests before marking done.
+   baseline. `make test-quiet` prints the TOTAL coverage row (it omits only
+   fully-covered files). If coverage has dropped, add tests before marking done.
 6. Update CHANGELOG.md per the `changelog` skill. This must happen **before** staging,
    and CHANGELOG.md must be included on the `**Stage:**` line in the task file (or staged
    explicitly with `git add CHANGELOG.md`) so it is not missed by `make stage-task`.
@@ -72,7 +80,8 @@ commit — your commit message does not need to match the task file's
 ## Output Contract
 
 - Report files changed, checks run, coverage before/after, and pass/fail status.
-- Report `make bdd` pass/fail status alongside `make test`.
+- Report `make bdd` scenario pass/fail status alongside `make test`. `make verify` covers both,
+  so report its combined result and name which of lint, test or BDD failed if it did not pass.
 - Confirm that CHANGELOG.md was updated before committing.
 - Confirm that `make commit-output` ran successfully and report the resulting commit hash
   (`git log -1 --format=%H`) so the Workflow Guardian can verify it independently.

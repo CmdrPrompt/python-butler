@@ -57,6 +57,42 @@ uv run python scripts/validate_agents.py
 # includes "Skill"
 ```
 
+## Requirement 2: Agent-facing check targets keep successful output minimal
+
+**Description:** Agents are forbidden from piping command output through shell
+filters (`| tail`, `| head`, `| grep`) to shorten it, because a piped command
+can fall outside the pre-approved Bash allowlist and silently stall a
+subagent's turn. The Makefile MUST therefore provide agent-facing variants of
+the check targets that keep output small at the source. WHEN an agent runs the
+project's checks and every check passes, THEN the combined output SHALL omit
+per-item detail that carries no diagnostic value — the names of passing tests,
+the coverage rows of fully-covered files, and the per-function complexity
+listing — while still printing the TOTAL coverage row, so the task-start
+coverage-baseline comparison continues to work. WHEN any check fails, THEN the
+output SHALL still identify the failing item and its location.
+
+These variants MUST NOT change what is checked: each one SHALL run the same
+underlying commands as its verbose counterpart, differing only in output
+verbosity, and the existing `lint`, `test`, and `bdd` targets SHALL keep their
+current output verbatim for humans and CI. A single combined target MUST exist
+so an agent can run every check in one Bash call rather than one call per
+check.
+
+**Use case:**
+
+```bash
+make verify
+# runs lint, test and bdd; on success prints only the coverage TOTAL row and a
+# confirmation line, instead of the full per-file coverage table, every passing
+# test name, and the complete complexipy function listing
+
+make test-quiet
+# the inner-loop variant: same tests as `make test`, quiet on success
+
+make test
+# unchanged — full term-missing coverage table, as before
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] `commit-workflow`, `task-file-format`, `tdd-cycle`, `changelog`, and
@@ -68,5 +104,13 @@ uv run python scripts/validate_agents.py
       `tools:` list and no longer duplicates that procedure's full text
       inline.
 - [ ] `scripts/validate_agents.py` accepts `"Skill"` as a valid tool.
+- [ ] `make lint-quiet`, `make test-quiet`, `make bdd-quiet` and `make verify`
+      exist and run the same underlying commands as `make lint`, `make test`
+      and `make bdd`.
+- [ ] `make lint`, `make test` and `make bdd` expand to byte-identical command
+      lines to before the quiet variants were introduced.
+- [ ] `make test-quiet` still prints the TOTAL coverage row.
+- [ ] The Implementation Worker uses `make verify` as its completion gate and
+      `make test-quiet` inside the TDD loop.
 - [ ] `CHANGELOG.md` updated with a behavior-first entry.
 - [ ] `make lint && make test` pass.

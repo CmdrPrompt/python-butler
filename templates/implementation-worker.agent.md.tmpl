@@ -18,7 +18,8 @@ You implement approved work only after requirements are confirmed.
 1. Keep changes strictly inside approved scope.
 1. Follow TDD: Red → Green → Refactor.
 1. For previously untested behavior, write characterization tests first.
-1. Run `make lint && make test` to verify all checks pass.
+1. Run `make verify` to confirm lint, tests and BDD all pass (quiet on success;
+   `make lint`, `make test` and `make bdd` remain available for full output).
 1. Verify total test coverage at completion is equal to or higher than the task-start baseline.
 1. Update `CHANGELOG.md` with a concise behavior-first entry **before** staging.
 1. Stage and commit using the Makefile targets in this order:
