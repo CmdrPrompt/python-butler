@@ -155,6 +155,14 @@ dry-run comparison; fixed by stripping the verbosity vars and `MAKEFLAGS`/
 end-to-end by running `make verify` directly (not via a test) and
 observing it pass, including the nested `make test-quiet` run of this
 task's own test file.
+
+CI caught a second hermeticity issue after the PR was opened: the
+Scenario 6 baseline comparison used `git show 64ae502:Makefile`, which
+fails with exit 128 in CI's shallow (`fetch-depth: 1`) checkout because
+that commit isn't fetched. Fixed by checking in
+`tests/fixtures/Makefile.baseline` (a static snapshot of the pre-quiet-
+variant Makefile) and comparing against that file instead of git
+history.
 **Files changed:**
 - `Makefile` - added `lint-quiet`, `test-quiet`, `bdd-quiet`, `verify` targets and their verbosity-knob variables
 - `src/butler_core/data/Makefile` - re-synced copy of the root Makefile
@@ -162,7 +170,8 @@ task's own test file.
 - `templates/implementation-worker.agent.md.tmpl` - Copilot-flavoured agent file updated to match
 - `REQUIREMENTS_AGENT_SKILLS.md` - added Requirement 2
 - `tests/test_quiet_check_targets.py` - created, covers all 8 acceptance scenarios
+- `tests/fixtures/Makefile.baseline` - checked-in pre-quiet-variant Makefile snapshot, used by the Scenario 6 test instead of `git show` (CI's shallow checkout doesn't have the historical commit)
 - `CHANGELOG.md` - added entry
 **Branch:** `git checkout task/094-quiet-check-targets-for-agent-context`
-**Stage:** `Makefile src/butler_core/data/Makefile claude-agents/implementation-worker.agent.md .claude/agents/implementation-worker.agent.md templates/implementation-worker.agent.md.tmpl REQUIREMENTS_AGENT_SKILLS.md CHANGELOG.md tests/test_quiet_check_targets.py docs/tasks/TASK-094-quiet-check-targets-for-agent-context.md`
+**Stage:** `Makefile src/butler_core/data/Makefile claude-agents/implementation-worker.agent.md .claude/agents/implementation-worker.agent.md templates/implementation-worker.agent.md.tmpl REQUIREMENTS_AGENT_SKILLS.md CHANGELOG.md tests/test_quiet_check_targets.py tests/fixtures/Makefile.baseline docs/tasks/TASK-094-quiet-check-targets-for-agent-context.md`
 **Commit:** `git commit -m "Add quiet check targets so agent runs stop filling context with passing-check output (TASK-094)"`

@@ -222,9 +222,15 @@ class TestVerboseTargetsUnchanged:
     """Scenario 6: the verbose targets are unchanged -- `make -n lint`,
     `make -n test` and `make -n bdd` expand to the same command lines
     (ignoring incidental whitespace from now-empty verbosity variables) as
-    before the quiet variants were introduced."""
+    before the quiet variants were introduced.
 
-    _BASELINE_COMMIT = "64ae502"  # TASK-092 merge, the parent of TASK-093/094
+    Compared against `tests/fixtures/Makefile.baseline`, a checked-in copy
+    of the Makefile from commit 64ae502 (the TASK-092 merge, parent of
+    TASK-093/094) -- not fetched via `git show` against that commit, since
+    CI checks out with `fetch-depth: 1` and the commit is unavailable in a
+    shallow clone."""
+
+    _BASELINE_MAKEFILE = _REPO_ROOT / "tests" / "fixtures" / "Makefile.baseline"
 
     def _dry_run(self, makefile: Path, target: str) -> list[str]:
         clean_env = {k: v for k, v in os.environ.items() if k not in _VERBOSITY_ENV_VARS}
@@ -238,20 +244,10 @@ class TestVerboseTargetsUnchanged:
         assert result.returncode == 0, result.stderr
         return [_normalize(line) for line in result.stdout.splitlines() if line.strip()]
 
-    def test_lint_test_bdd_dry_run_unchanged_from_baseline(self, tmp_path: Path) -> None:
-        baseline_text = subprocess.run(
-            ["git", "show", f"{self._BASELINE_COMMIT}:Makefile"],
-            cwd=_REPO_ROOT,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
-        baseline_makefile = tmp_path / "Makefile.baseline"
-        baseline_makefile.write_text(baseline_text)
-
+    def test_lint_test_bdd_dry_run_unchanged_from_baseline(self) -> None:
         for target in ("lint", "test", "bdd"):
             current = self._dry_run(_MAKEFILE, target)
-            baseline = self._dry_run(baseline_makefile, target)
+            baseline = self._dry_run(self._BASELINE_MAKEFILE, target)
             assert current == baseline, f"`make -n {target}` drifted from baseline:\n{current}"
 
 
