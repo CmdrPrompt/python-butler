@@ -2,6 +2,7 @@
         commit-output pr-task merge-pr stage-current-task commit-current-task pr-current-task \
         sync-project-draft sync-project-backfill \
 	merge-current-task merge-worktree worktree-clean test clean clean-complexity generate-governance-files \
+	lint-quiet test-quiet bdd-quiet verify \
 	generate-pyproject generate-gitignore generate-pre-commit-config generate-pymarkdown \
 	generate-bdd-scaffold init-project bdd bdd-missing \
 	butler-fetch butler-pull butler-check butler-uninstall
@@ -21,6 +22,23 @@ BUG_TRIAGE_NAME ?= Bug Triage
 PROJECT_MAKE_TARGET ?= make help
 GUIDELINES_TITLE ?= Python Development Guidelines
 ENABLE_BDD ?= 1
+
+# Verbosity knobs for lint/test/bdd.
+#
+# All of these are empty (or full-output) by default, so `make lint`, `make test`
+# and `make bdd` behave exactly as before for humans and CI. The `*-quiet`
+# targets below override them to suppress per-file noise on success while still
+# printing everything needed to diagnose a failure.
+#
+# The point is agent context: subagents are told never to pipe command output
+# through `| tail`/`| grep` (a piped command can fall outside the Bash
+# allowlist), so the only safe place to shrink output is inside the Makefile.
+PYTEST_COV_REPORT ?= term-missing
+PYTEST_EXTRA_FLAGS ?=
+RUFF_QUIET ?=
+MYPY_QUIET ?=
+BANDIT_QUIET ?=
+COMPLEXIPY_QUIET ?=
 
 all: help
 
@@ -52,6 +70,12 @@ help:
 	@echo "    make validate-agents  -- Validate agent definitions (frontmatter and tool names)"
 	@echo "    make bdd              -- Run BDD scenarios in tests/bdd/ verbosely"
 	@echo "    make bdd-missing      -- List BDD scenarios missing bound step definitions"
+	@echo ""
+	@echo "  Quiet variants (same checks, only failures printed — used by agents):"
+	@echo "    make verify      -- lint + test + bdd in one call, quiet on success"
+	@echo "    make lint-quiet  -- Run lint, printing only failures"
+	@echo "    make test-quiet  -- Run tests, omitting fully-covered files and passing test names"
+	@echo "    make bdd-quiet   -- Run BDD scenarios, printing only failures"
 	@echo ""
 	@echo "  Governance templates:"
 	@echo "    make generate-governance-files  -- Generate CLAUDE.md, .github/copilot-instructions.md, and .github/chatmodes/"
@@ -198,15 +222,23 @@ check-skills-sync:
 
 ## Run linters
 lint: check-agents-sync check-skills-sync
-	uv run ruff check .
-	uv run ruff format --check .
-	uv run mypy $(SRC_DIR)/
-	uv run bandit -r $(SRC_DIR)/ -c pyproject.toml
+	uv run ruff check $(RUFF_QUIET) .
+	uv run ruff format --check $(RUFF_QUIET) .
+	uv run mypy $(MYPY_QUIET) $(SRC_DIR)/
+	uv run bandit $(BANDIT_QUIET) -r $(SRC_DIR)/ -c pyproject.toml
 	uv run pymarkdown --config .pymarkdown scan \
 		$(shell find . -name "*.md" -not -path "./.venv/*" -not -path "./.github/*" -not -path "./.butler/.github/*" -not -path "./libs/*" -not -path "./.claude/*")
-	uv run complexipy $(SRC_DIR)/ -mx 15 -s desc -j || \
+	uv run complexipy $(SRC_DIR)/ -mx 15 -s desc -j $(COMPLEXIPY_QUIET) || \
 		([ -f scripts/explain_complexipy_failures.py ] && \
 			uv run python scripts/explain_complexipy_failures.py --max 15; exit 1)
+
+## Same checks as `make lint`, but only failures are printed (for agents)
+lint-quiet:
+	@$(MAKE) lint \
+		RUFF_QUIET=--quiet \
+		MYPY_QUIET=--no-error-summary \
+		BANDIT_QUIET=--quiet \
+		COMPLEXIPY_QUIET=--failed
 
 ## Auto-fix ruff and pymarkdown issues
 fix:
@@ -324,15 +356,32 @@ worktree-clean:
 
 ## Run tests with coverage
 test:
-	uv run pytest $(TESTS_DIR)/ --cov=$(SRC_DIR) --cov-report=term-missing
+	uv run pytest $(TESTS_DIR)/ --cov=$(SRC_DIR) --cov-report=$(PYTEST_COV_REPORT) $(PYTEST_EXTRA_FLAGS)
+
+## Same tests as `make test`, but fully-covered files are omitted from the
+## coverage table and passing tests are not listed (for agents). The TOTAL
+## coverage row is still printed, so the coverage-baseline check still works.
+test-quiet:
+	@$(MAKE) test \
+		PYTEST_COV_REPORT="term:skip-covered" \
+		PYTEST_EXTRA_FLAGS="-q --no-header --tb=short"
 
 ## Run BDD scenarios verbosely; degrades gracefully if tests/bdd/ is absent
+## Set BDD_QUIET=1 (see bdd-quiet) to print only failures instead.
 bdd:
 	@if [ ! -d $(TESTS_DIR)/bdd ]; then \
 		echo "No $(TESTS_DIR)/bdd/ directory found — nothing to run. Adopt BDD with 'make generate-bdd-scaffold'."; \
 		exit 0; \
 	fi; \
-	uv run pytest $(TESTS_DIR)/bdd/ -v
+	uv run pytest $(TESTS_DIR)/bdd/ $(if $(BDD_QUIET),-q --no-header --tb=short,-v)
+
+## Same scenarios as `make bdd`, but only failures are printed (for agents)
+bdd-quiet:
+	@$(MAKE) bdd BDD_QUIET=1
+
+## One-call gate for agents: lint + tests + BDD, quiet on success
+verify: lint-quiet test-quiet bdd-quiet
+	@echo "✓ verify passed (lint, test, bdd)"
 
 ## List BDD scenarios without bound step definitions; degrades gracefully if tests/bdd/ is absent
 bdd-missing:

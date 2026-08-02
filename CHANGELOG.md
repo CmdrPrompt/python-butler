@@ -33,6 +33,17 @@
 
 ### Added
 
+- New quiet check targets `make lint-quiet`, `make test-quiet`, `make bdd-quiet`
+  and the combined `make verify`, which run exactly the same checks as `make
+  lint`, `make test` and `make bdd` but print only what a failure needs. The
+  existing targets are unchanged, so humans and CI keep their full output. This
+  exists because subagents are forbidden from piping command output through
+  `| tail`/`| grep` (a piped command can fall outside the Bash allowlist), which
+  left full pytest coverage tables and complexipy function listings accumulating
+  in agent context on every Red -> Green -> Refactor iteration. The Implementation
+  Worker now runs `make verify` as its completion gate and `make test-quiet`
+  inside the TDD loop. `make test-quiet` still prints the TOTAL coverage row, so
+  the coverage-baseline check is unaffected. (TASK-094)
 - `butler task sync-project`'s success messages (`--stage open/start/draft/
   merge/backfill`) now append a `Note: ... synced ... via
   $BUTLER_GITHUB_PROJECT (no .butler-project file in this repo) - ...` line
