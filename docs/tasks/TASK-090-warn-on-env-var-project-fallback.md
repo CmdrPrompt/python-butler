@@ -1,10 +1,10 @@
 # TASK-090 Warn when Project resolution falls back to the global `BUTLER_GITHUB_PROJECT` env var
 
 ## Status
-todo
+done
 
 ## Requirements
-**Binding:** Requirement 6 (REQUIREMENTS_TASK_WORKFLOW.md)
+**Binding:** Requirement 17 (REQUIREMENTS_TASK_WORKFLOW.md)
 **BDD mode:** BDD-ABSENT
 **Depends on:** None
 **Precedence:** The requirements above are the binding definition of this task.
@@ -56,14 +56,14 @@ MUST NOT block or fail the sync (same best-effort posture as Requirement 4).
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] Scenario: Resolution via env var fallback emits a visibility note
+- [x] Scenario: Resolution via env var fallback emits a visibility note
       Given a repo with no `.butler-project` file
       And `BUTLER_GITHUB_PROJECT` set in the environment
       When a sync stage resolves the Project number
       Then a "Note: ... via $BUTLER_GITHUB_PROJECT (no .butler-project file in this repo)" message is emitted
       And the sync still proceeds against that Project number
 
-- [ ] Scenario: Resolution via repo-local file emits no such note
+- [x] Scenario: Resolution via repo-local file emits no such note
       Given a repo with a `.butler-project` file present
       When a sync stage resolves the Project number
       Then no env-var-fallback note is emitted
@@ -81,10 +81,23 @@ MUST NOT block or fail the sync (same best-effort posture as Requirement 4).
 None
 
 ## Completion
-**Date:** TBD
-**Summary:** TBD
+**Date:** 2026-08-02
+**Summary:** Added `_env_fallback_note()`/`_with_env_fallback_note()` to
+`butler_core.projects`, appending a `Note: ... via $BUTLER_GITHUB_PROJECT
+(no .butler-project file in this repo) - ...` line to every successful sync
+stage's message (`open`/`start`/`draft`/`merge`/`backfill`) when project
+resolution used the env var fallback rather than `.butler-project`. No note
+when the file is present; no change to resolution precedence or to the
+"no project configured" warning. Formalized as Requirement 17 in
+`REQUIREMENTS_TASK_WORKFLOW.md` (confirmed by the user) since the existing
+Requirement 6 only covers file-vs-env-var precedence, not this visibility
+note.
 **Files changed:**
-- `path/to/file` - created / modified
+- `REQUIREMENTS_TASK_WORKFLOW.md` - modified (added Requirement 17)
+- `src/butler_core/projects.py` - modified
+- `tests/test_projects_env_fallback_note.py` - created
+- `CHANGELOG.md` - modified
+- `docs/tasks/TASK-090-warn-on-env-var-project-fallback.md` - modified
 **Branch:** `git checkout task/090-warn-on-env-var-project-fallback`
-**Stage:** `path/to/file1 path/to/file2 CHANGELOG.md`
+**Stage:** `REQUIREMENTS_TASK_WORKFLOW.md src/butler_core/projects.py tests/test_projects_env_fallback_note.py CHANGELOG.md docs/tasks/TASK-090-warn-on-env-var-project-fallback.md`
 **Commit:** `git commit -m "Warn when Project resolution falls back to the global BUTLER_GITHUB_PROJECT env var"`

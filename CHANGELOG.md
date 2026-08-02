@@ -17,6 +17,14 @@
 
 ### Added
 
+- `butler task sync-project`'s success messages (`--stage open/start/draft/
+  merge/backfill`) now append a `Note: ... synced ... via
+  $BUTLER_GITHUB_PROJECT (no .butler-project file in this repo) - ...` line
+  whenever the Project number was resolved from the `BUTLER_GITHUB_PROJECT`
+  environment variable rather than a repo-local `.butler-project` file, so a
+  repo silently reusing another repo's Project (via a shell-wide env var) is
+  now visible instead of silent. No note when `.butler-project` is present.
+  (TASK-090)
 - This repo now dogfoods its own BDD scaffold: `pytest-bdd` is a dev
   dependency, and `tests/bdd/features/`/`tests/bdd/steps/` exist with the
   example scenario, so `make bdd`/`make bdd-missing` are meaningful here, not
