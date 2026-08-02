@@ -512,6 +512,14 @@ generate-governance-files:
 	else \
 		BDD_FILTER="sed -e /<!--BDD:START-->/d -e /<!--BDD:END-->/d"; \
 	fi; \
+	if [ "$(origin PROJECT_NAME)" != "command line" ] && [ -f CLAUDE.md ]; then \
+		EXTRACTED_NAME=$$(sed -n '1s/^# //p' CLAUDE.md); \
+		[ -z "$$EXTRACTED_NAME" ] || PROJECT_NAME="$$EXTRACTED_NAME"; \
+	fi; \
+	if [ "$(origin PROJECT_DESCRIPTION)" != "command line" ] && [ -f CLAUDE.md ]; then \
+		EXTRACTED_DESCRIPTION=$$(awk 'NR==1{next} /^[[:space:]]*$$/{next} {print; exit}' CLAUDE.md); \
+		[ -z "$$EXTRACTED_DESCRIPTION" ] || PROJECT_DESCRIPTION="$$EXTRACTED_DESCRIPTION"; \
+	fi; \
 	GENERATED=""; \
 	if [ -f CLAUDE.md ] && [ "$(FORCE)" != "1" ]; then \
 		echo "CLAUDE.md already exists. Run with FORCE=1 to overwrite."; \

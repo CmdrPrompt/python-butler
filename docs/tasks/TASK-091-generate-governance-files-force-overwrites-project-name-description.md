@@ -1,7 +1,7 @@
 # TASK-091 `generate-governance-files FORCE=1` overwrites project name/description with placeholders
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirements 1-3 (REQUIREMENTS_GOVERNANCE_REGEN.md)
@@ -57,7 +57,7 @@ Explicit variables still override (Requirement 2). First-time generation
 ## Acceptance criteria (Gherkin)
 **Feature files:** None
 
-- [ ] 1. Scenario: FORCE=1 regeneration preserves existing project name and description
+- [x] 1. Scenario: FORCE=1 regeneration preserves existing project name and description
       Given a project has an existing `CLAUDE.md` with title `firefly-python-api`
       and a real description, and `PROJECT_NAME`/`PROJECT_DESCRIPTION` are not
       passed on the command line
@@ -65,12 +65,12 @@ Explicit variables still override (Requirement 2). First-time generation
       Then `CLAUDE.md` and `.github/copilot-instructions.md` retain the
       `firefly-python-api` name and the original description, not
       `my-project` / `Describe your project here.`
-- [ ] 2. Scenario: Explicit PROJECT_NAME/PROJECT_DESCRIPTION still override
+- [x] 2. Scenario: Explicit PROJECT_NAME/PROJECT_DESCRIPTION still override
       Given a project has an existing `CLAUDE.md` with title `firefly-python-api`
       When `make generate-governance-files FORCE=1 PROJECT_NAME="renamed-project" PROJECT_DESCRIPTION="New description."` runs
       Then `CLAUDE.md` and `.github/copilot-instructions.md` show
       `renamed-project` and `New description.`
-- [ ] 3. Scenario: First-time generation is unaffected
+- [x] 3. Scenario: First-time generation is unaffected
       Given no `CLAUDE.md` exists yet
       When `make generate-governance-files` (with or without `FORCE=1`) runs
       without explicit `PROJECT_NAME`/`PROJECT_DESCRIPTION`
@@ -88,9 +88,27 @@ Explicit variables still override (Requirement 2). First-time generation
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-03
+**Summary:** `generate-governance-files` now extracts the current project
+name/description from an existing `CLAUDE.md` (its `# <name>` H1 and the
+paragraph below it) when `PROJECT_NAME=`/`PROJECT_DESCRIPTION=` are not
+explicitly passed on the command line, and reuses those values for both
+`CLAUDE.md` and `.github/copilot-instructions.md` template substitution
+instead of falling back to the `my-project` / `Describe your project here.`
+Makefile defaults. Uses `$(origin PROJECT_NAME)`/`$(origin
+PROJECT_DESCRIPTION)` to distinguish an explicit command-line value (which
+still wins, Requirement 2) from the Makefile default. First-time generation
+(no prior `CLAUDE.md`) is unaffected (Requirement 3) since extraction only
+runs when `CLAUDE.md` already exists on disk. Applied identically to
+`Makefile` and the vendored `src/butler_core/data/Makefile` copy.
 **Files changed:**
+
+- `Makefile` — modified (extraction logic in `generate-governance-files`)
+- `src/butler_core/data/Makefile` — modified (re-synced vendored copy)
+- `tests/test_governance_regen_preserves_identity.py` — new (acceptance
+  tests for Requirements 1-3)
+- `CHANGELOG.md` — modified
+- `docs/tasks/TASK-091-generate-governance-files-force-overwrites-project-name-description.md` — modified
 **Branch:** `git checkout task/091-generate-governance-files-force-overwrites-project-name-description`
-**Stage:**
-**Commit:**
+**Stage:** `Makefile src/butler_core/data/Makefile tests/test_governance_regen_preserves_identity.py CHANGELOG.md docs/tasks/TASK-091-generate-governance-files-force-overwrites-project-name-description.md`
+**Commit:** `git commit -m "Fix generate-governance-files FORCE=1 clobbering project name/description with placeholders (TASK-091)"`
