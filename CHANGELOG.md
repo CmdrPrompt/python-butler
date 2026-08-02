@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- `generate-governance-files` now gates `CLAUDE.md` and
+  `.github/copilot-instructions.md` on their own existence independently,
+  so a missing `CLAUDE.md` is generated even when
+  `.github/copilot-instructions.md` already exists from an earlier partial
+  `init-project` run, instead of aborting before `CLAUDE.md` is ever
+  written. Each file is still left untouched without `FORCE=1`. (TASK-092)
 - `butler task sync-project`'s Project item lookup now passes `--limit 1000`
   to `gh project item-list` instead of relying on its default 30-item page.
   Once a Project has more than 30 items, the previous unpaginated lookup

@@ -455,47 +455,58 @@ butler-pull: butler-fetch
 
 ## Generate project governance files from .butler templates
 generate-governance-files:
-	@[ ! -f CLAUDE.md ] || [ "$(FORCE)" = "1" ] || \
-		(echo "CLAUDE.md already exists. Run with FORCE=1 to overwrite."; exit 1)
-	@[ ! -f .github/copilot-instructions.md ] || [ "$(FORCE)" = "1" ] || \
-		(echo ".github/copilot-instructions.md already exists. Run with FORCE=1 to overwrite."; exit 1)
 	@mkdir -p .github .github/agents
 	@if [ "$(ENABLE_BDD)" = "0" ]; then \
 		BDD_FILTER="sed -e /<!--BDD:START-->/,/<!--BDD:END-->/d"; \
 	else \
 		BDD_FILTER="sed -e /<!--BDD:START-->/d -e /<!--BDD:END-->/d"; \
 	fi; \
-	$$BDD_FILTER .butler/templates/CLAUDE.md.tmpl | sed \
-		-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
-		-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
-		-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
-		-e 's|{{WORKFLOW_GUARDIAN_NAME}}|$(WORKFLOW_GUARDIAN_NAME)|g' \
-		-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
-		-e 's|{{PROJECT_MAKE_TARGET}}|$(PROJECT_MAKE_TARGET)|g' \
-		> CLAUDE.md; \
-	$$BDD_FILTER .butler/templates/copilot-instructions.md.tmpl | sed \
-		-e 's|{{GUIDELINES_TITLE}}|$(GUIDELINES_TITLE)|g' \
-		-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
-		-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
-		-e 's|{{WORKFLOW_GUARDIAN_REF}}|$(WORKFLOW_GUARDIAN_REF)|g' \
-		-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
-		> .github/copilot-instructions.md
-	@for agent in workflow-guardian implementation-worker bug-triage characterization-test-writer requirements-drafter task-drafter pr-reviewer dependency-auditor test-design-reviewer test-writer; do \
+	GENERATED=""; \
+	if [ -f CLAUDE.md ] && [ "$(FORCE)" != "1" ]; then \
+		echo "CLAUDE.md already exists. Run with FORCE=1 to overwrite."; \
+	else \
+		$$BDD_FILTER .butler/templates/CLAUDE.md.tmpl | sed \
+			-e 's|{{PROJECT_NAME}}|$(PROJECT_NAME)|g' \
+			-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
+			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
+			-e 's|{{WORKFLOW_GUARDIAN_NAME}}|$(WORKFLOW_GUARDIAN_NAME)|g' \
+			-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
+			-e 's|{{PROJECT_MAKE_TARGET}}|$(PROJECT_MAKE_TARGET)|g' \
+			> CLAUDE.md; \
+		GENERATED="$$GENERATED CLAUDE.md"; \
+	fi; \
+	if [ -f .github/copilot-instructions.md ] && [ "$(FORCE)" != "1" ]; then \
+		echo ".github/copilot-instructions.md already exists. Run with FORCE=1 to overwrite."; \
+	else \
+		$$BDD_FILTER .butler/templates/copilot-instructions.md.tmpl | sed \
+			-e 's|{{GUIDELINES_TITLE}}|$(GUIDELINES_TITLE)|g' \
+			-e 's|{{PROJECT_DESCRIPTION}}|$(PROJECT_DESCRIPTION)|g' \
+			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
+			-e 's|{{WORKFLOW_GUARDIAN_REF}}|$(WORKFLOW_GUARDIAN_REF)|g' \
+			-e 's|{{BUG_TRIAGE_NAME}}|$(BUG_TRIAGE_NAME)|g' \
+			> .github/copilot-instructions.md; \
+		GENERATED="$$GENERATED .github/copilot-instructions.md"; \
+	fi; \
+	for agent in workflow-guardian implementation-worker bug-triage characterization-test-writer requirements-drafter task-drafter pr-reviewer dependency-auditor test-design-reviewer test-writer; do \
 		sed \
 			-e 's|{{REQUIREMENTS_PATH}}|$(REQUIREMENTS_PATH)|g' \
 			.butler/templates/$$agent.agent.md.tmpl > .github/agents/$$agent.agent.md; \
-	done
-	@mkdir -p .claude/agents
-	@cp .butler/claude-agents/*.agent.md .claude/agents/
-	@mkdir -p .claude/skills
-	@[ -d .butler/claude-skills ] && for dir in .butler/claude-skills/*/; do \
+	done; \
+	mkdir -p .claude/agents; \
+	cp .butler/claude-agents/*.agent.md .claude/agents/; \
+	mkdir -p .claude/skills; \
+	[ -d .butler/claude-skills ] && for dir in .butler/claude-skills/*/; do \
 		[ -d "$$dir" ] || continue; \
 		name=$$(basename "$$dir"); \
 		mkdir -p ".claude/skills/$$name"; \
 		cp "$$dir/SKILL.md" ".claude/skills/$$name/SKILL.md"; \
-	done; true
-	@[ "$(ENABLE_BDD)" = "0" ] || $(MAKE) generate-bdd-scaffold FORCE=$(FORCE)
-	@echo "✓ Generated CLAUDE.md, .github/copilot-instructions.md, .github/agents/, .claude/agents/, and .claude/skills/"
+	done; \
+	[ "$(ENABLE_BDD)" = "0" ] || $(MAKE) generate-bdd-scaffold FORCE=$(FORCE); \
+	if [ -n "$$GENERATED" ]; then \
+		echo "✓ Generated$$GENERATED, .github/agents/, .claude/agents/, and .claude/skills/"; \
+	else \
+		echo "✓ Generated .github/agents/, .claude/agents/, and .claude/skills/"; \
+	fi
 
 ## Remove generated complexipy artifacts
 clean-complexity:

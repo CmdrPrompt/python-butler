@@ -1,7 +1,7 @@
 # TASK-092 `generate-governance-files` must gate `CLAUDE.md` and `.github/copilot-instructions.md` independently
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirements 1-3 (REQUIREMENTS_GOVERNANCE_FILE_GATING.md)
@@ -57,7 +57,7 @@ that were actually written during that run, per Requirement 3.
 ## Acceptance criteria (Gherkin)
 **Feature files:** None
 
-- [ ] 1. Scenario: Missing CLAUDE.md is generated even when copilot-instructions.md already exists
+- [x] 1. Scenario: Missing CLAUDE.md is generated even when copilot-instructions.md already exists
       Given `.github/copilot-instructions.md` exists and `CLAUDE.md` does not,
       and `FORCE` is not set
       When `make generate-governance-files` runs
@@ -65,11 +65,11 @@ that were actually written during that run, per Requirement 3.
       And `.github/copilot-instructions.md` is left unchanged
       And the command reports `.github/copilot-instructions.md already exists. Run with FORCE=1 to overwrite.`
       without exiting with a non-zero status that prevents `CLAUDE.md` from being written
-- [ ] 2. Scenario: A file that already exists is not overwritten without FORCE=1
+- [x] 2. Scenario: A file that already exists is not overwritten without FORCE=1
       Given both `CLAUDE.md` and `.github/copilot-instructions.md` already exist
       When `make generate-governance-files` runs without `FORCE=1`
       Then neither file's content changes
-- [ ] 3. Scenario: init-project's completion message lists only files actually written
+- [x] 3. Scenario: init-project's completion message lists only files actually written
       Given `.github/copilot-instructions.md` exists and `CLAUDE.md` does not
       When `make init-project` runs and answers the interactive prompts
       Then the final "Stage and commit with" `git add` line lists `CLAUDE.md`
@@ -86,9 +86,30 @@ that were actually written during that run, per Requirement 3.
 None
 
 ## Completion
-**Date:**
-**Summary:**
+**Date:** 2026-08-03
+**Summary:** `generate-governance-files` now checks `CLAUDE.md` and
+`.github/copilot-instructions.md` for existence independently, writing
+whichever one is missing and only printing the "already exists" message
+for the one(s) that are present, instead of a single pair of sequential
+guards that aborted the whole recipe before `CLAUDE.md` could ever be
+written if `copilot-instructions.md` already existed. The final
+`"✓ Generated ..."` line now only names the file(s) actually written this
+run. `init-project`'s existing "Stage and commit with" message already
+only referenced `.github/` as a bucket (never the specific
+`copilot-instructions.md` path), so once `CLAUDE.md` generation itself
+stopped aborting, its "git add CLAUDE.md ..." line reflects reality without
+further changes needed there. `src/butler_core/data/Makefile` was
+re-copied from the root `Makefile` to keep `tests/test_sync.py`'s drift
+check green. Fixed two pre-existing markdown-lint violations (hard tabs,
+missing blank line around a fenced block) in
+`REQUIREMENTS_GOVERNANCE_FILE_GATING.md` that were blocking `make lint`
+unrelated to this task's change.
 **Files changed:**
+- `Makefile` - modified `generate-governance-files` to gate each output file independently
+- `src/butler_core/data/Makefile` - re-synced copy of the root Makefile
+- `tests/test_governance_file_gating.py` - created, covers all 3 acceptance scenarios
+- `REQUIREMENTS_GOVERNANCE_FILE_GATING.md` - fixed pre-existing markdown-lint violations
+- `CHANGELOG.md` - added entry
 **Branch:** `git checkout task/092-generate-governance-files-must-gate-claude-md-and-copilot-instructions-independently`
-**Stage:**
-**Commit:**
+**Stage:** `Makefile src/butler_core/data/Makefile tests/test_governance_file_gating.py REQUIREMENTS_GOVERNANCE_FILE_GATING.md CHANGELOG.md docs/tasks/TASK-092-generate-governance-files-must-gate-claude-md-and-copilot-instructions-independently.md`
+**Commit:** `git commit -m "Fix generate-governance-files to gate CLAUDE.md and copilot-instructions.md independently (TASK-092)"`
