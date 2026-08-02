@@ -4,6 +4,18 @@
 
 ### Fixed
 
+- `generate-governance-files FORCE=1` no longer clobbers a project's real
+  name/description with the `my-project` / `Describe your project here.`
+  placeholders when regenerating `CLAUDE.md` and
+  `.github/copilot-instructions.md` without explicit `PROJECT_NAME=`/
+  `PROJECT_DESCRIPTION=` on the command line — the normal
+  `butler-pull` → `generate-governance-files FORCE=1` update flow. When an
+  existing `CLAUDE.md` is present, its current name (the `# <name>` heading)
+  and description (the paragraph below it) are extracted and reused instead
+  of falling back to the placeholders. Explicitly passing `PROJECT_NAME=`/
+  `PROJECT_DESCRIPTION=` still overrides both the defaults and any extracted
+  value, and first-time generation (no prior `CLAUDE.md`) is unaffected.
+  (TASK-091)
 - `generate-pyproject` and `generate-governance-files` no longer break when
   `PROJECT_NAME` or `PROJECT_DESCRIPTION` contains a single quote (e.g. an
   ordinary apostrophe in "member's"). Previously the value was expanded
