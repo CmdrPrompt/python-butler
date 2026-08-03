@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The Implementation Worker and Test Writer agent definitions, and
+  `REQUIREMENTS_AGENT_SKILLS.md` Requirement 2, no longer justify preferring
+  the quiet Makefile check targets over ad-hoc shell pipes with a claim that
+  piping could put a command outside the Bash allowlist and silently stall a
+  subagent's turn — that mechanism was tested on 2026-08-03 and did not
+  reproduce. Piping is now documented as discouraged rather than forbidden,
+  with single-source-of-truth consistency as the reason; the quiet targets
+  themselves, and the rule to report an exact blocked command, are unchanged.
+  (TASK-095)
+
 ### Fixed
 
 - `generate-governance-files FORCE=1` no longer clobbers a project's real

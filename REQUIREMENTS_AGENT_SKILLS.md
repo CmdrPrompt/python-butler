@@ -59,10 +59,17 @@ uv run python scripts/validate_agents.py
 
 ## Requirement 2: Agent-facing check targets keep successful output minimal
 
-**Description:** Agents are forbidden from piping command output through shell
-filters (`| tail`, `| head`, `| grep`) to shorten it, because a piped command
-can fall outside the pre-approved Bash allowlist and silently stall a
-subagent's turn. The Makefile MUST therefore provide agent-facing variants of
+**Description:** Agents SHOULD prefer the quiet check targets below over
+piping command output through shell filters (`| tail`, `| head`, `| grep`) to
+shorten it, because the target is the single source of truth for what a check
+prints, so agent, human and CI runs stay consistent. (An earlier version of
+this requirement justified the preference with a different mechanism: that a
+piped command could fall outside the pre-approved Bash allowlist and cause a
+subagent's turn to end with no result. That mechanism was tested on
+2026-08-03 by running a piped command as an explicit subagent instruction; it
+completed normally, with no permission prompt and no stall, so it was not
+reproduced under the current configuration. See TASK-095 for the
+measurement.) The Makefile MUST therefore provide agent-facing variants of
 the check targets that keep output small at the source. WHEN an agent runs the
 project's checks and every check passes, THEN the combined output SHALL omit
 per-item detail that carries no diagnostic value — the names of passing tests,

@@ -27,18 +27,16 @@ commit — your commit message does not need to match the task file's
 ## Tool usage
 
 - Use the `Read`/`Grep`/`Glob` tools (file read, grep, glob) for file exploration — never Bash `cat`,
-  `find`, or `ls`. Dedicated read tools don't require a Bash permission prompt; as a subagent you
-  cannot get one answered, so a Bash call outside the pre-approved allowlist will silently stall
-  your turn with no result.
-- Do not pipe Bash commands through additional shell filters (`| tail`, `| head`, `| grep`) purely
-  to shorten output — a piped command may fall outside the allowlist even when its first command
-  alone is permitted. Run the plain command and let its full output return.
-- Because you cannot pipe, use the Makefile's quiet targets instead: `make verify` runs lint, tests
-  and BDD in a single call and prints only failures. `make lint-quiet`, `make test-quiet` and
-  `make bdd-quiet` are the individual variants. They run exactly the same checks as `make lint`,
-  `make test` and `make bdd` — only the output on success is smaller. Prefer them for every routine
-  check, and fall back to the verbose targets only when a failure needs more context than the quiet
-  output gives you.
+  `find`, or `ls`. Dedicated read tools return bounded, structured results and don't depend on shell
+  quoting or allowlist shape.
+- Prefer the Makefile's quiet targets over piping a command through `| tail`/`| head`/`| grep` to
+  shorten its output: `make verify` runs lint, tests and BDD in a single call and prints only
+  failures. `make lint-quiet`, `make test-quiet` and `make bdd-quiet` are the individual variants.
+  They run exactly the same checks as `make lint`, `make test` and `make bdd` — only the output on
+  success is smaller. The target is the single source of truth for what a check prints, so agent,
+  human and CI runs stay consistent; piping isn't forbidden, it's just something the quiet targets
+  already do better. Fall back to the verbose targets, or your own pipe, only when a failure needs
+  more context than the quiet output gives you.
 - If a Bash call is nonetheless blocked or interrupted, state the exact command that was blocked
   in your response instead of ending your turn silently — this is the only way the failure is
   diagnosable from outside.
