@@ -268,8 +268,8 @@ class TestImplementationWorkerUsesQuietTargets:
         text = _IMPL_WORKER_CLAUDE.read_text()
         assert "make verify" in text
         assert "make test-quiet" in text
-        assert "| tail" in text and "| head" in text and "| grep" in text, (
-            "the rule forbidding shell pipes to shorten output must still be present"
+        assert "Prefer the Makefile's quiet targets" in text, (
+            "the quiet targets must be named as the preferred path over ad-hoc pipes"
         )
 
     def test_claude_agents_and_shared_copy_are_byte_identical(self) -> None:

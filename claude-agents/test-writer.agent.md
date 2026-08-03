@@ -23,9 +23,8 @@ Implementation Worker. You never commit production code.
 ## Tool usage
 
 - Use the `Read`/`Grep`/`Glob` tools (file read, grep, glob) for all file exploration — never Bash
-  `cat`, `find`, or `ls`. Dedicated read tools don't require a Bash permission prompt; as a
-  subagent you cannot get one answered, so a Bash call outside the pre-approved allowlist will
-  silently stall your turn with no result.
+  `cat`, `find`, or `ls`. Dedicated read tools return bounded, structured results and don't depend
+  on shell quoting or allowlist shape.
 - If a Bash call (e.g. running the test suite) is nonetheless blocked or interrupted, state the
   exact command that was blocked in your response instead of ending your turn silently — this is
   the only way the failure is diagnosable from outside.
