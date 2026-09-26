@@ -978,9 +978,12 @@ are not recursion and SHALL be unaffected by the guard.
 - WHEN a wrapper target (`stage-current-task`, `commit-current-task`,
   `pr-current-task`, `merge-current-task`) begins running, it SHALL check,
   as its first action, whether that family's sentinel variable is already
-  set in its environment. IF it is set, the wrapper SHALL exit immediately
-  with exit code `17` and print the family's exact error message (below),
-  WITHOUT invoking `$(MAKE)` or `butler`. IF it is not set, the wrapper
+  set in its environment. IF it is set, the wrapper's recipe SHALL exit
+  with status `17`, printing the family's exact error message (below) to
+  stderr — so `make` reports the failure as `Error 17` and the wrapper
+  target's own `make` process exits non-zero (GNU make always exits `2`
+  on a recipe failure, regardless of the recipe's own exit status) — and
+  SHALL NOT invoke `$(MAKE)` or `butler`. IF it is not set, the wrapper
   SHALL proceed to derive `NUM` from the current branch name and invoke
   `$(MAKE) <leaf-target> f=TASK-$$NUM` exactly as it does today, and SHALL
   NOT itself export the sentinel — leaving it unset in the environment the
@@ -988,9 +991,12 @@ are not recursion and SHALL be unaffected by the guard.
 - WHEN a leaf target (`stage-task`, `commit-task`, `pr-task`, `merge-pr`)
   begins running (whether invoked directly by a user or via its wrapper),
   it SHALL check, as its first action, whether that family's sentinel
-  variable is already set in its environment. IF it is set, the leaf target
-  SHALL exit immediately with exit code `17` and print the family's exact
-  error message (below), WITHOUT invoking `$(MAKE)` or `butler`. IF it is
+  variable is already set in its environment. IF it is set, the leaf
+  target's recipe SHALL exit with status `17`, printing the family's exact
+  error message (below) to stderr — so `make` reports the failure as
+  `Error 17` and the leaf target's own `make` process exits non-zero (GNU
+  make always exits `2` on a recipe failure, regardless of the recipe's
+  own exit status) — and SHALL NOT invoke `$(MAKE)` or `butler`. IF it is
   not set, the leaf target SHALL export the sentinel (set to `1`) for the
   remainder of its own recipe's execution — so that variable is inherited
   by every process it spawns, including any `butler` call and any further
@@ -1008,7 +1014,8 @@ target of that family is already executing and has already exported its
 sentinel — SHALL be refused, whether that re-entrant invocation arrives via
 `butler`, a circular Makefile target, or any other path.
 
-**Exact error messages** (one per family, exit code `17` in every case):
+**Exact error messages** (printed to stderr; one per family, recipe exit
+status `17` in every case, reported by `make` as `Error 17`):
 
 - stage: `Error: stage-current-task/stage-task is already running in this process tree; refusing to recurse.`
 - commit: `Error: commit-current-task/commit-task is already running in this process tree; refusing to recurse.`
@@ -1060,11 +1067,13 @@ make stage-current-task
 # first:
 #   Error: stage-current-task/stage-task is already running in this
 #   process tree; refusing to recurse.
-# exits 17 immediately; no further nested make/butler process is spawned.
+# the recipe exits with status 17 immediately (make reports `Error 17`);
+# no further nested make/butler process is spawned.
 # The butler call inside the original stage-task consequently fails (its
-# own child process exited 17), so stage-task's recipe line fails and that
-# target exits non-zero (whatever exit code the outer `butler` invocation
-# itself returns is not guaranteed to be 17), and the outer
+# own child `make stage-current-task` process reported `Error 17` and
+# exited non-zero -- GNU make itself always exits 2 on a recipe failure,
+# not the recipe's own 17), so stage-task's recipe line fails and that
+# target's own `make` process also exits non-zero, and the outer
 # stage-current-task's `$(MAKE) stage-task` invocation likewise exits
 # non-zero — make reports the recipe failure, with the inner refusal
 # message ("Error: stage-current-task/stage-task is already running in

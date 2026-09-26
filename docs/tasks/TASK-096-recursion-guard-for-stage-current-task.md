@@ -1,7 +1,7 @@
 # TASK-096 Recursion guard for `stage-current-task`/`stage-task` against runaway nested `make`
 
 ## Status
-todo
+in-progress
 
 ## Note
 Discovered live in `firefly-bills-analyzer` (a consumer project), not in
@@ -145,5 +145,5 @@ None
 **Summary:**
 **Files changed:**
 **Branch:** `git checkout task/096-recursion-guard-for-stage-current-task`
-**Stage:** `docs/tasks/TASK-096-recursion-guard-for-stage-current-task.md`
-**Commit:** `git commit -m "Redraft TASK-096 acceptance criteria from Requirement 18 (TASK-096)"`
+**Stage:** `REQUIREMENTS_TASK_WORKFLOW.md docs/tasks/TASK-096-recursion-guard-for-stage-current-task.md`
+**Commit:** `git commit -m "Clarify Requirement 18 exit status: recipe exits 17, make reports Error 17 (TASK-096)"`
