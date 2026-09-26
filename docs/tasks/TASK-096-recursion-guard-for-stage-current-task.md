@@ -41,12 +41,13 @@ make, etc.) could produce the same symptom undetected.
 This task implements a Makefile-level defense-in-depth guard that catches
 recursion from *any* cause: each `*-current-task` wrapper target and its
 corresponding `*-task` leaf target will check a unique sentinel environment
-variable at entry and refuse to proceed if it is already set, exiting with
-exit code 17 and a clear error message. The guard remains effective even
-against a stale installed `butler` binary that bypasses Requirement 15's fix,
-because the Makefile actually invoked by users comes from the up-to-date
-`.butler/` submodule in consumer projects (or the repo root `Makefile` when
-running in this repo itself).
+variable at entry and refuse to proceed if it is already set, with the recipe
+exiting with status 17, printing the family's exact error message to stderr
+(so `make` reports the failure as `Error 17` and the invocation exits
+non-zero). The guard remains effective even against a stale installed `butler`
+binary that bypasses Requirement 15's fix, because the Makefile actually
+invoked by users comes from the up-to-date `.butler/` submodule in consumer
+projects (or the repo root `Makefile` when running in this repo itself).
 
 Four families are guarded independently (stage, commit, pr, merge) with
 per-family sentinels and error messages:
@@ -74,7 +75,7 @@ did not drift.
 - [ ] 1. Scenario Outline: Refusal on re-entry (sentinel already set)
       Given <SENTINEL> is set to "1" in the environment
       When <TARGET> is invoked
-      Then the target exits immediately with exit code 17, prints the exact message: "<ERROR_MESSAGE>", and does not invoke $(MAKE) or butler
+      Then the invocation exits non-zero, make reports the failure as `Error 17`, the exact message "<ERROR_MESSAGE>" is printed to stderr, and it does not invoke $(MAKE) or butler
 
       Examples:
       | SENTINEL              | TARGET                      | ERROR_MESSAGE                                                                        |
@@ -129,7 +130,7 @@ did not drift.
 - [ ] 7. Scenario: Recursion via re-entrant stale butler invocation is caught with visible output
       Given a stale butler binary (pre-TASK-086 fix) is on PATH
       When make stage-current-task runs and its leaf exports BUTLER_STAGE_GUARD=1, then invokes butler task stage, which (due to the stale binary) executes a Stage field containing "make stage-current-task" as a command
-      Then the re-entrant make process inherits BUTLER_STAGE_GUARD=1, the wrapper checks it, finds it set, exits immediately with exit code 17, prints: "Error: stage-current-task/stage-task is already running in this process tree; refusing to recurse.", does not invoke any further $(MAKE) or butler processes, the refusal message appears in the combined output of the outer make stage-current-task invocation, and the outer make invocation exits non-zero
+      Then the re-entrant make process inherits BUTLER_STAGE_GUARD=1, the wrapper checks it, finds it set, the wrapper's recipe exits with status 17 and prints "Error: stage-current-task/stage-task is already running in this process tree; refusing to recurse." to stderr (so make reports the failure as `Error 17`), does not invoke any further $(MAKE) or butler processes, the refusal message appears in the combined output of the outer make stage-current-task invocation, and the outer make invocation exits non-zero
 
 ## Out of scope
 - Re-fixing Requirement 15's original cause (already fixed in current source via TASK-086)
@@ -145,5 +146,5 @@ None
 **Summary:**
 **Files changed:**
 **Branch:** `git checkout task/096-recursion-guard-for-stage-current-task`
-**Stage:** `REQUIREMENTS_TASK_WORKFLOW.md docs/tasks/TASK-096-recursion-guard-for-stage-current-task.md`
-**Commit:** `git commit -m "Clarify Requirement 18 exit status: recipe exits 17, make reports Error 17 (TASK-096)"`
+**Stage:** `docs/tasks/TASK-096-recursion-guard-for-stage-current-task.md`
+**Commit:** `git commit -m "Align TASK-096 scenarios with the Requirement 18 exit-status clarification (TASK-096)"`
