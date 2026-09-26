@@ -1,7 +1,7 @@
 # TASK-096 Recursion guard for `stage-current-task`/`stage-task` against runaway nested `make`
 
 ## Status
-in-progress
+done
 
 ## Note
 Discovered live in `firefly-bills-analyzer` (a consumer project), not in
@@ -72,7 +72,7 @@ did not drift.
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] 1. Scenario Outline: Refusal on re-entry (sentinel already set)
+- [x] 1. Scenario Outline: Refusal on re-entry (sentinel already set)
       Given <SENTINEL> is set to "1" in the environment
       When <TARGET> is invoked
       Then the invocation exits non-zero, make reports the failure as `Error 17`, the exact message "<ERROR_MESSAGE>" is printed to stderr, and it does not invoke $(MAKE) or butler
@@ -88,7 +88,7 @@ did not drift.
       | BUTLER_MERGE_GUARD    | make merge-current-task     | Error: merge-current-task/merge-pr is already running in this process tree; refusing to recurse. |
       | BUTLER_MERGE_GUARD    | make merge-pr f=TASK-001    | Error: merge-current-task/merge-pr is already running in this process tree; refusing to recurse. |
 
-- [ ] 2. Scenario Outline: Normal unaffected direct leaf invocation
+- [x] 2. Scenario Outline: Normal unaffected direct leaf invocation
       Given <SENTINEL> is not set in the environment
       When <LEAF_TARGET> is invoked directly
       Then the target checks the sentinel, finds it unset, exports <SENTINEL>=1, and runs its butler command(s) normally
@@ -100,7 +100,7 @@ did not drift.
       | BUTLER_PR_GUARD       | make pr-task f=TASK-001     |
       | BUTLER_MERGE_GUARD    | make merge-pr f=TASK-001    |
 
-- [ ] 3. Scenario Outline: Normal unaffected wrapper invocation (one-level nesting)
+- [x] 3. Scenario Outline: Normal unaffected wrapper invocation (one-level nesting)
       Given <SENTINEL> is not set in the environment
       When <WRAPPER_TARGET> is invoked
       Then the wrapper checks the sentinel, finds it unset, does not export it, invokes $(MAKE) <LEAF_TARGET>, the leaf exports <SENTINEL>=1, and the flow completes normally
@@ -112,22 +112,22 @@ did not drift.
       | BUTLER_PR_GUARD       | make pr-current-task        | pr-task      |
       | BUTLER_MERGE_GUARD    | make merge-current-task     | merge-pr     |
 
-- [ ] 4. Scenario: Sequential pr-task butler calls in one recipe are unaffected
+- [x] 4. Scenario: Sequential pr-task butler calls in one recipe are unaffected
       Given pr-task is running with BUTLER_PR_GUARD exported
       When pr-task's recipe runs butler task branch, then butler task pr, then butler task sync-project --stage open in sequence within the same recipe
       Then all three calls complete normally and in order; they are sequential within one $(MAKE) invocation, not re-entrant
 
-- [ ] 5. Scenario: Sequential merge-pr butler calls in one recipe are unaffected
+- [x] 5. Scenario: Sequential merge-pr butler calls in one recipe are unaffected
       Given merge-pr is running with BUTLER_MERGE_GUARD exported
       When merge-pr's recipe runs butler task merge, then butler task sync-project --stage merge in sequence within the same recipe
       Then both calls complete normally and in order; they are sequential within one $(MAKE) invocation, not re-entrant
 
-- [ ] 6. Scenario: Families are independent; one guard does not block another
+- [x] 6. Scenario: Families are independent; one guard does not block another
       Given BUTLER_STAGE_GUARD is set to "1" (stage family is running)
       When make commit-current-task is invoked
       Then the target checks BUTLER_COMMIT_GUARD (finds it unset), and proceeds normally without blocking
 
-- [ ] 7. Scenario: Recursion via re-entrant stale butler invocation is caught with visible output
+- [x] 7. Scenario: Recursion via re-entrant stale butler invocation is caught with visible output
       Given a stale butler binary (pre-TASK-086 fix) is on PATH
       When make stage-current-task runs and its leaf exports BUTLER_STAGE_GUARD=1, then invokes butler task stage, which (due to the stale binary) executes a Stage field containing "make stage-current-task" as a command
       Then the re-entrant make process inherits BUTLER_STAGE_GUARD=1, the wrapper checks it, finds it set, the wrapper's recipe exits with status 17 and prints "Error: stage-current-task/stage-task is already running in this process tree; refusing to recurse." to stderr (so make reports the failure as `Error 17`), does not invoke any further $(MAKE) or butler processes, the refusal message appears in the combined output of the outer make stage-current-task invocation, and the outer make invocation exits non-zero
@@ -142,9 +142,9 @@ did not drift.
 None
 
 ## Completion
-**Date:**
-**Summary:**
-**Files changed:**
+**Date:** 2026-09-26
+**Summary:** Added a Makefile-level recursion guard (Requirement 18) to the stage, commit, pr and merge wrapper/leaf target pairs in `Makefile` and its byte-identical distributed copy `src/butler_core/data/Makefile`: per-family sentinels (`BUTLER_STAGE_GUARD`, `BUTLER_COMMIT_GUARD`, `BUTLER_PR_GUARD`, `BUTLER_MERGE_GUARD`), wrapper checks only, leaf checks and exports the sentinel to every `butler` call, refusal recipe exits 17 with the exact message on stderr. 20 subprocess-level tests in `tests/test_makefile_recursion_guard.py` cover all 7 acceptance criteria, including a simulated stale re-entrant `butler`. `tests/test_makefile_cli_flag_drift.py` now also sees `--stage` (the env-var prefix exposed the previously skipped `-butler` lines). Requirement 18 was clarified mid-task (f63fc91) after implementation showed GNU make always exits 2 on a recipe failure, reporting the recipe's 17 as `Error 17`. Process notes: Requirements Drafter and Task Drafter wrote directly in the main checkout (no worktree branch returned; changes verified and committed by the coordinator); BDD red-state check (b) skipped because the task is BDD-ABSENT with no bound feature files. Coverage 99% (806/815), unchanged from the task-start baseline.
+**Files changed:** Makefile, src/butler_core/data/Makefile, tests/test_makefile_recursion_guard.py, tests/test_makefile_cli_flag_drift.py, CHANGELOG.md, REQUIREMENTS_TASK_WORKFLOW.md, docs/tasks/TASK-096-recursion-guard-for-stage-current-task.md
 **Branch:** `git checkout task/096-recursion-guard-for-stage-current-task`
-**Stage:** `docs/tasks/TASK-096-recursion-guard-for-stage-current-task.md`
-**Commit:** `git commit -m "Align TASK-096 scenarios with the Requirement 18 exit-status clarification (TASK-096)"`
+**Stage:** `Makefile src/butler_core/data/Makefile tests/test_makefile_recursion_guard.py tests/test_makefile_cli_flag_drift.py CHANGELOG.md docs/tasks/TASK-096-recursion-guard-for-stage-current-task.md`
+**Commit:** `git commit -m "Add Makefile recursion guard for stage/commit/pr/merge task targets (TASK-096)"`
