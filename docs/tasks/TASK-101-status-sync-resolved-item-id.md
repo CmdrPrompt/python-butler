@@ -1,7 +1,7 @@
 # TASK-101 Status sync acts only on a resolved Project item ID, never on the task ID
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 20 (REQUIREMENTS_TASK_WORKFLOW.md), together with the two final checkboxes under "## Acceptance criteria (overall)" of REQUIREMENTS_TASK_WORKFLOW.md that Requirement 20 adds
@@ -59,11 +59,11 @@ currently discards the output of the item creation call.
 ## Acceptance criteria (Gherkin)
 **Feature files:** tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature
 
-- [ ] 1. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "Start sync on a new item sets its status in one run" (@AC-1)
-- [ ] 2. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "Sync of a task with an existing item updates the item found by lookup" (@AC-2)
-- [ ] 3. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "No Project item can be resolved when the lookup finds nothing and creation fails" (@AC-3)
-- [ ] 4. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "No Project item can be resolved when the created item has no ID" (@AC-4)
-- [ ] 5. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "Merge sync of an existing item updates the item found by lookup" (@AC-5)
+- [x] 1. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "Start sync on a new item sets its status in one run" (@AC-1)
+- [x] 2. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "Sync of a task with an existing item updates the item found by lookup" (@AC-2)
+- [x] 3. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "No Project item can be resolved when the lookup finds nothing and creation fails" (@AC-3)
+- [x] 4. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "No Project item can be resolved when the created item has no ID" (@AC-4)
+- [x] 5. See `tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature`: Scenario "Merge sync of an existing item updates the item found by lookup" (@AC-5)
 
 ## Out of scope
 - Changing the lookup itself, including pagination (Requirement 16, already covered by TASK-089).
@@ -76,10 +76,27 @@ currently discards the output of the item creation call.
 None
 
 ## Completion
-**Date:** YYYY-MM-DD
-**Summary:** What was done, any decisions made, and what was left out and why.
+**Date:** 2026-11-01
+**Summary:** Every status-setting sync stage now acts only on a resolved
+Project item ID. `gh project item-create` runs with `--format json` and the
+new item's `id` is read from its output (`_created_item_id`), so `--stage
+start` sets "In Progress" on a just-created item without a second lookup.
+`_resolve_or_create_item` returns the lookup's first match or the created
+item's id; `_start` and `_backfill` pass it on, and `_set_status` (merge)
+looks it up itself. The `item_id or task.id` fallback is gone: when no item
+ID can be resolved, the stage warns "no Project item found for <TASK-ID>"
+(with the `gh` failure reason when creation failed) and makes no
+`item-edit` call. Draft/open messages and failure warnings are unchanged.
+Test fakes that returned empty `item-create` output, or listed a created
+item on a second `item-list`, were updated to match `gh`'s real behavior.
 **Files changed:**
-- `path/to/file` - created / modified
+- `src/butler_core/projects.py` - modified
+- `tests/bdd/steps/test_task_101_steps.py` - modified
+- `tests/test_projects_created_item_id.py` - created
+- `tests/test_projects_backfill.py` - modified
+- `tests/test_projects_start_stage.py` - modified
+- `tests/test_projects.py` - modified
+- `CHANGELOG.md` - modified
 **Branch:** `git checkout task/101-status-sync-resolved-item-id`
-**Stage:** `docs/tasks/TASK-101-status-sync-resolved-item-id.md tests/bdd/features/TASK-101-status-sync-resolved-item-id.feature tests/bdd/steps/test_task_101_steps.py CHANGELOG.md`
+**Stage:** `docs/tasks/TASK-101-status-sync-resolved-item-id.md src/butler_core/projects.py tests/bdd/steps/test_task_101_steps.py tests/test_projects_created_item_id.py tests/test_projects_backfill.py tests/test_projects_start_stage.py tests/test_projects.py CHANGELOG.md`
 **Commit:** `git commit -m "Set Project item Status via the resolved item ID, never the task ID (TASK-101)"`

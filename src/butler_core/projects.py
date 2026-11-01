@@ -269,8 +269,8 @@ def _item_list_lookup(
     task: Task, project: str, owner: str, env: dict[str, str] | None
 ) -> subprocess.CompletedProcess[str]:
     """The `gh project item-list --jq` lookup for the Project item linked to
-    `task`, shared by `_create_item`, `_update_status_done` and `_backfill`
-    so the `--jq` filter string is defined exactly once."""
+    `task`, shared by `_resolve_or_create_item` and `_set_status` so the
+    `--jq` filter string is defined exactly once."""
     return _run_gh(
         [
             "project",
@@ -411,11 +411,71 @@ def _item_create_args(
         owner,
         "--title",
         f"{task.id} {task.title}",
+        "--format",
+        "json",
     ]
     body = _project_item_body(task, tasks_dir, env, include_pr_link=include_pr_link)
     if body is not None:
         args += ["--body", body]
     return args
+
+
+def _created_item_id(stdout: str) -> str | None:
+    """The new item's node ID from `gh project item-create --format json`'s
+    output, or None if the output carries no `id` (Requirement 20)."""
+    try:
+        item_id = json.loads(stdout)["id"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return str(item_id) if item_id else None
+
+
+def _resolve_or_create_item(
+    task: Task,
+    project: str,
+    owner: str,
+    env: dict[str, str] | None,
+    tasks_dir: str | None,
+    *,
+    include_pr_link: bool,
+) -> tuple[str | None, str | None, str | None]:
+    """Link `task`'s existing Project item, or create one if the lookup
+    finds none. Returns `(item_id, duplicate_warning, failure_reason)`.
+
+    Per Requirement 20, `item_id` is either the lookup's first match or the
+    id from `item-create`'s own output -- never the task ID -- and a newly
+    created item is never looked up again (GitHub does not list it yet).
+    `item_id` is None when creation failed (`failure_reason` set) or
+    succeeded without reporting an id (`failure_reason` None)."""
+    try:
+        lookup_result = _item_list_lookup(task, project, owner, env)
+        if lookup_result.returncode == 0:
+            item_id, duplicate_warning = _select_item_id(lookup_result.stdout, task.id)
+            if item_id is not None:
+                return item_id, duplicate_warning, None
+
+        result = _run_gh(
+            _item_create_args(task, project, owner, tasks_dir, env, include_pr_link), env
+        )
+    except FileNotFoundError:
+        return None, None, "gh: not found"
+    except subprocess.CalledProcessError as exc:
+        return None, None, (exc.stderr or "").strip() or "gh command failed"
+    except OSError as exc:
+        return None, None, str(exc)
+
+    if result.returncode != 0:
+        return None, None, _classify_gh_failure(result.stderr)
+    return _created_item_id(result.stdout), None, None
+
+
+def _no_item_warning(task_id: str, reason: str | None) -> SyncResult:
+    """Requirement 20: no Project item ID could be resolved, so no
+    `item-edit` call is made."""
+    detail = f"no Project item found for {task_id}"
+    if reason:
+        detail = f"{detail}; {reason}"
+    return _warning(task_id, detail)
 
 
 def _create_item(
@@ -427,38 +487,15 @@ def _create_item(
     *,
     include_pr_link: bool = False,
 ) -> SyncResult:
-    try:
-        lookup_result = _item_list_lookup(task, project, owner, env)
-    except FileNotFoundError:
-        return _warning(task.id, "gh: not found")
-    except subprocess.CalledProcessError as exc:
-        return _warning(task.id, (exc.stderr or "").strip() or "gh command failed")
-    except OSError as exc:
-        return _warning(task.id, str(exc))
-
-    if lookup_result.returncode == 0:
-        item_id, duplicate_warning = _select_item_id(lookup_result.stdout, task.id)
-        if item_id is not None:
-            message = f"Synced {task.id} {task.title} to GitHub Project item"
-            if duplicate_warning:
-                message = f"{message}\n{duplicate_warning}"
-            return SyncResult(success=True, message=message)
-
-    try:
-        result = _run_gh(
-            _item_create_args(task, project, owner, tasks_dir, env, include_pr_link), env
-        )
-    except FileNotFoundError:
-        return _warning(task.id, "gh: not found")
-    except subprocess.CalledProcessError as exc:
-        return _warning(task.id, (exc.stderr or "").strip() or "gh command failed")
-    except OSError as exc:
-        return _warning(task.id, str(exc))
-
-    if result.returncode != 0:
-        return _warning(task.id, _classify_gh_failure(result.stderr))
+    _item_id, duplicate_warning, failure_reason = _resolve_or_create_item(
+        task, project, owner, env, tasks_dir, include_pr_link=include_pr_link
+    )
+    if failure_reason is not None:
+        return _warning(task.id, failure_reason)
 
     message = f"Synced {task.id} {task.title} to GitHub Project item"
+    if duplicate_warning:
+        message = f"{message}\n{duplicate_warning}"
     return SyncResult(success=True, message=message)
 
 
@@ -469,19 +506,25 @@ def _set_status(
     env: dict[str, str] | None,
     status_name: str,
     success_message: str,
+    *,
+    item_id: str | None = None,
+    duplicate_warning: str | None = None,
 ) -> SyncResult:
-    """Look up the Project item linked to `task` and set its "Status" field
-    to the option matching `status_name`, via the same title-prefix lookup
-    and generalized status-option resolution every status-setting stage
-    shares. A missing "Status" field/option is a Requirement 4 best-effort
-    warning; used by `_update_status_done` (status_name="Done") and `_start`
+    """Set the "Status" field of `task`'s Project item to the option
+    matching `status_name`. Acts on `item_id` when the caller already
+    resolved it (`_start`), otherwise looks the item up by title prefix; if
+    no item is found, warns without any `item-edit` call (Requirement 20).
+    A missing "Status" field/option is a Requirement 4 best-effort warning;
+    used by `_update_status_done` (status_name="Done") and `_start`
     (status_name="In Progress")."""
     try:
-        item_result = _item_list_lookup(task, project, owner, env)
-        if item_result.returncode != 0:
-            return _warning(task.id, _classify_gh_failure(item_result.stderr))
-        item_id, duplicate_warning = _select_item_id(item_result.stdout, task.id)
-        item_id = item_id or task.id
+        if item_id is None:
+            item_result = _item_list_lookup(task, project, owner, env)
+            if item_result.returncode != 0:
+                return _warning(task.id, _classify_gh_failure(item_result.stderr))
+            item_id, duplicate_warning = _select_item_id(item_result.stdout, task.id)
+            if item_id is None:
+                return _no_item_warning(task.id, None)
 
         project_node_id = _resolve_project_node_id(project, owner, env)
         status_ids = _resolve_status_option_field_ids(project, owner, env, status_name)
@@ -536,14 +579,16 @@ def _update_status_done(
 def _start(
     task: Task, project: str, owner: str, env: dict[str, str] | None, tasks_dir: str | None = None
 ) -> SyncResult:
-    """Create/link a Project item for `task` (reusing `_create_item`'s
-    lookup-then-reuse behavior) and set its Status to "In Progress".
+    """Create/link a Project item for `task` and set the resolved item's
+    Status to "In Progress" (Requirement 20).
 
     Runs before a PR exists (`butler task branch` / `make branch-task`), so
     the created item's body never includes a PR link."""
-    create_result = _create_item(task, project, owner, env, tasks_dir, include_pr_link=False)
-    if not create_result.success:
-        return create_result
+    item_id, duplicate_warning, failure_reason = _resolve_or_create_item(
+        task, project, owner, env, tasks_dir, include_pr_link=False
+    )
+    if item_id is None:
+        return _no_item_warning(task.id, failure_reason)
     return _set_status(
         task,
         project,
@@ -551,6 +596,8 @@ def _start(
         env,
         "In Progress",
         f"Synced {task.id} {task.title} to GitHub Project item (status: In Progress)",
+        item_id=item_id,
+        duplicate_warning=duplicate_warning,
     )
 
 
@@ -739,15 +786,17 @@ def _backfill(
     # A PR already exists by the backfill stage (it runs against a
     # historical, already-completed task), so the created item's body
     # includes a link to it (Requirement 11).
-    create_result = _create_item(task, project, owner, env, tasks_dir, include_pr_link=True)
-    if not create_result.success:
-        return create_result
+    item_id, _duplicate_warning, failure_reason = _resolve_or_create_item(
+        task, project, owner, env, tasks_dir, include_pr_link=True
+    )
+    if item_id is None:
+        return _no_item_warning(task.id, failure_reason)
 
     try:
-        resolved = _backfill_resolve_and_set_status(task, project, owner, env)
+        resolved = _backfill_set_status(task, item_id, project, owner, env)
         if isinstance(resolved, SyncResult):
             return resolved
-        item_id, project_node_id, fields = resolved
+        project_node_id, fields = resolved
         created_date, closed_date = _backfill_dates(
             task, item_id, project_node_id, fields, tasks_dir, env
         )
@@ -767,20 +816,14 @@ def _backfill(
     return SyncResult(success=True, message=message)
 
 
-def _backfill_resolve_and_set_status(
-    task: Task, project: str, owner: str, env: dict[str, str] | None
-) -> tuple[str, str, list[dict[str, Any]]] | SyncResult:
-    """Look up the Project item linked to `task`, resolve the "Status" field/
-    option matching the task's own status, and set it. Returns
-    `(item_id, project_node_id, fields)` on success (so `_backfill_dates` can
-    reuse the already-fetched `fields` for Created/Closed), or a failure
+def _backfill_set_status(
+    task: Task, item_id: str, project: str, owner: str, env: dict[str, str] | None
+) -> tuple[str, list[dict[str, Any]]] | SyncResult:
+    """Resolve the "Status" field/option matching the task's own status and
+    set it on the already-resolved `item_id`. Returns
+    `(project_node_id, fields)` on success (so `_backfill_dates` can reuse
+    the already-fetched `fields` for Created/Closed), or a failure
     `SyncResult` warning per Requirement 4's best-effort contract."""
-    item_result = _item_list_lookup(task, project, owner, env)
-    if item_result.returncode != 0:
-        return _warning(task.id, _classify_gh_failure(item_result.stderr))
-    item_id, _duplicate_warning = _select_item_id(item_result.stdout, task.id)
-    item_id = item_id or task.id
-
     project_node_id = _resolve_project_node_id(project, owner, env)
     fields = _fetch_project_fields(project, owner, env)
     status_ids = _match_status_option(fields, task.status) if fields is not None else None
@@ -808,7 +851,7 @@ def _backfill_resolve_and_set_status(
     if status_edit_result.returncode != 0:
         return _warning(task.id, _classify_gh_failure(status_edit_result.stderr))
 
-    return item_id, project_node_id, fields
+    return project_node_id, fields
 
 
 def _backfill_dates(

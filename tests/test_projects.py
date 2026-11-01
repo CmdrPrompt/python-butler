@@ -245,6 +245,23 @@ class TestSyncOnPrMerge:
         assert args[args.index("--single-select-option-id") + 1] == "98236657"
 
     @patch("butler_core.projects.subprocess.run")
+    def test_no_linked_item_warns_and_never_edits_the_task_id(
+        self, mock_run: MagicMock, tmp_path
+    ) -> None:
+        """Requirement 20 / TASK-101: merge never falls back to passing the
+        task ID as the Project item ID."""
+        from butler_core.projects import sync_on_pr_merge
+
+        task = create_task("My feature", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
+        mock_run.side_effect = [_completed(returncode=0, stdout="")]
+
+        result = sync_on_pr_merge(task, env={"BUTLER_GITHUB_PROJECT": "5"})
+
+        assert result.success is False
+        assert f"no Project item found for {task.id}" in result.message
+        assert not any("item-edit" in call.args[0] for call in mock_run.call_args_list)
+
+    @patch("butler_core.projects.subprocess.run")
     def test_missing_status_field_on_project_returns_warning_without_raising(
         self, mock_run: MagicMock, tmp_path
     ) -> None:
@@ -668,7 +685,7 @@ class TestProjectItemBodyFromTaskFile:
             if argv[0] == "gh" and "item-list" in argv:
                 return _completed(returncode=0, stdout="")
             if argv[0] == "gh" and "item-create" in argv:
-                return _completed(returncode=0, stdout="")
+                return _completed(returncode=0, stdout=json.dumps({"id": "PVTI_created"}))
             if argv[0] == "gh" and "view" in argv and "project" in argv:
                 return _completed(returncode=0, stdout=json.dumps({"id": "PVT_node"}))
             if argv[0] == "gh" and "field-list" in argv:
