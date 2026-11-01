@@ -1,0 +1,71 @@
+# python-butler
+
+Shared infrastructure for Python projects — Makefile targets and AI agents for spec-driven, TDD development.
+
+## Spec-Driven Development
+
+All changes must be grounded in a requirements specification at `REQUIREMENTS_*.md`.
+Before writing any code, update it with the requirement(s) and use case(s),
+present the text, ask "Is this what you intended?", and wait for explicit
+confirmation. If a change cannot be expressed as a requirement and use case,
+do not implement it.
+
+## Task Management
+
+Tasks live in `docs/tasks/TASK-XXX-short-description.md` (skill
+`task-file-format`). Workflow Guardian's rules
+(`.claude/agents/workflow-guardian.agent.md`) apply automatically to any
+task-branch/requirements/TDD work, whether or not the agent is invoked.
+Branch/stage/commit/pr/merge and task-file sync may go through the `make`
+targets, the `butler` CLI or the `butler-mcp` MCP server, interchangeably;
+never bypass all three with a raw `git`/`gh` command.
+
+- Every task runs on its own `task/<NNN>-short-description` branch; never
+  commit implementation work on `main`. If the branch is behind `main`, run
+  `make sync-main` before coding.
+- Flow (skill `commit-workflow`): `make branch-task f=TASK-XXX` → implement
+  and add a `CHANGELOG.md` entry (skill `changelog`) →
+  `make stage-current-task` → `make commit-current-task` →
+  `make pr-current-task` → `make merge-current-task`.
+
+## Cross-Workspace Boundary
+
+This workspace covers only the current repository. Sibling or dependency
+repos (including a possibly-stale vendored copy such as `lib/`) are
+out of bounds for direct edits.
+
+- Never write code in another workspace from here, under any circumstances.
+- Task files and requirements-doc edits in another repo need the user's
+  explicit approval: ask first, then edit.
+- Report a blocker by naming the exact missing piece and the repo it belongs
+  to; resume only once the user confirms the dependency is in place.
+
+## TDD
+
+**Red → Green → Refactor**, no exceptions (skill `tdd-cycle`). Use
+**Hypothesis** for all parsing and data transformation functions.
+
+## Behavior-Driven Development (BDD)
+
+- Feature files: `tests/bdd/features/TASK-<NNN>-<short-description>.feature`;
+  step definitions: `tests/bdd/steps/`.
+- English, declarative style (what the user achieves, not UI mechanics),
+  one behavior per scenario.
+- Each acceptance criterion maps to at least one scenario tagged with its
+  criterion ID (e.g. `@AC-3`).
+- Outside-in: bind step definitions first so scenarios fail for the right
+  reason, then drive implementation with the inner TDD loop. A task is done
+  only when `make bdd` and `make test` both pass.
+
+## Running the Application
+
+```bash
+make help
+```
+
+## What NOT to Do
+
+- Do not commit code that fails `make lint` or `make test`.
+- Do not add dependencies without a clear requirement.
+- Do not suppress type errors with `# type: ignore` without explanation.
+- Do not run `git commit` directly — use the make targets, `butler` CLI or `butler-mcp`.

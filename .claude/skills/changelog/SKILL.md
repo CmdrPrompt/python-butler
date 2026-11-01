@@ -1,6 +1,6 @@
 ---
 name: changelog
-description: "Use when adding or reviewing a CHANGELOG.md entry for a task. Defines the behavior-first style, TASK-ID referencing, grouping rules, and when in the workflow the entry must exist. Keywords: changelog, CHANGELOG.md, release notes, behavior-first."
+description: "Use when adding or reviewing a CHANGELOG.md entry: behavior-first style, TASK-ID suffix, grouping, and when the entry must exist."
 ---
 
 # Changelog entries
