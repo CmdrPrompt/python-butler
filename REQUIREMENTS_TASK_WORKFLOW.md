@@ -336,6 +336,11 @@ and `merge` stages, creating/linking a Project item the same way `--stage
 open` does (item status left at the Project's default, e.g. "Todo"/"In
 Progress" — no requirement here to force a specific default status).
 
+The success message of the `draft` and `open` sync stages MUST NOT claim a
+Project Status that the sync did not set; it reports the task id and title
+only, while stages that set a Status (`start`, `backfill`, `merge`) continue
+to name it.
+
 Task Drafter (`.claude/agents/task-drafter.agent.md` /
 `claude-agents/task-drafter.agent.md`) itself is NOT changed to gain Bash or
 any GitHub-interaction capability — it stays a pure Read/Grep/Glob/Write
@@ -377,7 +382,7 @@ butler task sync-project TASK-012 --stage draft
 # Resolves target-repo/.butler-project (falling back to
 # $BUTLER_GITHUB_PROJECT if absent), creates/links a Project item for
 # TASK-012, and reports:
-#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: In Progress)
+#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item
 # On failure (no .butler-project/env var, gh not authenticated, etc.):
 #   Warning: could not sync TASK-012 to GitHub Projects (no project configured for this repo) - continuing
 #   To configure one:
@@ -914,14 +919,14 @@ This is additive only:
 # target-repo has no .butler-project file; BUTLER_GITHUB_PROJECT=2 is set
 # in the shell environment.
 butler task sync-project TASK-012 --stage open
-# Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: Todo)
+# Synced TASK-012 "Add dark mode toggle" to GitHub Project item
 # Note: TASK-012 synced to GitHub Project 2 via $BUTLER_GITHUB_PROJECT (no
 # .butler-project file in this repo) - if this isn't the right Project for
 # this repo, run: echo <number> > .butler-project
 
 # target-repo has a .butler-project file containing "3":
 butler task sync-project TASK-012 --stage open
-# Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: Todo)
+# Synced TASK-012 "Add dark mode toggle" to GitHub Project item
 # (no note - resolution source is already unambiguous)
 ```
 
