@@ -145,7 +145,8 @@ class TestDraftStageCreatesProjectItem:
         draft_result = sync_on_pr_draft(task, env={"BUTLER_GITHUB_PROJECT": "5"})
 
         assert open_result.success == draft_result.success
-        assert "In Progress" in draft_result.message
+        assert draft_result.message.splitlines()[0] == open_result.message.splitlines()[0]
+        assert "status:" not in draft_result.message
 
 
 class TestNoProjectWarningOffersBothSetupOptions:
