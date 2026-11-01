@@ -215,6 +215,20 @@ This installs a `butler` command backed by `butler_cli`/`butler_core`. It is
 not published to PyPI — `pip install butler-cli` without a path or URL will
 not work; install from source or a Git URL as shown above.
 
+### GitHub Projects Status options
+
+`butler task sync-project` sets a linked Project item's "Status" field to
+the option matching the task file's `## Status` (case-insensitive, `-` read
+as a space). Butler never creates field options itself, so the Project's
+built-in "Status" field must already have one option per task Status:
+`Todo`, `In Progress`, `Blocked`, `Done` and `Obsolete`. A missing option is
+reported as a warning and the sync continues.
+
+Add missing options once per Project in its settings (Project → ⋯ →
+Settings → Status → Add option). `gh project field-create` is not a
+substitute: it creates a new field rather than adding an option to the
+existing "Status" field.
+
 ## MCP server (optional)
 
 `mcp/` contains a separate, optional MCP server (`butler-mcp`) that exposes

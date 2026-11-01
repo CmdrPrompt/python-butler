@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 DEFAULT_TASKS_DIR = "docs/tasks"
-VALID_STATUSES = ("todo", "in-progress", "done")
+VALID_STATUSES = ("todo", "in-progress", "blocked", "done", "obsolete")
 
 
 class TaskNotFoundError(FileNotFoundError):

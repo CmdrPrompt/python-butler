@@ -169,6 +169,24 @@ def test_set_status_updates_status_line_without_touching_description(tmp_path: P
     assert updated.description == original_description
 
 
+_DOCUMENTED_STATUSES = ("todo", "in-progress", "blocked", "done", "obsolete")
+
+
+@pytest.mark.parametrize("status", _DOCUMENTED_STATUSES)
+def test_set_status_accepts_every_documented_status_value(tmp_path: Path, status: str) -> None:
+    task = create_task("Status task", "desc", tasks_dir=str(tmp_path))
+
+    set_status(task.id, status, tasks_dir=str(tmp_path))
+
+    assert read_task(task.id, tasks_dir=str(tmp_path)).status == status
+
+
+@given(status=st.text(min_size=1).filter(lambda s: s not in _DOCUMENTED_STATUSES))
+def test_set_status_rejects_any_undocumented_status_value(status: str) -> None:
+    with pytest.raises(ValueError, match="Invalid status"):
+        set_status("TASK-001", status, tasks_dir="unused")
+
+
 def test_read_task_raises_for_unknown_task_id(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         read_task("TASK-999", tasks_dir=str(tmp_path))
@@ -217,7 +235,7 @@ _path_token = st.text(
 _stage_paths = st.lists(_path_token, max_size=5)
 
 _task_ids = st.integers(min_value=1, max_value=999).map(lambda n: f"TASK-{n:03d}")
-_statuses = st.sampled_from(["todo", "in-progress", "done"])
+_statuses = st.sampled_from(["todo", "in-progress", "blocked", "done", "obsolete"])
 _criteria = st.lists(
     st.builds(AcceptanceCriterion, text=_safe_field, checked=st.booleans()),
     max_size=5,

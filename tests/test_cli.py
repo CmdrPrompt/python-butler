@@ -26,6 +26,20 @@ class TestList:
         assert "TASK-001 [todo] First task" in out
         assert "TASK-002 [todo] Second task" in out
 
+    @pytest.mark.parametrize("status", ["blocked", "obsolete"])
+    def test_filters_by_blocked_and_obsolete_status(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], status: str
+    ) -> None:
+        create_task("First task", "desc one", tasks_dir=str(tmp_path))
+        second = create_task("Second task", "desc two", tasks_dir=str(tmp_path))
+        set_status(second.id, status, tasks_dir=str(tmp_path))
+
+        main(["--tasks-dir", str(tmp_path), "task", "list", "--status", status])
+
+        out = capsys.readouterr().out
+        assert f"TASK-002 [{status}] Second task" in out
+        assert "First task" not in out
+
     def test_filters_by_status(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         create_task("First task", "desc one", tasks_dir=str(tmp_path))
         second = create_task("Second task", "desc two", tasks_dir=str(tmp_path))

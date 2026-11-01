@@ -18,7 +18,7 @@ Use this template exactly:
 # <TASK-ID> Short description
 
 ## Status
-todo | in-progress | blocked | done
+todo | in-progress | blocked | done | obsolete
 
 ## Requirements
 **Binding:** REQ-XXX, REQ-YYY
@@ -89,6 +89,9 @@ trigger -> When, obligation/measurable value -> Then.
   `<TBD: parameter>` in the scenario AND as an open item under Blockers.
 - A task with any open Blocker has Status `blocked` and must not be
   implemented. Only the user can waive a blocker.
+- A task with Status `obsolete` was superseded before completion and must
+  not be implemented. It is terminal: unlike `blocked`, nothing moves it
+  back to `todo`.
 - The `**Commit:**` line is the message used by `make commit-current-task` -
   keep it a single short imperative sentence.
 - The `**Stage:**` line is a whitespace-separated list of file paths only -
@@ -125,6 +128,9 @@ trigger -> When, obligation/measurable value -> Then.
 - The Workflow Guardian owns the `in-progress` and `done` transitions and is
   the only role that edits Status and Completion on an existing task. It
   never hand-edits stories, scenarios, or blockers.
+- Only the Workflow Guardian or the user sets Status to `obsolete`, and only
+  when the task file documents the superseding task or requirement (e.g. a
+  note under Description naming it).
 - Acceptance criteria checkboxes are checked off only by the Workflow
   Guardian, one by one, after it has verified with its own tool calls that
   the corresponding automated test exists and passes.

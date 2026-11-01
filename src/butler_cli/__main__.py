@@ -24,6 +24,7 @@ from butler_core.projects import (
 from butler_core.sync import sync_makefile
 from butler_core.tasks import (
     DEFAULT_TASKS_DIR,
+    VALID_STATUSES,
     TaskNotFoundError,
     check_criterion,
     create_task,
@@ -48,7 +49,7 @@ def _build_parser() -> argparse.ArgumentParser:
     task_subparsers = task_parser.add_subparsers(dest="task_command", required=True)
 
     list_parser = task_subparsers.add_parser("list")
-    list_parser.add_argument("--status", choices=("todo", "in-progress", "done"), default=None)
+    list_parser.add_argument("--status", choices=VALID_STATUSES, default=None)
 
     show_parser = task_subparsers.add_parser("show")
     show_parser.add_argument("task_id")
