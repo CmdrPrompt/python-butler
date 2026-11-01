@@ -1,7 +1,7 @@
 # TASK-099 Draft and open sync messages must not claim an unset Status
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 6 (including its success-message clause), Requirement 4 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -58,11 +58,11 @@ Existing tests that will need updating:
 ## Acceptance criteria (Gherkin)
 **Feature files:** tests/bdd/features/TASK-099-draft-open-sync-message-status.feature
 
-- [ ] 1. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Draft sync of a new item does not claim a status" (@AC-1)
-- [ ] 2. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Draft sync of an already linked item does not claim a status" (@AC-2)
-- [ ] 3. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Open sync does not claim a status" (@AC-3)
-- [ ] 4. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Start sync still reports In Progress" (@AC-4)
-- [ ] 5. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Appended notes are preserved" (@AC-5)
+- [x] 1. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Draft sync of a new item does not claim a status" (@AC-1)
+- [x] 2. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Draft sync of an already linked item does not claim a status" (@AC-2)
+- [x] 3. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Open sync does not claim a status" (@AC-3)
+- [x] 4. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Start sync still reports In Progress" (@AC-4)
+- [x] 5. See `tests/bdd/features/TASK-099-draft-open-sync-message-status.feature`: Scenario "Appended notes are preserved" (@AC-5)
 
 ## Out of scope
 - Making `--stage draft` or `--stage open` set a Status (Requirement 6 says no default status is forced).
@@ -73,10 +73,22 @@ Existing tests that will need updating:
 None
 
 ## Completion
-**Date:** YYYY-MM-DD
-**Summary:** What was done, any decisions made, and what was left out and why.
+**Date:** 2026-11-01
+**Summary:** `_create_item` no longer appends "(status: In Progress)" to its
+success message, so `--stage draft` and `--stage open` report only the task
+id and title. `--stage start` keeps its own "(status: In Progress)" message
+via `_set_status`; backfill and merge are untouched. The Requirement 17
+env-fallback note and the duplicate-item warning are still appended. The
+Requirement 4 use-case example for `make pr-current-task` (open stage) still
+showed "(status: In Progress)", contradicting Requirement 6; it was aligned
+with the user's approval. Coverage unchanged at 99% (9 missed statements).
 **Files changed:**
-- `path/to/file` - created / modified
+- `src/butler_core/projects.py` - modified
+- `tests/test_projects_draft_stage.py` - modified
+- `tests/bdd/steps/test_task_099_steps.py` - created
+- `REQUIREMENTS_TASK_WORKFLOW.md` - modified
+- `CHANGELOG.md` - modified
+- `docs/tasks/TASK-099-draft-open-sync-message-status.md` - modified
 **Branch:** `git checkout task/099-draft-open-sync-message-status`
-**Stage:** `src/butler_core/projects.py tests/test_projects_draft_stage.py CHANGELOG.md docs/tasks/TASK-099-draft-open-sync-message-status.md tests/bdd/features/TASK-099-draft-open-sync-message-status.feature tests/bdd/steps/test_task_099_steps.py`
+**Stage:** `src/butler_core/projects.py REQUIREMENTS_TASK_WORKFLOW.md tests/test_projects_draft_stage.py CHANGELOG.md docs/tasks/TASK-099-draft-open-sync-message-status.md tests/bdd/features/TASK-099-draft-open-sync-message-status.feature tests/bdd/steps/test_task_099_steps.py`
 **Commit:** `git commit -m "Stop draft and open sync messages claiming a Status they did not set (TASK-099)"`

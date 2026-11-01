@@ -242,7 +242,7 @@ make pr-current-task
 # ... existing behavior: branch pushed, PR opened using task file metadata ...
 # additionally attempts to sync task metadata to a linked GitHub Projects
 # item:
-#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item (status: In Progress)
+#   Synced TASK-012 "Add dark mode toggle" to GitHub Project item
 # if no Project is configured, and owner/repo can be determined (e.g. this
 # repo, CmdrPrompt/python-butler):
 #   Warning: could not sync TASK-012 to GitHub Projects (no project configured for this repo) - continuing

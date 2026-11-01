@@ -439,7 +439,7 @@ def _create_item(
     if lookup_result.returncode == 0:
         item_id, duplicate_warning = _select_item_id(lookup_result.stdout, task.id)
         if item_id is not None:
-            message = f"Synced {task.id} {task.title} to GitHub Project item (status: In Progress)"
+            message = f"Synced {task.id} {task.title} to GitHub Project item"
             if duplicate_warning:
                 message = f"{message}\n{duplicate_warning}"
             return SyncResult(success=True, message=message)
@@ -458,7 +458,7 @@ def _create_item(
     if result.returncode != 0:
         return _warning(task.id, _classify_gh_failure(result.stderr))
 
-    message = f"Synced {task.id} {task.title} to GitHub Project item (status: In Progress)"
+    message = f"Synced {task.id} {task.title} to GitHub Project item"
     return SyncResult(success=True, message=message)
 
 

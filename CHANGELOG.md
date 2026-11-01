@@ -42,6 +42,11 @@
 
 ### Fixed
 
+- `butler task sync-project --stage draft` / `--stage open` (and
+  `make sync-project-draft`, `make pr-current-task`) no longer report
+  "(status: In Progress)" for a Project item whose Status they never set;
+  the message now names only the task id and title. `--stage start`,
+  `backfill` and `merge` still name the Status they set. (TASK-099)
 - `make merge-current-task` / `butler task merge` no longer crash with a
   traceback when local `main` already holds commits that were squashed into
   the PR (the usual result of committing the task file on `main` first).
