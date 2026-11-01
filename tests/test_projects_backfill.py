@@ -61,16 +61,14 @@ def _make_side_effect(
     vs. the plain `-1` (most-recent-commit lookup); `gh` invocations are
     told apart by their subcommand keyword.
 
-    Models a brand-new (not yet linked) task: the first `item-list` lookup
-    (made by `_create_item` to check for an existing item before creating
-    one) returns no match, so `item-create` actually runs; every later
-    `item-list` lookup (made when resolving Status/Created/Closed) returns
-    the newly created item's id, since the item now exists.
+    Models a brand-new (not yet linked) task: `item-list` never returns a
+    match (GitHub does not list a just-created item yet), so `item-create`
+    actually runs and its `--format json` output is the only source of the
+    new item's id (Requirement 20 / TASK-101).
     """
     fields = fields if fields is not None else []
     first_commit_lines = first_commit_lines or []
     latest_commit_lines = latest_commit_lines or []
-    item_list_calls = {"count": 0}
 
     def _side_effect(argv, *args, **kwargs):
         if argv[0] == "git":
@@ -78,12 +76,9 @@ def _make_side_effect(
                 return _completed(returncode=0, stdout="\n".join(first_commit_lines))
             return _completed(returncode=0, stdout="\n".join(latest_commit_lines))
         if "item-create" in argv:
-            return _completed(returncode=0, stdout="")
+            return _completed(returncode=0, stdout=json.dumps({"id": item_id}))
         if "item-list" in argv:
-            item_list_calls["count"] += 1
-            if item_list_calls["count"] == 1:
-                return _completed(returncode=0, stdout="")
-            return _completed(returncode=0, stdout=item_id)
+            return _completed(returncode=0, stdout="")
         if "view" in argv:
             return _completed(returncode=0, stdout=json.dumps({"id": project_node_id}))
         if "field-list" in argv:
@@ -479,6 +474,52 @@ class TestBackfillMissingProjectResolutionStillWarns:
         assert "Warning" in result.message
 
 
+class TestBackfillActsOnResolvedItemId:
+    """Requirement 20 / TASK-101: backfill edits the item id taken from
+    `item-create`'s output (or the lookup), never the task ID."""
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_status_edit_targets_the_created_item_id(self, mock_run: MagicMock, tmp_path) -> None:
+        from butler_core.projects import sync_on_pr_backfill
+
+        tasks_dir = tmp_path / "docs" / "tasks"
+        task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
+        mock_run.side_effect = _make_side_effect(item_id="PVTI_created", fields=[_STATUS_FIELD])
+
+        result = sync_on_pr_backfill(
+            task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=str(tasks_dir)
+        )
+
+        assert result.success is True, result.message
+        edits = _item_edit_calls_for_field(mock_run, "PVTSSF_status")
+        assert [call.args[0][call.args[0].index("--id") + 1] for call in edits] == ["PVTI_created"]
+
+    @patch("butler_core.projects.subprocess.run")
+    def test_created_item_without_id_warns_and_makes_no_edit(
+        self, mock_run: MagicMock, tmp_path
+    ) -> None:
+        from butler_core.projects import sync_on_pr_backfill
+
+        tasks_dir = tmp_path / "docs" / "tasks"
+        task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
+        side_effect = _make_side_effect(fields=[_STATUS_FIELD])
+
+        def _no_id_on_create(argv, *args, **kwargs):
+            if "item-create" in argv:
+                return _completed(returncode=0, stdout="{}")
+            return side_effect(argv, *args, **kwargs)
+
+        mock_run.side_effect = _no_id_on_create
+
+        result = sync_on_pr_backfill(
+            task, env={"BUTLER_GITHUB_PROJECT": "5"}, tasks_dir=str(tasks_dir)
+        )
+
+        assert result.success is False
+        assert f"no Project item found for {task.id}" in result.message
+        assert not any("item-edit" in call.args[0] for call in mock_run.call_args_list)
+
+
 class TestTaskFilePathHelper:
     """Unit coverage for `_task_file_path`'s "no date available" fallback
     paths, which backfill relies on to silently skip Created/Closed without
@@ -659,16 +700,11 @@ class TestBackfillPropagatesFailuresFromEachStep:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
 
-        calls = {"item_list": 0}
-
         def _side_effect(argv, *args, **kwargs):
             if argv[0] == "gh" and "item-list" in argv:
-                calls["item_list"] += 1
-                if calls["item_list"] == 1:
-                    return _completed(returncode=0, stdout="")
-                raise FileNotFoundError("gh")
-            if argv[0] == "gh" and "item-create" in argv:
                 return _completed(returncode=0, stdout="")
+            if argv[0] == "gh" and "item-create" in argv:
+                return _completed(returncode=0, stdout=json.dumps({"id": "PVTI_created"}))
             raise FileNotFoundError("gh")
 
         mock_run.side_effect = _side_effect
@@ -689,16 +725,11 @@ class TestBackfillPropagatesFailuresFromEachStep:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
 
-        calls = {"item_list": 0}
-
         def _side_effect(argv, *args, **kwargs):
             if argv[0] == "gh" and "item-list" in argv:
-                calls["item_list"] += 1
-                if calls["item_list"] == 1:
-                    return _completed(returncode=0, stdout="")
-                raise subprocess.CalledProcessError(1, argv, stderr="permission denied")
-            if argv[0] == "gh" and "item-create" in argv:
                 return _completed(returncode=0, stdout="")
+            if argv[0] == "gh" and "item-create" in argv:
+                return _completed(returncode=0, stdout=json.dumps({"id": "PVTI_created"}))
             raise subprocess.CalledProcessError(1, argv, stderr="permission denied")
 
         mock_run.side_effect = _side_effect
@@ -719,16 +750,11 @@ class TestBackfillPropagatesFailuresFromEachStep:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("Historical feature", "desc", tasks_dir=str(tasks_dir))
 
-        calls = {"item_list": 0}
-
         def _side_effect(argv, *args, **kwargs):
             if argv[0] == "gh" and "item-list" in argv:
-                calls["item_list"] += 1
-                if calls["item_list"] == 1:
-                    return _completed(returncode=0, stdout="")
-                raise PermissionError("denied")
-            if argv[0] == "gh" and "item-create" in argv:
                 return _completed(returncode=0, stdout="")
+            if argv[0] == "gh" and "item-create" in argv:
+                return _completed(returncode=0, stdout=json.dumps({"id": "PVTI_created"}))
             raise PermissionError("denied")
 
         mock_run.side_effect = _side_effect

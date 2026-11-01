@@ -50,6 +50,14 @@
 
 ### Fixed
 
+- `butler task sync-project --stage start` (and `make branch-task`) now
+  sets a newly created Project item's Status to "In Progress" in the same
+  run, instead of leaving it at the Project default with a GraphQL
+  "Could not resolve to a node" warning. The `start`, `merge` and
+  `backfill` stages act on the item ID from `gh project item-create`'s
+  output or the item lookup, never on the task ID. If no item can be
+  resolved, they warn that no Project item was found for the task and
+  change nothing. (TASK-101)
 - `butler task sync-project --stage draft` / `--stage open` (and
   `make sync-project-draft`, `make pr-current-task`) no longer report
   "(status: In Progress)" for a Project item whose Status they never set;

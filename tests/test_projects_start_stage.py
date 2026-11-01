@@ -52,7 +52,7 @@ def _make_side_effect(
 
     def _side_effect(argv, *args, **kwargs):
         if argv[0] == "gh" and "item-create" in argv:
-            return _completed(returncode=0, stdout="")
+            return _completed(returncode=0, stdout=json.dumps({"id": "PVTI_created"}))
         if argv[0] == "gh" and "item-list" in argv:
             return _completed(returncode=0, stdout=existing_item_id)
         if argv[0] == "gh" and "view" in argv:
