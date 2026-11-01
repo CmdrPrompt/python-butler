@@ -1,6 +1,6 @@
 ---
 name: commit-workflow
-description: "Use when creating branches, staging, or committing in a python-butler governed repository - including from an isolated worktree. Covers task branch naming, make branch-task, stage-current-task, commit-current-task, commit-output, merge-worktree, and the rules that forbid direct git commit. Keywords: commit, branch, stage, worktree, task branch, git."
+description: "Use when branching, staging, committing, opening a PR or merging in a python-butler repo, including from a worktree: make targets only, never direct git commit."
 ---
 
 # Commit workflow

@@ -1,6 +1,6 @@
 ---
 name: tdd-cycle
-description: "Use when implementing any behavior change - before writing production code. Defines the red-green-refactor cycle, how Gherkin scenarios map to tests, the coverage non-regression baseline, and the lint/test quality gate. Keywords: TDD, red green refactor, failing test, coverage baseline, make test, make lint."
+description: "Use before writing production code for any behavior change: red-green-refactor, Gherkin-to-test mapping, coverage baseline, make lint/test gate."
 ---
 
 # TDD cycle

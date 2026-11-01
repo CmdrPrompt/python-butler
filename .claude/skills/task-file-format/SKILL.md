@@ -1,6 +1,6 @@
 ---
 name: task-file-format
-description: "Use when creating, validating, or updating a task file in docs/tasks/. Defines the canonical TASK-XXX file template, naming convention, status rules, blocker handling, and which roles may edit which sections. Keywords: task file, TASK-XXX, docs/tasks, acceptance criteria, Gherkin, blocker, Completion."
+description: "Use when creating, validating or updating a docs/tasks/TASK-XXX file: template, naming, status, Gherkin acceptance criteria, blockers, Completion, role boundaries."
 ---
 
 # Task file format

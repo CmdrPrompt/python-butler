@@ -4,6 +4,16 @@
 
 ### Changed
 
+- Generated `CLAUDE.md` is down from 122 to 71 lines: it keeps the rules no skill owns (spec-first gate, Workflow
+  Guardian auto-apply, branch policy, Hypothesis, cross-workspace boundary,
+  BDD, what not to do) and names the `commit-workflow`, `task-file-format`,
+  `tdd-cycle` and `changelog` skills instead of restating them. It now says
+  `make sync-main` instead of `git merge main` and points to
+  `.claude/agents/` instead of `.github/agents/`. Consumers pick it up with
+  `make butler-pull` and `make generate-governance-files FORCE=1`.
+  python-butler now ships its own `CLAUDE.md` rendered from the same
+  template, with a test that fails on drift, and the five shipped skill
+  descriptions are cut to at most 200 characters. (TASK-097)
 - The Implementation Worker and Test Writer agent definitions, and
   `REQUIREMENTS_AGENT_SKILLS.md` Requirement 2, no longer justify preferring
   the quiet Makefile check targets over ad-hoc shell pipes with a claim that
