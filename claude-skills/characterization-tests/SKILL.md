@@ -1,6 +1,6 @@
 ---
 name: characterization-tests
-description: "Use when adding tests to previously untested code, before any refactoring or bug fixing. Defines how to document existing behavior as-is with pytest and Hypothesis, and what must not happen during characterization. Keywords: characterization test, golden master, legacy code, untested code, document behavior."
+description: "Use when adding tests to untested code before refactoring or bug fixing: document existing behavior as-is (characterization, golden master) with pytest and Hypothesis."
 ---
 
 # Characterization tests
