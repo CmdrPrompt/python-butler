@@ -718,12 +718,13 @@ Add `obsolete` as a fifth Status value:
   (task creation, `set-status`, the Projects sync's status-matching), accept
   `obsolete` identically to the existing four — no special-cased behavior
   beyond being a valid value.
-- GitHub Projects: the configured Project's "Status" field needs a matching
-  `Obsolete` option added (a one-time manual `gh project field-create`
-  action per Project, documented in this repo's README/setup notes — butler
-  does not create Project custom-field options itself, consistent with how
-  the existing four options are also assumed pre-configured, not
-  autocreated).
+- GitHub Projects: the configured Project's built-in "Status" field needs a
+  matching `Obsolete` option added (a one-time manual step per Project in
+  the Project's settings, documented in this repo's README; `gh project
+  field-create` cannot do it, since it creates a new field rather than
+  adding an option to the existing "Status" field — butler does not create
+  Project field options itself, consistent with how the existing four
+  options are also assumed pre-configured, not autocreated).
 - Status-transition ownership: unchanged from the existing rule — only the
   Workflow Guardian (or the user, per `task-file-format`'s existing
   "Only the user can waive a blocker" precedent) sets a task's Status to
@@ -1139,6 +1140,39 @@ merge-stage sync never ran, and local `main` had to be repaired by hand with
 is met, the same sequence moves local `main` to `origin/main`, exits 0 and
 runs the `--stage merge` sync.
 
+## Requirement 20: Status sync acts only on a resolved Project item ID, never on the task ID
+
+**Description:** Every status-setting sync stage (`--stage start`,
+`--stage merge`, `--stage backfill`) looks up the task's Project item with
+`gh project item-list` and, when that lookup returns no item, falls back to
+passing the task ID itself (e.g. `TASK-084`) as the item's node ID to `gh
+project item-edit`. GitHub rejects it (`Could not resolve to a node with the
+global id of 'TASK-084'`). The lookup returns nothing right after `gh
+project item-create` has created the item, because a newly created item is
+not yet listed, so `--stage start` on a task with no existing item creates
+the item but leaves its Status at the Project default instead of "In
+Progress" until a later stage sets it.
+
+- When a stage creates the item itself, it MUST take the new item's node ID
+  from `gh project item-create`'s own output (`--format json`, field `id`)
+  and use that ID for every following edit in the same stage, without
+  looking the item up again.
+- When a stage links an existing item, it MUST use the ID returned by the
+  item lookup (Requirement 16; first match if several, as today).
+- The task ID MUST never be passed as a Project item ID. If no item ID can
+  be resolved (lookup finds nothing and the stage did not create an item, or
+  `item-create`'s output has no `id`), the stage returns a best-effort
+  warning (Requirement 4) naming the task and stating that no Project item
+  was found for it, and makes no `item-edit` call.
+
+**Use case:** `make branch-task f=TASK-084` (2026-11-01) created TASK-084's
+Project item in `--stage start` and then printed `Warning: could not sync
+TASK-084 to GitHub Projects (GraphQL: Could not resolve to a node with the
+global id of 'TASK-084' ...)`; the item stayed at the default Status until
+`--stage merge` set it to "Done". Once this requirement is met, the same
+command creates the item and sets its Status to "In Progress" in one run,
+with no warning.
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells
@@ -1262,3 +1296,10 @@ runs the `--stage merge` sync.
       `obsolete`; `task-file-format` documents this alongside the existing
       "only the Workflow Guardian edits Status" rule.
 </content>
+- [ ] A sync stage that creates a Project item sets that item's fields using
+      the node ID from `gh project item-create --format json`, without a
+      second `item-list` lookup; `--stage start` on a task with no existing
+      item ends with the item's Status set to "In Progress".
+- [ ] A sync stage that finds no Project item to act on returns a
+      best-effort warning naming the task, makes no `gh project item-edit`
+      call, and never passes the task ID as an item ID.
