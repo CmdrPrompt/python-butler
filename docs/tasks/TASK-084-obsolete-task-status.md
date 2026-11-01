@@ -1,7 +1,7 @@
 # TASK-084 Add an `obsolete` task Status for work superseded before completion
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 13 (REQUIREMENTS_TASK_WORKFLOW.md)
@@ -49,10 +49,10 @@ Add `obsolete` as a fifth task Status value:
 
 ## Acceptance criteria (Gherkin)
 
-- [ ] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: obsolete is a documented, valid Status value
-- [ ] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: butler_core accepts obsolete as a valid Status
-- [ ] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: backfill sync sets the Project item's Status to Obsolete
-- [ ] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: missing Obsolete option warns instead of raising
+- [x] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: obsolete is a documented, valid Status value
+- [x] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: butler_core accepts obsolete as a valid Status
+- [x] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: backfill sync sets the Project item's Status to Obsolete
+- [x] See `tests/bdd/features/TASK-084-obsolete-task-status.feature`: Scenario: missing Obsolete option warns instead of raising
 
 ## Out of scope
 - Butler creating/configuring the Project's "Obsolete" Status field option
@@ -68,10 +68,29 @@ Add `obsolete` as a fifth task Status value:
 None
 
 ## Completion
-**Date:** TBD
-**Summary:** TBD
+**Date:** 2026-11-01
+**Summary:** Added `obsolete` (and the previously rejected `blocked`) to
+`VALID_STATUSES`, which `set-status` and `task list --status` now share.
+Backfill sync already matched Status options generically and is covered by
+new BDD scenarios. Documented the value, its terminal nature and who may set
+it in the `task-file-format` skill, the agent templates and the Workflow
+Guardian. Added a README note on the manually configured Project Status
+options.
 **Files changed:**
-- `path/to/file` - created / modified
+- `src/butler_core/tasks.py` - modified
+- `src/butler_cli/__main__.py` - modified
+- `.claude/skills/task-file-format/SKILL.md` - modified
+- `claude-skills/task-file-format/SKILL.md` - modified
+- `.claude/agents/workflow-guardian.agent.md` - modified
+- `claude-agents/workflow-guardian.agent.md` - modified
+- `templates/task-drafter.agent.md.tmpl` - modified
+- `templates/workflow-guardian.agent.md.tmpl` - modified
+- `README.md` - modified
+- `tests/test_tasks.py` - modified
+- `tests/test_cli.py` - modified
+- `tests/bdd/features/TASK-084-obsolete-task-status.feature` - modified
+- `tests/bdd/steps/test_task_084_steps.py` - modified
+- `CHANGELOG.md` - modified
 **Branch:** `git checkout task/084-obsolete-task-status`
-**Stage:** `path/to/file1 path/to/file2 CHANGELOG.md`
-**Commit:** `git commit -m "Add an obsolete task Status for work superseded before completion"`
+**Stage:** `src/butler_core/tasks.py src/butler_cli/__main__.py .claude/skills/task-file-format/SKILL.md claude-skills/task-file-format/SKILL.md .claude/agents/workflow-guardian.agent.md claude-agents/workflow-guardian.agent.md templates/task-drafter.agent.md.tmpl templates/workflow-guardian.agent.md.tmpl README.md tests/test_tasks.py tests/test_cli.py tests/bdd/features/TASK-084-obsolete-task-status.feature tests/bdd/steps/test_task_084_steps.py docs/tasks/TASK-084-obsolete-task-status.md CHANGELOG.md`
+**Commit:** `git commit -m "Add an obsolete task Status for work superseded before completion (TASK-084)"`

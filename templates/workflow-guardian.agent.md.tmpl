@@ -40,6 +40,8 @@ Your job is to enforce the repository process in every change and prevent out-of
 - A task file with any open item under `## Blockers` has Status `blocked`
   and must not be implemented until the blocker is resolved with the user
   (usually a follow-up requirements round).
+- A task file with Status `obsolete` must never be implemented; it is a
+  terminal state for work superseded before completion.
 
 1. Dedicated task branch gate
 - Every task must have a task file in `docs/tasks/TASK-XXX-*.md`.
@@ -97,7 +99,7 @@ Every task lives in `docs/tasks/<TASK-ID>-short-description.md`:
 # <TASK-ID> Short description
 
 ## Status
-todo | in-progress | blocked | done
+todo | in-progress | blocked | done | obsolete
 
 ## Requirements
 **Binding:** REQ-XXX, REQ-YYY

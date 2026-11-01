@@ -4,6 +4,14 @@
 
 ### Added
 
+- New terminal task Status `obsolete` for work superseded before
+  completion. `butler task set-status` and `butler task list --status` now
+  accept `obsolete` as well as `blocked`, which was previously rejected.
+  `sync-project --stage backfill` maps an obsolete task to the Project's
+  "Obsolete" Status option, and only warns if that option is missing. The
+  `task-file-format` skill and the agent templates document the value and
+  who may set it, and the README explains how to add the "Obsolete" option
+  to a Project. (TASK-084)
 - The `stage-current-task`/`stage-task`, `commit-current-task`/`commit-task`,
   `pr-current-task`/`pr-task`, and `merge-current-task`/`merge-pr` Makefile
   target pairs now guard against runaway recursion: each family checks its

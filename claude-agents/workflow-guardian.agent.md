@@ -82,6 +82,8 @@ file only defines what YOU gate and verify on top of them:
     `[TRIGGER TBD]` in referenced requirements) must be resolved via a new
     Requirements Drafter round before implementation. Never waive a blocker
     yourself; only the user can.
+  - Its Status is not `obsolete`. An obsolete task was superseded before
+    completion and is never implemented.
   - The Precedence section (requirements binding, story is context) is present.
   - Its Gherkin scenarios contain every measurable value from the referenced
     requirements.
