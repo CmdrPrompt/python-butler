@@ -1295,7 +1295,6 @@ with no warning.
 - [ ] Only the Workflow Guardian (or the user) sets a task's Status to
       `obsolete`; `task-file-format` documents this alongside the existing
       "only the Workflow Guardian edits Status" rule.
-</content>
 - [ ] A sync stage that creates a Project item sets that item's fields using
       the node ID from `gh project item-create --format json`, without a
       second `item-list` lookup; `--stage start` on a task with no existing
