@@ -42,6 +42,17 @@
 
 ### Fixed
 
+- `make merge-current-task` / `butler task merge` no longer crash with a
+  traceback when local `main` already holds commits that were squashed into
+  the PR (the usual result of committing the task file on `main` first).
+  After the squash merge, local `main` is fast-forwarded when it has nothing
+  extra, or moved to `origin/main` with `git reset --keep` when every
+  local-only commit is contained in the merged PR (uncommitted work is kept).
+  If local `main` has unpushed commits that are not in the PR, it is left
+  untouched and a one-line error explains how to resolve it; any other git
+  failure after the merge is reported the same way. Because the merge step
+  now succeeds, the merge-stage GitHub Projects sync runs. (TASK-100)
+
 - The CI security audit (`ci / audit`) passes again: the locked development
   dependencies `virtualenv`, `filelock`, `urllib3`, `certifi` and `msgpack`
   are upgraded to versions without the 34 known vulnerabilities `pip-audit`

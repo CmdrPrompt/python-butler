@@ -1097,6 +1097,48 @@ make pr-current-task
 # in progress would be refused.
 ```
 
+## Requirement 19: `merge_pr_for` leaves local `main` consistent with `origin/main` and never crashes on a diverged `main`
+
+**Description:** A new task file and its requirement can reach `origin/main`
+only inside the task PR's squash commit. When they were committed on local
+`main` first (never pushed directly), local `main` still holds those
+unpushed commits after the squash merge, although their content is already
+in `origin/main`. A bare `git pull` then diverges, attempts a conflicting
+merge and aborts `butler task merge` with an uncaught traceback, which also
+prevents the `--stage merge` Projects sync from running.
+
+After a successful squash merge, `merge_pr_for` (backing `butler task merge`
+/ `make merge-pr` / `make merge-current-task`) MUST:
+
+- fetch `origin/main` and, when local `main` is behind or equal to
+  `origin/main`, fast-forward it (`git pull --ff-only`);
+- when local `main` has commits not in `origin/main` and every such commit is
+  an ancestor of the merged PR's head commit (its content is in the squash
+  commit), move local `main` to `origin/main` without discarding uncommitted
+  work (e.g. `git reset --keep origin/main`);
+- when local `main` has commits that are not in `origin/main` and are not
+  contained in the merged PR, leave local `main` unchanged and raise
+  `GitOpsError` whose message states that the PR was merged, that local
+  `main` has unpushed commits not in the PR, and the command needed to
+  resolve it;
+- never leave the repository mid-merge or in a conflicted state, and never
+  let a git failure after the merge surface as an uncaught
+  `CalledProcessError` traceback; every such failure is reported as
+  `GitOpsError`.
+
+`branch_for`'s behaviour (Requirement 7: new branches are based on
+`origin/main`) is unchanged by this requirement.
+
+**Use case:** TASK-098 (PR #104, 2026-11-01). The task file and Requirement 6
+of `REQUIREMENTS_REUSABLE_CI.md` were committed on local `main` with `make
+commit-output`, carried into the task branch with `make sync-main` and
+squash-merged as `fada677`. `make merge-current-task` then failed in `git
+pull` with add/add conflicts and a `CalledProcessError` traceback, the
+merge-stage sync never ran, and local `main` had to be repaired by hand with
+`git merge --abort` and `git reset --hard origin/main`. Once this requirement
+is met, the same sequence moves local `main` to `origin/main`, exits 0 and
+runs the `--stage merge` sync.
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells

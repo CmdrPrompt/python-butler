@@ -115,8 +115,45 @@ def open_pr_for(task: Task, tasks_dir: str = DEFAULT_TASKS_DIR) -> None:
     )
 
 
+def _one_line(stderr: object) -> str:
+    return " ".join(str(stderr or "").split()) or "no error output"
+
+
+def _git_after_merge(*args: str, ok_codes: tuple[int, ...] = (0,)) -> int:
+    """Run a git command after the merge; a failure becomes a one-line GitOpsError."""
+    cmd = f"git {' '.join(args)}"
+    try:
+        result = subprocess.run(  # nosec B603 B607 -- fixed git CLI invocation
+            ["git", *args], check=False, capture_output=True, text=True
+        )
+    except subprocess.CalledProcessError as exc:
+        raise GitOpsError(f"PR was merged, but '{cmd}' failed: {_one_line(exc.stderr)}") from exc
+    if result.returncode not in ok_codes:
+        raise GitOpsError(f"PR was merged, but '{cmd}' failed: {_one_line(result.stderr)}")
+    return int(result.returncode)
+
+
+def _update_local_main(head_sha: str) -> None:
+    """Bring local main in line with origin/main after the squash merge (Requirement 19)."""
+    _git_after_merge("checkout", "main")
+    _git_after_merge("fetch", "origin", "main")
+    # Exit 0: local main has no commits missing from origin/main; 1: it has local-only ones.
+    if _git_after_merge("merge-base", "--is-ancestor", "main", "origin/main", ok_codes=(0, 1)) == 0:
+        _git_after_merge("pull", "--ff-only")
+        return
+    # Local-only commits: safe to drop only when the merged PR already contains them all.
+    if _git_after_merge("merge-base", "--is-ancestor", "main", head_sha, ok_codes=(0, 1)) == 1:
+        raise GitOpsError(
+            "PR was merged, but local main has unpushed commits that are not in the PR; "
+            "local main was left unchanged. Review them with "
+            "'git log origin/main..main', then run 'git rebase origin/main' to keep them "
+            "or 'git reset --keep origin/main' to drop them"
+        )
+    _git_after_merge("reset", "--keep", "origin/main")
+
+
 def merge_pr_for(task: Task) -> None:
-    """Squash-merge the task's open PR and pull main, matching Makefile `merge-pr`."""
+    """Squash-merge the task's open PR and update main, matching Makefile `merge-pr`."""
     branch = task.branch_name
     list_result = subprocess.run(  # nosec B603 B607
         ["gh", "pr", "list", "--head", branch, "--json", "number", "--jq", ".[0].number"],
@@ -138,8 +175,16 @@ def merge_pr_for(task: Task) -> None:
     if state != "MERGEABLE":
         raise GitOpsError(f"PR #{pr} not mergeable ({state})")
 
+    # Captured before the merge: --delete-branch removes the branch the SHA is read from.
+    head_result = subprocess.run(  # nosec B603 B607
+        ["gh", "pr", "view", pr, "--json", "headRefOid", "--jq", ".headRefOid"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    head_sha = head_result.stdout.strip()
+
     subprocess.run(  # nosec B603 B607
         ["gh", "pr", "merge", pr, "--squash", "--delete-branch"], check=True
     )
-    subprocess.run(["git", "checkout", "main"], check=True)  # nosec B603 B607
-    subprocess.run(["git", "pull"], check=True)  # nosec B603 B607
+    _update_local_main(head_sha)
