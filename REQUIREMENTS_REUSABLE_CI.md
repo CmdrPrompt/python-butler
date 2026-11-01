@@ -134,6 +134,27 @@ workflow) alongside `validate-agents`, and a failing `make lint`/`make
 test`/`pip-audit` blocks the PR the same way it already does for
 `firefly-bank-importer`.
 
+## Requirement 6: Locked dependencies pass the CI security audit
+
+**Description:** Every package pinned in `uv.lock` is locked to a version
+with no known vulnerabilities according to `pip-audit`, so the `ci / audit`
+job exits 0. Local packages that are not published on PyPI (here
+`butler-core` itself) are reported under "Skip" and do not count as a
+failure. When an advisory is published for an already-locked version,
+only the affected packages are upgraded (`uv lock --upgrade-package ...`),
+not the whole lockfile, and the upgrade must keep `make lint`, `make test`,
+`make bdd` and the pre-commit hooks passing.
+
+**Use case:** On 2026-11-01, `ci / audit` fails on `main` (TASK-097 push)
+and on PR #103 (TASK-096) with "Found 34 known vulnerabilities in 5
+packages" — `virtualenv` 21.6.0, `filelock` 3.29.6, `urllib3` 2.7.0,
+`certifi` 2026.7.22 and `msgpack` 1.2.1, all transitive dev dependencies
+via `pre-commit` and `pip-audit`. The `butler-core (0.1.0)` "Dependency
+not found on PyPI" line is informational, not the cause. Once this
+requirement is met, `uv run pip-audit --progress-spinner=off` exits 0
+locally and in CI, and PRs on this repo are no longer blocked by advisories
+against locked versions.
+
 ## Acceptance criteria (overall)
 
 - [ ] `.github/workflows/python-ci.yml` exists in this repo, triggered by
@@ -162,3 +183,7 @@ test`/`pip-audit` blocks the PR the same way it already does for
       `python-ci.yml` (dogfooding), running `make lint`/`make test`/
       `pip-audit` on every PR here, alongside the existing
       `validate-agents` job.
+- [ ] `uv run pip-audit --progress-spinner=off` reports no known
+      vulnerabilities for the packages in `uv.lock` (only `butler-core`
+      under "Skip") and exits 0, both locally and in this repo's
+      `ci / audit` job.
