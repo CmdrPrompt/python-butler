@@ -24,10 +24,13 @@ Feature: Upgrade locked dependencies so the CI security audit passes
     Then each of them passes
 
   @AC-4
-  Scenario: Only affected packages change in the lockfile
-    Given the `uv.lock` committed on `main`
-    When the lockfile is upgraded for `virtualenv`, `filelock`, `urllib3`, `certifi` and `msgpack` only
-    Then those five packages change to a version with no known vulnerabilities
-    And only their required transitive dependencies change version
-    And no other pinned package changes version
-    And `pyproject.toml` is unchanged
+  Scenario: Affected packages stay at or above their fixed versions
+    Given the packages pinned in `uv.lock`
+    When the locked versions of the affected packages are read
+    Then each affected package is locked at or above its first fixed version
+      | package    | fixed version |
+      | virtualenv | 21.7.13       |
+      | filelock   | 4.2.1         |
+      | urllib3    | 2.8.0         |
+      | certifi    | 2026.10.18    |
+      | msgpack    | 1.2.3         |

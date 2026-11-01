@@ -26,6 +26,11 @@
 
 ### Fixed
 
+- The CI security audit (`ci / audit`) passes again: the locked development
+  dependencies `virtualenv`, `filelock`, `urllib3`, `certifi` and `msgpack`
+  are upgraded to versions without the 34 known vulnerabilities `pip-audit`
+  reported (`filelock` moves to 4.x). Only `uv.lock` changes. (TASK-098)
+
 - `generate-governance-files FORCE=1` no longer clobbers a project's real
   name/description with the `my-project` / `Describe your project here.`
   placeholders when regenerating `CLAUDE.md` and

@@ -1,7 +1,7 @@
 # TASK-098 Upgrade vulnerable locked dependencies
 
 ## Status
-todo
+done
 
 ## Requirements
 **Binding:** Requirement 6 (REQUIREMENTS_REUSABLE_CI.md)
@@ -52,10 +52,11 @@ is met only when the audit passes against the locked versions.
 ## Acceptance criteria (Gherkin)
 **Feature files:** tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature
 
-- [ ] 1. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Locked dependencies report no known vulnerabilities" (@AC-1)
-- [ ] 2. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Only the local package is skipped" (@AC-2)
-- [ ] 3. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Quality gates still pass after the upgrade" (@AC-3)
-- [ ] 4. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Only affected packages change in the lockfile" (@AC-4)
+- [x] 1. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Locked dependencies report no known vulnerabilities" (@AC-1)
+- [x] 2. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Only the local package is skipped" (@AC-2)
+- [x] 3. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Quality gates still pass after the upgrade" (@AC-3)
+- [x] 4. See `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature`: Scenario "Affected packages stay at or above their fixed versions" (@AC-4)
+- [x] 5. Review check (not automated, because it compares against the pre-upgrade lockfile and would break on any later dependency change): `git diff 6c2d5f3 -- uv.lock pyproject.toml` shows only `virtualenv`, `filelock`, `urllib3`, `certifi`, `msgpack`, `python-discovery` and `packaging` changing version, and no change to `pyproject.toml`. Record the result in the Completion summary and the PR description.
 
 ## Out of scope
 - Dependabot or Renovate automation for dependency updates.
@@ -68,10 +69,14 @@ is met only when the audit passes against the locked versions.
 None
 
 ## Completion
-**Date:** YYYY-MM-DD
-**Summary:** What was done, any decisions made, and what was left out and why.
+**Date:** 2026-11-01
+**Summary:** Upgraded only the five audited packages with `uv lock --upgrade-package` (virtualenv 21.6.0 -> 21.15.2, filelock 3.29.6 -> 4.2.6, urllib3 2.7.0 -> 2.8.0, certifi 2026.7.22 -> 2026.10.23, msgpack 1.2.1 -> 1.2.4); the resolver also moved python-discovery 1.4.3 -> 1.9.0 and packaging 26.2 -> 26.3. `uv run pip-audit` now reports no known vulnerabilities (only `butler-core` skipped). The filelock 4.x major bump needed no code changes. `make lint`, `make test` (402 passed, 9 xfailed), `make bdd` and `pre-commit run --all-files` pass. Review check (criterion 5): `git diff 6c2d5f3 -- uv.lock pyproject.toml` shows the same package set, only the seven packages above changing version, and `pyproject.toml` unchanged. Decisions: @AC-4 was reworded from a diff against `main` to "affected packages stay at or above their first fixed version", because a diff against the pre-upgrade lockfile would fail permanently after merge or on any later dependency change; the one-off scope check became review criterion 5. @AC-3 runs `make lint`, pre-commit and `uv lock --check` but not `make test`/`make bdd`, which would recurse into the same test run. The scenarios hit the network (pip-audit) and run as part of `make test` (user's choice, alternative A). Coverage 99% (806/815), unchanged from the task-start baseline.
 **Files changed:**
-- `path/to/file` - created / modified
+- `uv.lock` - modified
+- `CHANGELOG.md` - modified
+- `docs/tasks/TASK-098-upgrade-vulnerable-locked-dependencies.md` - modified
+- `tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature` - modified
+- `tests/bdd/steps/test_task_098_steps.py` - created
 **Branch:** `git checkout task/098-upgrade-vulnerable-locked-dependencies`
 **Stage:** `uv.lock CHANGELOG.md docs/tasks/TASK-098-upgrade-vulnerable-locked-dependencies.md tests/bdd/features/TASK-098-upgrade-vulnerable-locked-dependencies.feature tests/bdd/steps/test_task_098_steps.py`
 **Commit:** `git commit -m "Upgrade locked dev dependencies with known vulnerabilities (TASK-098)"`
