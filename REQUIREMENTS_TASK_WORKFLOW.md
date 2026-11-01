@@ -930,6 +930,173 @@ butler task sync-project TASK-012 --stage open
 # (no note - resolution source is already unambiguous)
 ```
 
+## Requirement 18: Makefile-level recursion guard for `*-current-task` -> `*-task` wrapper pairs
+
+**Description:** Requirement 15 (TASK-086) removed the one *known* cause of
+a `*-current-task`/`*-task` wrapper pair recursing into itself — a task
+file's Completion `**Stage:**` field being executed as an arbitrary shell
+command — but only in `butler` versions that contain that fix. Incident
+2026-09-20 (consumer project `firefly-bills-analyzer`) showed the underlying
+runaway-recursion symptom can still occur through a different path
+entirely: the `butler` binary actually resolved on `PATH` was a stale,
+pre-TASK-086 install living in an unrelated dependency's virtualenv, which
+re-executed the Stage field's literal text (`make stage-current-task`) as a
+command, spawning make[34] through make[109] (60+ nested `make`/`butler`
+processes over roughly 8 minutes) before being killed by hand. Requirement
+15's fix lives entirely inside `butler_core.git_ops`; it cannot protect a
+project whose installed `butler` predates it, and it would not catch an
+unrelated future cause (e.g. a circular Makefile target, or another code
+path re-invoking `make`) producing the same symptom.
+
+Because the vendored `.butler/Makefile` (from the up-to-date `.butler/`
+submodule) is what a user actually runs regardless of which `butler` binary
+resolves on `PATH`, the guard against this class of runaway recursion SHALL
+be implemented at the Makefile level, not solely inside `butler_core`/
+`butler_cli`, so it remains effective even against a stale installed
+`butler` binary.
+
+This requirement covers every `*-current-task` -> `*-task` wrapper pair
+currently defined in the root Makefile, each guarded independently by its
+own sentinel environment variable:
+
+| Family  | Wrapper target      | Leaf target(s) invoked via `$(MAKE)` | Sentinel                |
+|---------|----------------------|----------------------------------------|--------------------------|
+| stage   | `stage-current-task`  | `stage-task` (runs `butler task stage`) | `BUTLER_STAGE_GUARD`    |
+| commit  | `commit-current-task` | `commit-task` (runs `butler task commit`) | `BUTLER_COMMIT_GUARD` |
+| pr      | `pr-current-task`     | `pr-task` (runs `butler task branch`, `butler task pr`, `-butler task sync-project --stage open`) | `BUTLER_PR_GUARD` |
+| merge   | `merge-current-task`  | `merge-pr` (runs `butler task merge`, `-butler task sync-project --stage merge`) | `BUTLER_MERGE_GUARD` |
+
+Each family uses its own, separate sentinel rather than one shared sentinel
+across all four: a per-family sentinel lets each family's refusal message
+name the exact family involved, and keeps the families independent so that
+a future legitimate case of one family's leaf target calling a target of a
+*different* family would not be falsely refused by a guard that conflates
+all four into one variable. No legitimate flow nests one family inside
+another today (e.g. `pr-task` never invokes `stage-task`), so this
+independence is not exercised yet, but the guard's design does not foreclose
+it. A leaf target's several sequential `butler ...` invocations within a
+single `make` recipe (e.g. `pr-task`'s three calls, `merge-pr`'s two calls)
+are not recursion and SHALL be unaffected by the guard.
+
+**Mechanism (resolves wrapper/leaf export ordering):** For each family:
+
+- WHEN a wrapper target (`stage-current-task`, `commit-current-task`,
+  `pr-current-task`, `merge-current-task`) begins running, it SHALL check,
+  as its first action, whether that family's sentinel variable is already
+  set in its environment. IF it is set, the wrapper's recipe SHALL exit
+  with status `17`, printing the family's exact error message (below) to
+  stderr — so `make` reports the failure as `Error 17` and the wrapper
+  target's own `make` process exits non-zero (GNU make always exits `2`
+  on a recipe failure, regardless of the recipe's own exit status) — and
+  SHALL NOT invoke `$(MAKE)` or `butler`. IF it is not set, the wrapper
+  SHALL proceed to derive `NUM` from the current branch name and invoke
+  `$(MAKE) <leaf-target> f=TASK-$$NUM` exactly as it does today, and SHALL
+  NOT itself export the sentinel — leaving it unset in the environment the
+  leaf target's `$(MAKE)` invocation receives.
+- WHEN a leaf target (`stage-task`, `commit-task`, `pr-task`, `merge-pr`)
+  begins running (whether invoked directly by a user or via its wrapper),
+  it SHALL check, as its first action, whether that family's sentinel
+  variable is already set in its environment. IF it is set, the leaf
+  target's recipe SHALL exit with status `17`, printing the family's exact
+  error message (below) to stderr — so `make` reports the failure as
+  `Error 17` and the leaf target's own `make` process exits non-zero (GNU
+  make always exits `2` on a recipe failure, regardless of the recipe's
+  own exit status) — and SHALL NOT invoke `$(MAKE)` or `butler`. IF it is
+  not set, the leaf target SHALL export the sentinel (set to `1`) for the
+  remainder of its own recipe's execution — so that variable is inherited
+  by every process it spawns, including any `butler` call and any further
+  `make`/`butler` process that call reaches (directly, or indirectly through
+  a stale `butler` binary) — and SHALL then run its existing `butler ...`
+  command(s) exactly as it does today.
+
+Because only the leaf target exports the sentinel, and the wrapper never
+does, the one legitimate level of nesting (wrapper -> `$(MAKE)` leaf target)
+SHALL NOT trip the guard: the leaf target's own `$(MAKE)` child process
+starts with the sentinel still unset (the wrapper never set it), so the
+leaf's own check-and-export passes normally. Only a second, re-entrant
+invocation of any guarded target in the same family — reached while a leaf
+target of that family is already executing and has already exported its
+sentinel — SHALL be refused, whether that re-entrant invocation arrives via
+`butler`, a circular Makefile target, or any other path.
+
+**Exact error messages** (printed to stderr; one per family, recipe exit
+status `17` in every case, reported by `make` as `Error 17`):
+
+- stage: `Error: stage-current-task/stage-task is already running in this process tree; refusing to recurse.`
+- commit: `Error: commit-current-task/commit-task is already running in this process tree; refusing to recurse.`
+- pr: `Error: pr-current-task/pr-task is already running in this process tree; refusing to recurse.`
+- merge: `Error: merge-current-task/merge-pr is already running in this process tree; refusing to recurse.`
+
+**Out of scope for this requirement:**
+
+- Re-fixing Requirement 15's original cause (already fixed in current
+  source).
+- Detecting or warning about a stale installed `butler` version — tracked
+  as a separate follow-up.
+- Changes to `.butler/` submodule distribution or `make butler-pull`.
+- A CLI-level recursion check inside `butler task stage`/`commit`/`pr`/
+  `merge` themselves — considered as a possible additional layer, but out
+  of scope here; this requirement covers only the Makefile-level guard,
+  which is effective even against a stale installed `butler` binary and is
+  therefore the layer that actually addresses the 2026-09-20 incident. A
+  CLI-level check may be filed as a separate follow-up task.
+
+**Use case:**
+
+```bash
+# Direct leaf invocation, no wrapper — unaffected:
+make stage-task f=TASK-096
+# BUTLER_STAGE_GUARD is unset; stage-task checks it, finds it unset, exports
+# BUTLER_STAGE_GUARD=1, then runs `butler --tasks-dir docs/tasks task stage
+# TASK-096` exactly as it does today.
+
+# Normal wrapper invocation (the one legitimate level of nesting) — unaffected:
+make stage-current-task
+# stage-current-task derives NUM from the branch, checks BUTLER_STAGE_GUARD
+# (unset), does NOT export it, and runs `$(MAKE) stage-task f=TASK-096` as
+# its one child process. That child (stage-task) sees BUTLER_STAGE_GUARD
+# still unset, exports it, and runs `butler ... task stage TASK-096`;
+# completes exactly as it does today.
+
+# Recursive/re-entrant invocation — e.g. a stale installed `butler` binary
+# executes a task file's Stage field as a command, or any other future
+# cause re-invokes a guarded target while one is already running:
+make stage-current-task
+# stage-current-task checks BUTLER_STAGE_GUARD (unset), runs
+# `$(MAKE) stage-task f=TASK-096`. stage-task checks BUTLER_STAGE_GUARD
+# (unset), exports BUTLER_STAGE_GUARD=1, and runs
+# `butler ... task stage TASK-096`. That butler process (via a stale binary,
+# or any other path) attempts to invoke `make stage-current-task` again;
+# this re-entrant child process inherits BUTLER_STAGE_GUARD=1 from its
+# parent (stage-task) and, being a wrapper target, checks the sentinel
+# first:
+#   Error: stage-current-task/stage-task is already running in this
+#   process tree; refusing to recurse.
+# the recipe exits with status 17 immediately (make reports `Error 17`);
+# no further nested make/butler process is spawned.
+# The butler call inside the original stage-task consequently fails (its
+# own child `make stage-current-task` process reported `Error 17` and
+# exited non-zero -- GNU make itself always exits 2 on a recipe failure,
+# not the recipe's own 17), so stage-task's recipe line fails and that
+# target's own `make` process also exits non-zero, and the outer
+# stage-current-task's `$(MAKE) stage-task` invocation likewise exits
+# non-zero — make reports the recipe failure, with the inner refusal
+# message ("Error: stage-current-task/stage-task is already running in
+# this process tree; refusing to recurse.") visible in the combined
+# output.
+
+# pr-task's several sequential butler calls in one recipe are not
+# recursion and are unaffected:
+make pr-current-task
+# pr-current-task checks BUTLER_PR_GUARD (unset), runs
+# `$(MAKE) pr-task f=TASK-096`. pr-task checks BUTLER_PR_GUARD (unset),
+# exports BUTLER_PR_GUARD=1, then runs `butler task branch`,
+# `butler task pr`, and `-butler task sync-project --stage open` in
+# sequence within the same recipe -- all three run normally; only a
+# second, re-entrant invocation of pr-current-task/pr-task while this is
+# in progress would be refused.
+```
+
 ## Acceptance criteria (overall)
 
 - [ ] A regression test exists asserting `butler_core.git_ops` never shells

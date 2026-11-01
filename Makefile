@@ -276,13 +276,21 @@ sync-main:
 
 ## Auto-fix and stage files listed in a task file: make stage-task f=TASK-001
 stage-task: check-butler
+	@if [ -n "$$BUTLER_STAGE_GUARD" ]; then \
+		echo "Error: stage-current-task/stage-task is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@[ -n "$(f)" ] || (echo "Usage: make stage-task f=<task-id>"; exit 1)
-	butler --tasks-dir $(TASKS_DIR) task stage $(f)
+	BUTLER_STAGE_GUARD=1 butler --tasks-dir $(TASKS_DIR) task stage $(f)
 
 ## Commit using message from task file: make commit-task f=TASK-001
 commit-task: check-butler
+	@if [ -n "$$BUTLER_COMMIT_GUARD" ]; then \
+		echo "Error: commit-current-task/commit-task is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@[ -n "$(f)" ] || (echo "Usage: make commit-task f=<task-id>"; exit 1)
-	butler --tasks-dir $(TASKS_DIR) task commit $(f)
+	BUTLER_COMMIT_GUARD=1 butler --tasks-dir $(TASKS_DIR) task commit $(f)
 
 ## Sync a task to its GitHub Projects item at the draft stage: make sync-project-draft f=TASK-001
 sync-project-draft: check-butler
@@ -296,6 +304,10 @@ sync-project-backfill: check-butler
 
 ## Auto-fix and stage files for the current task branch
 stage-current-task:
+	@if [ -n "$$BUTLER_STAGE_GUARD" ]; then \
+		echo "Error: stage-current-task/stage-task is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@BRANCH=$$(git branch --show-current); \
 	NUM=$$(echo "$$BRANCH" | sed -n 's#^task/\([0-9][0-9][0-9]\)-.*#\1#p'); \
 	[ -n "$$NUM" ] || (echo "Not on a task branch (expected task/<NNN>-...)"; exit 1); \
@@ -303,6 +315,10 @@ stage-current-task:
 
 ## Commit using task file metadata for the current task branch
 commit-current-task:
+	@if [ -n "$$BUTLER_COMMIT_GUARD" ]; then \
+		echo "Error: commit-current-task/commit-task is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@BRANCH=$$(git branch --show-current); \
 	NUM=$$(echo "$$BRANCH" | sed -n 's#^task/\([0-9][0-9][0-9]\)-.*#\1#p'); \
 	[ -n "$$NUM" ] || (echo "Not on a task branch (expected task/<NNN>-...)"; exit 1); \
@@ -317,13 +333,21 @@ commit-output:
 
 ## Open a GitHub PR using task title and description: make pr-task f=TASK-001
 pr-task: check-butler
+	@if [ -n "$$BUTLER_PR_GUARD" ]; then \
+		echo "Error: pr-current-task/pr-task is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@[ -n "$(f)" ] || (echo "Usage: make pr-task f=<task-id>"; exit 1)
-	butler --tasks-dir $(TASKS_DIR) task branch $(f)
-	butler --tasks-dir $(TASKS_DIR) task pr $(f)
-	-butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage open
+	BUTLER_PR_GUARD=1 butler --tasks-dir $(TASKS_DIR) task branch $(f)
+	BUTLER_PR_GUARD=1 butler --tasks-dir $(TASKS_DIR) task pr $(f)
+	-BUTLER_PR_GUARD=1 butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage open
 
 ## Open PR using task file metadata for the current task branch
 pr-current-task:
+	@if [ -n "$$BUTLER_PR_GUARD" ]; then \
+		echo "Error: pr-current-task/pr-task is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@BRANCH=$$(git branch --show-current); \
 	NUM=$$(echo "$$BRANCH" | sed -n 's#^task/\([0-9][0-9][0-9]\)-.*#\1#p'); \
 	[ -n "$$NUM" ] || (echo "Not on a task branch (expected task/<NNN>-...)"; exit 1); \
@@ -331,12 +355,20 @@ pr-current-task:
 
 ## Squash-merge the open PR for a task branch: make merge-pr f=TASK-001
 merge-pr: check-butler
+	@if [ -n "$$BUTLER_MERGE_GUARD" ]; then \
+		echo "Error: merge-current-task/merge-pr is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@[ -n "$(f)" ] || (echo "Usage: make merge-pr f=<task-id>"; exit 1)
-	butler --tasks-dir $(TASKS_DIR) task merge $(f)
-	-butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage merge
+	BUTLER_MERGE_GUARD=1 butler --tasks-dir $(TASKS_DIR) task merge $(f)
+	-BUTLER_MERGE_GUARD=1 butler --tasks-dir $(TASKS_DIR) task sync-project $(f) --stage merge
 
 ## Squash-merge the open PR for the current task branch, then pull main
 merge-current-task:
+	@if [ -n "$$BUTLER_MERGE_GUARD" ]; then \
+		echo "Error: merge-current-task/merge-pr is already running in this process tree; refusing to recurse." >&2; \
+		exit 17; \
+	fi
 	@BRANCH=$$(git branch --show-current); \
 	NUM=$$(echo "$$BRANCH" | sed -n 's#^task/\([0-9][0-9][0-9]\)-.*#\1#p'); \
 	[ -n "$$NUM" ] || (echo "Not on a task branch (expected task/<NNN>-...)"; exit 1); \

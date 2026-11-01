@@ -79,7 +79,15 @@ class TestExtractButlerInvocationFlags:
     def test_parses_real_root_makefile_without_error(self) -> None:
         makefile_text = (_REPO_ROOT / "Makefile").read_text()
         flags = _extract_butler_invocation_flags(makefile_text)
-        assert flags == {"--tasks-dir"}
+        # `--stage` is passed by the sync-project butler invocations
+        # (e.g. `task sync-project ... --stage open`); it was previously
+        # invisible to this extractor only because those lines began with
+        # a bare `-butler` (make's "ignore failure" prefix directly
+        # touching "butler", excluded by the extractor's lookbehind).
+        # TASK-096's `BUTLER_*_GUARD=1 butler ...` env-var prefix put a
+        # space before "butler" on those same lines, so the extractor now
+        # correctly recognizes them as invocations.
+        assert flags == {"--tasks-dir", "--stage"}
 
 
 class TestCollectAcceptedFlags:

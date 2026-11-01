@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- The `stage-current-task`/`stage-task`, `commit-current-task`/`commit-task`,
+  `pr-current-task`/`pr-task`, and `merge-current-task`/`merge-pr` Makefile
+  target pairs now guard against runaway recursion: each family checks its
+  own sentinel environment variable (`BUTLER_STAGE_GUARD`,
+  `BUTLER_COMMIT_GUARD`, `BUTLER_PR_GUARD`, `BUTLER_MERGE_GUARD`) as its
+  first action and refuses to proceed — printing a clear error and failing
+  fast — if that family is already running somewhere in the process tree,
+  rather than silently spawning an unbounded tree of nested `make`/`butler`
+  processes. This is a defense-in-depth guard at the Makefile level, so it
+  protects even a stale installed `butler` binary that predates the fix for
+  the original known cause of such recursion (TASK-086). Normal usage —
+  direct leaf invocation, one level of wrapper-to-leaf nesting, and a leaf's
+  own sequential `butler` calls within one recipe — is unaffected. (TASK-096)
+
 ### Changed
 
 - Generated `CLAUDE.md` is down from 122 to 71 lines: it keeps the rules no skill owns (spec-first gate, Workflow
