@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -29,6 +30,18 @@ def _completed(returncode: int = 0, stdout: str = "") -> MagicMock:
     return result
 
 
+def _merge_responder(args: list[str]) -> MagicMock:
+    """`merge_pr_for`'s gh queries answered by command, so the number and order
+    of the git commands that follow the merge is free to change."""
+    if args[:3] == ["gh", "pr", "list"]:
+        return _completed(stdout="42\n")
+    if args[:3] == ["gh", "pr", "view"] and "mergeable" in args:
+        return _completed(stdout="MERGEABLE\n")
+    if args[:3] == ["gh", "pr", "view"] and "headRefOid" in args:
+        return _completed(stdout="abc123\n")
+    return _completed()
+
+
 class _RecordingRun:
     """Records every `subprocess.run` invocation's first positional argument.
 
@@ -36,13 +49,20 @@ class _RecordingRun:
     `merge_pr_for`) whose control flow depends on prior calls' stdout.
     """
 
-    def __init__(self, results: list[MagicMock] | None = None) -> None:
+    def __init__(
+        self,
+        results: list[MagicMock] | None = None,
+        responder: Callable[[list[str]], MagicMock] | None = None,
+    ) -> None:
         self.calls: list[list[str]] = []
         self._results = results
+        self._responder = responder
         self._index = 0
 
     def __call__(self, args: list[str], **kwargs: object) -> MagicMock:
         self.calls.append(list(args))
+        if self._responder is not None:
+            return self._responder(list(args))
         if self._results is not None:
             result = self._results[self._index]
             self._index += 1
@@ -206,14 +226,7 @@ class TestEndToEndMergeNoNestedProcess:
     def test_butler_task_merge_spawns_no_make_or_butler_process(self, tmp_path: Path) -> None:
         tasks_dir = tmp_path / "docs" / "tasks"
         task = create_task("Merge task", "desc", tasks_dir=str(tasks_dir))
-        results = [
-            _completed(stdout="42\n"),
-            _completed(stdout="MERGEABLE\n"),
-            _completed(),
-            _completed(),
-            _completed(),
-        ]
-        recorder = _RecordingRun(results=results)
+        recorder = _RecordingRun(responder=_merge_responder)
 
         with patch("butler_core.git_ops.subprocess.run", recorder):
             exit_code = main(["--tasks-dir", str(tasks_dir), "task", "merge", task.id])
@@ -260,14 +273,7 @@ class TestUnitLevelGitOpsFunctionsNeverCallMake:
 
     def test_merge_pr_for(self, tmp_path: Path) -> None:
         task = create_task("Some task", "desc", tasks_dir=str(tmp_path / "docs" / "tasks"))
-        results = [
-            _completed(stdout="42\n"),
-            _completed(stdout="MERGEABLE\n"),
-            _completed(),
-            _completed(),
-            _completed(),
-        ]
-        recorder = _RecordingRun(results=results)
+        recorder = _RecordingRun(responder=_merge_responder)
         with patch("butler_core.git_ops.subprocess.run", recorder):
             merge_pr_for(task)
         assert "make" not in recorder.first_args

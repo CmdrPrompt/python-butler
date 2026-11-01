@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -241,24 +242,94 @@ class TestOpenPrFor:
             open_pr_for(task, tasks_dir=str(tmp_path))
 
 
+def _merge_responder(
+    fail_on: tuple[str, ...] = (),
+) -> Callable[..., MagicMock]:
+    """Fake `subprocess.run` for `merge_pr_for`: answers the gh PR queries and
+    reports an in-sync local main (no output, exit 0) for every other command.
+    Commands whose second word is in `fail_on` raise CalledProcessError."""
+
+    def respond(args: list[str], **kwargs: object) -> MagicMock:
+        if args[:3] == ["gh", "pr", "list"]:
+            return _completed(stdout="42\n")
+        if args[:3] == ["gh", "pr", "view"] and "mergeable" in args:
+            return _completed(stdout="MERGEABLE\n")
+        if args[:3] == ["gh", "pr", "view"] and "headRefOid" in args:
+            return _completed(stdout="abc123\n")
+        if args[0] == "git" and args[1] in fail_on:
+            raise subprocess.CalledProcessError(1, args, stderr="fatal: boom")
+        return _completed()
+
+    return respond
+
+
 class TestMergePrFor:
     @patch("butler_core.git_ops.subprocess.run")
-    def test_squash_merges_mergeable_pr_and_pulls_main(self, mock_run: MagicMock) -> None:
+    def test_squash_merges_mergeable_pr_then_checks_out_main(self, mock_run: MagicMock) -> None:
         task = read_task("TASK-015", tasks_dir="docs/tasks")
-        mock_run.side_effect = [
-            _completed(stdout="42\n"),
-            _completed(stdout="MERGEABLE\n"),
-            _completed(),
-            _completed(),
-            _completed(),
-        ]
+        mock_run.side_effect = _merge_responder()
 
         merge_pr_for(task)
 
         commands = [call.args[0] for call in mock_run.call_args_list]
-        assert commands[2] == ["gh", "pr", "merge", "42", "--squash", "--delete-branch"]
-        assert commands[3] == ["git", "checkout", "main"]
-        assert commands[4] == ["git", "pull"]
+        merge_index = commands.index(["gh", "pr", "merge", "42", "--squash", "--delete-branch"])
+        assert commands[merge_index + 1] == ["git", "checkout", "main"]
+
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_fetches_origin_main_after_the_merge(self, mock_run: MagicMock) -> None:
+        task = read_task("TASK-015", tasks_dir="docs/tasks")
+        mock_run.side_effect = _merge_responder()
+
+        merge_pr_for(task)
+
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        merge_index = commands.index(["gh", "pr", "merge", "42", "--squash", "--delete-branch"])
+        assert ["git", "fetch", "origin", "main"] in commands[merge_index + 1 :]
+
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_fast_forwards_main_with_ff_only_pull_when_nothing_is_local_only(
+        self, mock_run: MagicMock
+    ) -> None:
+        task = read_task("TASK-015", tasks_dir="docs/tasks")
+        mock_run.side_effect = _merge_responder()
+
+        merge_pr_for(task)
+
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        assert ["git", "pull", "--ff-only"] in commands
+        assert ["git", "pull"] not in commands
+
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_git_failure_after_the_merge_raises_git_ops_error(self, mock_run: MagicMock) -> None:
+        task = read_task("TASK-015", tasks_dir="docs/tasks")
+        mock_run.side_effect = _merge_responder(fail_on=("fetch", "pull"))
+
+        with pytest.raises(GitOpsError):
+            merge_pr_for(task)
+
+    @patch("butler_core.git_ops.subprocess.run")
+    def test_nonzero_git_exit_after_the_merge_is_a_one_line_git_ops_error(
+        self, mock_run: MagicMock
+    ) -> None:
+        task = read_task("TASK-015", tasks_dir="docs/tasks")
+        responder = _merge_responder()
+
+        def respond(args: list[str], **kwargs: object) -> MagicMock:
+            if args[:2] == ["git", "fetch"]:
+                result = _completed(returncode=128)
+                result.stderr = "fatal: unable to access origin\nretry later\n"
+                return result
+            return responder(args, **kwargs)
+
+        mock_run.side_effect = respond
+
+        with pytest.raises(GitOpsError) as excinfo:
+            merge_pr_for(task)
+
+        message = str(excinfo.value)
+        assert "PR was merged, but 'git fetch origin main' failed" in message
+        assert "fatal: unable to access origin retry later" in message
+        assert "\n" not in message
 
     @patch("butler_core.git_ops.subprocess.run")
     def test_raises_when_no_open_pr_found(self, mock_run: MagicMock) -> None:

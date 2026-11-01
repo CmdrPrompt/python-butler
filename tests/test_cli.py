@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -446,6 +447,31 @@ class TestErrorHandling:
         assert exit_code == 1
         err = capsys.readouterr().err
         assert "No open PR for branch task/001-some-feature" in err
+
+    def test_git_failure_after_merge_is_a_clean_error_not_a_traceback(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        create_task("Some feature", "desc", tasks_dir=str(tmp_path))
+
+        def fake_run(args: list[str], **kwargs: object) -> MagicMock:
+            result = MagicMock(returncode=0, stdout="")
+            if args[:3] == ["gh", "pr", "list"]:
+                result.stdout = "42\n"
+            elif args[:3] == ["gh", "pr", "view"] and "mergeable" in args:
+                result.stdout = "MERGEABLE\n"
+            elif args[:3] == ["gh", "pr", "view"]:
+                result.stdout = "abc123\n"
+            elif args[0] == "git" and args[1] in ("fetch", "pull"):
+                raise subprocess.CalledProcessError(1, args, stderr="fatal: boom")
+            return result
+
+        with patch("butler_core.git_ops.subprocess.run", side_effect=fake_run):
+            exit_code = main(["--tasks-dir", str(tmp_path), "task", "merge", "TASK-001"])
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "Traceback" not in captured.err
+        assert len([line for line in captured.err.splitlines() if line.strip()]) == 1
 
     def test_fails_cleanly_on_invalid_criterion_index(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
